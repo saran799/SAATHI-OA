@@ -9,7 +9,7 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerOutline'
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> { variant?: Variant; size?: 'lg' | 'md' | 'sm'; full?: boolean; icon?: LucideIcon; loading?: boolean }
 export function Button({ variant = 'primary', size = 'lg', full, icon: Icon, loading, className, children, disabled, ...rest }: BtnProps) {
-  const base = 'inline-flex items-center justify-center gap-2 rounded-[16px] font-semibold transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.99]'
+  const base = 'inline-flex items-center justify-center gap-2 rounded-[16px] font-semibold transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none min-h-[44px]'
   const sizes = { lg: 'h-14 px-5 text-base', md: 'h-12 px-4 text-[15px] rounded-[14px]', sm: 'h-11 px-3 text-sm rounded-[12px]' }
   const variants: Record<Variant, string> = {
     primary: 'bg-primary text-white hover:bg-primary-dark shadow-[var(--shadow-btn)]',

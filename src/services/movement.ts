@@ -1,5 +1,30 @@
 import type { MovementSummary } from '../domain/types'
-import { calculateAngle, type PosePoint, type JointConfig } from './pose'
+import type { PosePoint, JointConfig } from './pose'
+
+// Local geometric angle calc to avoid static import of heavy pose module (keeps lazy-load effective)
+function calculateAngle(a: PosePoint, b: PosePoint, c: PosePoint): number {
+  if (
+    !a || !b || !c ||
+    !Number.isFinite(a.x) || !Number.isFinite(a.y) ||
+    !Number.isFinite(b.x) || !Number.isFinite(b.y) ||
+    !Number.isFinite(c.x) || !Number.isFinite(c.y)
+  ) {
+    return 0
+  }
+  const ab = { x: a.x - b.x, y: a.y - b.y }
+  const cb = { x: c.x - b.x, y: c.y - b.y }
+  const magAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y)
+  const magCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y)
+  if (magAB < 1e-6 || magCB < 1e-6) return 0
+  const dot = ab.x * cb.x + ab.y * cb.y
+  const denom = magAB * magCB
+  if (denom < 1e-6) return 0
+  let cos = dot / denom
+  cos = Math.max(-1, Math.min(1, cos))
+  const rad = Math.acos(cos)
+  if (!Number.isFinite(rad)) return 0
+  return (rad * 180) / Math.PI
+}
 
 export interface TimestampedSample {
   t: number // seconds from start

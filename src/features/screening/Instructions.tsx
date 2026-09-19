@@ -4,6 +4,7 @@ import { FlowShell } from '../../components/layout/Shells'
 import { Button, cx } from '../../components/ui'
 import { useScreeningPatient, TOTAL_STEPS } from './useGuard'
 import { useT } from '../../i18n'
+import { VoiceButton } from '../../components/Voice'
 
 export default function Instructions() {
   const nav = useNavigate()
@@ -34,6 +35,10 @@ export default function Instructions() {
       <div className="-mt-6 flex items-start justify-between gap-3 flex-wrap">
         <div><h1 className="text-[22px] font-bold tracking-tight leading-tight break-words">{t('screening.instructions.title', { joint: jointLabel })}</h1><p className="text-[14px] text-secondary mt-1 break-words">{t('screening.instructions.subtitle')}</p></div>
         <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.common.pairReady')}</span>
+      </div>
+
+      <div className="mt-3">
+        <VoiceButton text={`${t('screening.instructions.title', { joint: jointLabel })}. ${t('screening.instructions.subtitle')}. ${steps.map(s => `${s.t}. ${s.b}`).join(' ')} ${t('screening.instructions.nextNote')} ${t('screening.instructions.setupTime')}`} />
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2" aria-label="Assessment stages">

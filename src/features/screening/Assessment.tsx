@@ -10,8 +10,42 @@ import { sensor, type MovementSample } from '../../services/sensor'
 import { useScreeningPatient } from './useGuard'
 import { useT } from '../../i18n'
 import { cameraService, type CameraState, type FacingMode } from '../../services/camera'
-import { loadPoseModel, detectPose, getJointConfig, type PosePoint, isPoseModelLoaded } from '../../services/pose'
 import { analyzeMovement, angleFromLandmarks, type TimestampedSample } from '../../services/movement'
+import type { PosePoint } from '../../services/pose'
+import { VoiceButton } from '../../components/Voice'
+
+// Lazy-loaded pose module — MediaPipe only when Assessment entered per spec
+type PoseModule = typeof import('../../services/pose')
+
+// Light copy of joint config to avoid needing heavy pose module for UI
+const JOINT_CONFIGS_LIGHT: Record<string, { left: any; right: any }> = {
+  knee: {
+    left: { joint: 'knee', side: 'left', angleTriplet: [23, 25, 27], required: [23, 25, 27], label: 'Left knee' },
+    right: { joint: 'knee', side: 'right', angleTriplet: [24, 26, 28], required: [24, 26, 28], label: 'Right knee' },
+  },
+  hip: {
+    left: { joint: 'hip', side: 'left', angleTriplet: [11, 23, 25], required: [11, 23, 25], label: 'Left hip' },
+    right: { joint: 'hip', side: 'right', angleTriplet: [12, 24, 26], required: [12, 24, 26], label: 'Right hip' },
+  },
+  shoulder: {
+    left: { joint: 'shoulder', side: 'left', angleTriplet: [11, 13, 15], required: [11, 13, 15], label: 'Left shoulder' },
+    right: { joint: 'shoulder', side: 'right', angleTriplet: [12, 14, 16], required: [12, 14, 16], label: 'Right shoulder' },
+  },
+  hand: {
+    left: { joint: 'hand', side: 'left', angleTriplet: [11, 13, 15], required: [11, 13, 15], label: 'Left hand' },
+    right: { joint: 'hand', side: 'right', angleTriplet: [12, 14, 16], required: [12, 14, 16], label: 'Right hand' },
+  },
+  spine: {
+    left: { joint: 'spine', side: 'left', angleTriplet: [11, 23, 25], required: [11, 23, 25], label: 'Spine' },
+    right: { joint: 'spine', side: 'right', angleTriplet: [12, 24, 26], required: [12, 24, 26], label: 'Spine' },
+  },
+}
+function getJointConfigLight(joint: string, side: string) {
+  const sideKey = side === 'both' ? 'right' : side
+  const jointKey = joint === 'spine' ? 'spine' : joint
+  const cfg = (JOINT_CONFIGS_LIGHT as any)[jointKey] || JOINT_CONFIGS_LIGHT.knee
+  return cfg[sideKey] || cfg.right
+}
 
 const DURATION = 30
 type Phase = 'idle' | 'countdown' | 'recording' | 'complete' | 'interrupted' | 'nomove' | 'cameraError' | 'noPerson' | 'poseError'
@@ -39,14 +73,18 @@ export default function Assessment() {
   const [trace, setTrace] = useState<number[]>([])
   const [confidence, setConfidence] = useState(0)
   const [cameraState, setCameraState] = useState<CameraState>('idle')
-  const [poseLoaded, setPoseLoaded] = useState(isPoseModelLoaded())
+  const [poseLoaded, setPoseLoaded] = useState(false)
   const [poseError, setPoseError] = useState<string | null>(null)
   const [personDetected, setPersonDetected] = useState(false)
   const [stableDetection, setStableDetection] = useState(false)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [showDiagnostics, setShowDiagnostics] = useState(false)
 
-  // Refs for high-frequency values (per spec: avoid unnecessary React updates)
+  // Lazy pose module ref
+  const poseModuleRef = useRef<PoseModule | null>(null)
+  const poseLoadingRef = useRef(false)
+
+  // Refs for high-frequency values
   const samples = useRef<MovementSample[]>([])
   const realSamples = useRef<TimestampedSample[]>([])
   const stopSim = useRef<() => void>(null)
@@ -81,14 +119,6 @@ export default function Assessment() {
 
   const isPreview = isPreviewEnv()
 
-  // Initial idle -> countdown after stable detection or user action
-  useEffect(() => {
-    if (phase === 'idle' && mode === 'camera' && stableDetection && poseLoaded) {
-      // Auto move to countdown when stable? Or require user press Start
-      // For now stay idle until user presses Start
-    }
-  }, [phase, mode, stableDetection, poseLoaded])
-
   // Countdown
   useEffect(() => {
     if (phase !== 'countdown') return
@@ -100,44 +130,62 @@ export default function Assessment() {
     return () => clearTimeout(tId)
   }, [phase, count])
 
-  // Load pose model — initialization per spec
+  // Lazy-load MediaPipe pose only when Assessment entered — per spec performance requirement
   useEffect(() => {
     let cancelled = false
-    if (poseLoaded) return
-    loadPoseModel()
-      .then(() => {
+    const load = async () => {
+      if (poseLoadingRef.current) return
+      poseLoadingRef.current = true
+      try {
+        // Dynamic import — heavy @mediapipe/tasks-vision only loaded here
+        const mod: PoseModule = await import('../../services/pose')
+        if (cancelled) return
+        poseModuleRef.current = mod
+        // Check if already loaded
+        if (mod.isPoseModelLoaded()) {
+          setPoseLoaded(true)
+          setPoseError(null)
+          return
+        }
+        // Load model
+        await mod.loadPoseModel()
         if (!cancelled) {
           setPoseLoaded(true)
           setPoseError(null)
         }
-      })
-      .catch((e) => {
+      } catch (e) {
         console.error('Pose model load failed', e)
         if (!cancelled) {
           setPoseLoaded(false)
           setPoseError('Failed to load pose detection model. Please check network and retry.')
           setPhase('poseError')
         }
-      })
+      } finally {
+        poseLoadingRef.current = false
+      }
+    }
+    load()
     return () => { cancelled = true }
-  }, [poseLoaded])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Camera cleanup mandatory on unmount / route change
+  // Camera cleanup mandatory on unmount / route change + dispose pose model
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       cameraService.stop()
       stopSim.current?.()
+      try {
+        poseModuleRef.current?.disposePoseModel()
+      } catch {}
     }
   }, [])
 
-  // Handle visibility change — pause if tab hidden during recording
+  // Handle visibility change
   useEffect(() => {
     const onVis = () => {
       if (document.hidden && phase === 'recording' && mode === 'camera') {
         console.warn('Tab hidden during recording')
-        // Don't auto-stop, but warn — spec says handle visibility changes
-        // We pause UI update but keep recording if stream alive
       }
     }
     document.addEventListener('visibilitychange', onVis)
@@ -154,7 +202,6 @@ export default function Assessment() {
 
     const stream = await cameraService.request(setCameraState, videoRef.current, { facingMode: facing })
     if (!stream) {
-      // Map to cameraError phase if not already handled
       setPhase(prev => (prev === 'recording' || prev === 'countdown' || prev === 'idle' ? 'cameraError' : prev))
       return null
     }
@@ -174,14 +221,13 @@ export default function Assessment() {
     const newFacing: FacingMode = facingMode === 'environment' ? 'user' : 'environment'
     setFacingMode(newFacing)
     stopCamera()
-    // Small delay to ensure cleanup
     await new Promise(r => setTimeout(r, 300))
     if (phase === 'recording' || phase === 'idle' || phase === 'countdown') {
       await startCamera(newFacing)
     }
   }, [facingMode, phase, startCamera, stopCamera])
 
-  // Simulated sensor effect (existing, clearly labeled Demo)
+  // Simulated sensor effect
   useEffect(() => {
     if (phase !== 'recording') return
     if (mode !== 'simulated') return
@@ -190,7 +236,6 @@ export default function Assessment() {
     stopSim.current = sensor.startAssessment(
       (s) => {
         samples.current.push(s)
-        // Throttle UI updates
         const now = Date.now()
         if (now - lastUpdateRef.current > 100) {
           setAngle(s.angle)
@@ -226,14 +271,13 @@ export default function Assessment() {
   }, [phase, mode])
 
   const finishSimulated = () => {
-    // NOTE: Simulated path uses old heuristic but clearly labeled Demo — real path must NOT use this
     const a = samples.current.map(s => s.angle)
     const rom = a.length ? Math.max(...a) - Math.min(...a) : 0
     let jitter = 0
     for (let i = 2; i < a.length; i++) jitter += Math.abs(a[i] - 2 * a[i - 1] + a[i - 2])
     const smooth = Math.max(0, Math.min(1, 1 - jitter / a.length / 3))
     session.setMovement({
-      rangeOfMotionDeg: Math.round(60 + rom), // simulated only
+      rangeOfMotionDeg: Math.round(60 + rom),
       smoothness: Number(smooth.toFixed(2)),
       durationSec: DURATION,
       repetitions: Math.max(reps, Math.round(DURATION / 6)),
@@ -243,18 +287,16 @@ export default function Assessment() {
     setTimeout(() => nav('/screening/analysis', { replace: true }), 900)
   }
 
-  // Real camera + pose effect — starts when phase recording and mode camera
+  // Real camera + pose effect
   useEffect(() => {
     if (phase !== 'recording' || mode !== 'camera') return
     if (!videoRef.current || !poseLoaded) return
 
-    // Start camera if not already running
     if (cameraState !== 'running' && cameraState !== 'ready') {
       startCamera(facingMode)
     }
 
     return () => {
-      // Cleanup handled by stopCamera on phase change, but ensure no duplicate loops
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
@@ -268,13 +310,15 @@ export default function Assessment() {
     if (cameraState !== 'running' && cameraState !== 'ready') return
     if (!videoRef.current) return
     if (!poseLoaded) return
+    if (!poseModuleRef.current) return
 
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     const joint = session.joint as any
     const side = session.side as any
-    const config = getJointConfig(joint, side)
+    const config = getJointConfigLight(joint, side)
+    const poseMod = poseModuleRef.current
 
     realSamples.current = []
     startTimeRef.current = Date.now()
@@ -299,18 +343,16 @@ export default function Assessment() {
       const now = Date.now()
       const elapsedSec = (now - startTimeRef.current) / 1000
 
-      // Throttle elapsed UI update to 100ms
       if (now - lastUpdateRef.current > 100) {
         setElapsed(Math.min(DURATION, elapsedSec))
       }
 
-      // Guard: never run against zero-dimension/unready video per spec
       if (!video || video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
         rafRef.current = requestAnimationFrame(loop)
         return
       }
 
-      const pose = detectPose(video, now)
+      const pose = poseMod.detectPose(video, now)
 
       if (!pose || pose.landmarks.length === 0) {
         noPersonFramesRef.current++
@@ -319,19 +361,13 @@ export default function Assessment() {
           stableFramesRef.current = Math.max(0, stableFramesRef.current - 1)
           if (stableFramesRef.current < 5) setStableDetection(false)
         }
-        // Insufficient data handling — don't produce fake readings
-        if (elapsedSec > 8 && realSamples.current.length < 20) {
-          // Will be handled as noPerson or nomove at end
-        }
       } else {
         noPersonFramesRef.current = 0
         if (!personDetected) setPersonDetected(true)
 
-        // Check landmark quality per spec
         const { angle: curAngle, confidence: curConf, valid } = angleFromLandmarks(pose.landmarks, config)
 
         if (!valid) {
-          // Invalid frame — don't calculate angle, show guidance
           stableFramesRef.current = Math.max(0, stableFramesRef.current - 1)
           if (stableFramesRef.current < 10) setStableDetection(false)
         } else {
@@ -340,10 +376,8 @@ export default function Assessment() {
             setStableDetection(true)
           }
 
-          // Update high-frequency refs
           lastAngleRef.current = curAngle
 
-          // Throttle UI updates for performance (spec: avoid unnecessary React updates per frame)
           if (now - lastUpdateRef.current > 100) {
             setAngle(curAngle)
             setConfidence(curConf)
@@ -351,14 +385,9 @@ export default function Assessment() {
             lastUpdateRef.current = now
           }
 
-          // Record actual sample per spec: timestamp, angle, confidence
           realSamples.current.push({ t: elapsedSec, angle: curAngle, confidence: curConf })
 
-          // Real rep detection using hysteresis & debounce
           const rs = repStateRef.current
-
-          // Simplified but robust rep detection for live UI
-          // Use direction change with min excursion
           const minExcursion = 15
           const minTimeBetween = 0.8
 
@@ -371,19 +400,14 @@ export default function Assessment() {
             const currDir = curAngle > prevAngle ? 'up' : curAngle < prevAngle ? 'down' : rs.direction
 
             if (currDir !== rs.direction && Math.abs(curAngle - prevAngle) > 2) {
-              // Direction changed
               if (rs.direction === 'up') {
-                // Was up, now down → peak
                 rs.candidatePeak = { angle: prevAngle, t: elapsedSec - 0.1 }
-                // Check if enough excursion from last valley
                 const excursion = rs.candidatePeak.angle - rs.lastValley
                 if (excursion >= minExcursion && elapsedSec - rs.lastPeakTime >= minTimeBetween) {
-                  // Valid peak
                   rs.lastPeak = rs.candidatePeak.angle
                   rs.lastPeakTime = rs.candidatePeak.t
                 }
               } else {
-                // Was down, now up → valley
                 rs.candidateValley = { angle: prevAngle, t: elapsedSec - 0.1 }
                 const excursion = rs.lastPeak - rs.candidateValley.angle
                 if (
@@ -395,13 +419,12 @@ export default function Assessment() {
                   setReps(rs.reps)
                   rs.lastValley = rs.candidateValley.angle
                   rs.lastValleyTime = rs.candidateValley.t
-                  rs.lastPeak = -Infinity // reset to avoid double count
+                  rs.lastPeak = -Infinity
                 }
               }
               rs.direction = currDir
             }
 
-            // Update candidate
             if (rs.direction === 'up' && curAngle > rs.candidatePeak.angle) {
               rs.candidatePeak = { angle: curAngle, t: elapsedSec }
             }
@@ -410,17 +433,14 @@ export default function Assessment() {
             }
           }
 
-          // Update last angle ref after logic
           lastAngleRef.current = curAngle
         }
 
-        // Draw skeleton overlay with correct alignment per spec
         if (canvas && ctx && video) {
           const dpr = window.devicePixelRatio || 1
           const displayWidth = canvas.clientWidth
           const displayHeight = canvas.clientHeight
 
-          // Set canvas internal size to match display for crisp rendering
           if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
             canvas.width = displayWidth * dpr
             canvas.height = displayHeight * dpr
@@ -429,45 +449,35 @@ export default function Assessment() {
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
           ctx.clearRect(0, 0, displayWidth, displayHeight)
 
-          // Calculate video display size accounting for object-fit: contain (we use contain for alignment)
           const videoAspect = video.videoWidth / video.videoHeight
           const canvasAspect = displayWidth / displayHeight
           let drawWidth, drawHeight, offsetX, offsetY
 
           if (videoAspect > canvasAspect) {
-            // Video wider than canvas — fit width
             drawWidth = displayWidth
             drawHeight = displayWidth / videoAspect
             offsetX = 0
             offsetY = (displayHeight - drawHeight) / 2
           } else {
-            // Video taller — fit height
             drawHeight = displayHeight
             drawWidth = displayHeight * videoAspect
             offsetX = (displayWidth - drawWidth) / 2
             offsetY = 0
           }
 
-          // Handle mirroring for user-facing camera
           const isMirrored = facingMode === 'user'
 
           ctx.save()
           if (isMirrored) {
             ctx.translate(displayWidth, 0)
             ctx.scale(-1, 1)
-            // Adjust offset for mirrored
-            // When mirrored, offsetX needs to be mirrored too
-            // But we handle landmark x inversion instead
           }
 
-          // Draw landmarks
           pose.landmarks.forEach((p: PosePoint, idx: number) => {
             if ((p.visibility || 0) < 0.3) return
-            // Transform normalized coords to display coords
             let x = offsetX + p.x * drawWidth
             let y = offsetY + p.y * drawHeight
             if (isMirrored) {
-              // Mirror x: landmark x is already not mirrored, so invert
               x = displayWidth - x
             }
             const isTriplet = config.angleTriplet.includes(idx)
@@ -485,7 +495,6 @@ export default function Assessment() {
             }
           })
 
-          // Draw triplet lines
           ctx.strokeStyle = '#0F766E'
           ctx.lineWidth = 3
           ctx.beginPath()
@@ -513,7 +522,6 @@ export default function Assessment() {
 
           ctx.restore()
 
-          // Draw confidence indicator
           if (personDetected) {
             ctx.fillStyle = 'rgba(0,0,0,0.6)'
             ctx.fillRect(8, displayHeight - 32, 120, 24)
@@ -524,13 +532,11 @@ export default function Assessment() {
         }
       }
 
-      // Check completion
       if (elapsedSec >= DURATION) {
         finishReal()
         return
       }
 
-      // Check insufficient movement
       if (elapsedSec >= 8 && realSamples.current.length > 20) {
         const valid = realSamples.current.filter(s => s.confidence >= 0.3)
         if (valid.length > 5) {
@@ -545,7 +551,6 @@ export default function Assessment() {
         }
       }
 
-      // Check no person for long time
       if (elapsedSec >= 5 && noPersonFramesRef.current > 90) {
         setPhase('noPerson')
         stopCamera()
@@ -569,19 +574,17 @@ export default function Assessment() {
   const finishReal = () => {
     const metrics = analyzeMovement(realSamples.current, DURATION)
 
-    // Per spec: if insufficient valid data, do not produce misleading result
     if (!metrics.performed) {
       setPhase('nomove')
       stopCamera()
       return
     }
 
-    // Pass REAL metrics into existing SAATHI analysis pipeline
     session.setMovement({
-      rangeOfMotionDeg: metrics.rangeOfMotionDeg, // REAL ROM
+      rangeOfMotionDeg: metrics.rangeOfMotionDeg,
       smoothness: metrics.smoothness,
       durationSec: DURATION,
-      repetitions: metrics.repetitions, // REAL reps
+      repetitions: metrics.repetitions,
       performed: true,
     })
 
@@ -631,14 +634,11 @@ export default function Assessment() {
         return
       }
       if (!personDetected && !isPreview) {
-        // Require stable detection before allowing start per spec, but allow in preview for testing
-        // Show guidance instead of starting
         setPhase('noPerson')
         return
       }
       setCount(3)
       setPhase('countdown')
-      // Camera will start via effect
     } else {
       setCount(3)
       setPhase('countdown')
@@ -655,7 +655,8 @@ export default function Assessment() {
   const sideLabel = t(`screening.joint.${session.side}`)
   const jointSideLabel = session.side === 'both' ? jointLabel : `${sideLabel} ${jointLabel.toLowerCase()}`
 
-  // Camera error messages per spec — avoid "Camera blocked" unless actual denial
+  const voiceText = `${t('screening.assessment.title')} ${jointSideLabel}. Position your full body in camera frame. Keep ${jointSideLabel} visible. Move slowly. ${t('screening.assessment.active', { duration: DURATION })}`
+
   const getCameraErrorMessage = () => {
     switch (cameraState) {
       case 'denied':
@@ -688,8 +689,8 @@ export default function Assessment() {
         }
       case 'security-error':
         return {
-          title: 'Security error',
-          body: 'Camera access requires a secure HTTPS connection. Please open the app via HTTPS.',
+          title: t('screening.assessment.camera.securityError') || 'Security error — HTTPS required',
+          body: t('screening.assessment.camera.securityErrorBody') || 'Camera access requires a secure HTTPS connection. Please open the app via HTTPS.',
           showPermissionGuidance: false,
         }
       case 'unknown-error':
@@ -756,25 +757,29 @@ export default function Assessment() {
           </span>
         </div>
 
-        {/* Mode toggle — clearly label Demo */}
+        {/* Mode toggle */}
         <div className="mt-3 grid grid-cols-2 gap-2 p-1 bg-tint rounded-[12px]">
           <button
             onClick={() => { stopCamera(); setMode('camera'); restart() }}
-            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px]', mode === 'camera' ? 'bg-primary text-white' : 'text-secondary')}
+            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none', mode === 'camera' ? 'bg-primary text-white' : 'text-secondary')}
+            aria-pressed={mode === 'camera'}
+            aria-label="Live camera mode"
           >
             <Camera size={16} />
             {t('common.live')} Camera
           </button>
           <button
             onClick={() => { stopCamera(); setMode('simulated'); restart() }}
-            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px]', mode === 'simulated' ? 'bg-primary text-white' : 'text-secondary')}
+            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none', mode === 'simulated' ? 'bg-primary text-white' : 'text-secondary')}
+            aria-pressed={mode === 'simulated'}
+            aria-label="Simulated demo mode"
           >
             <Radio size={16} />
             {t('common.simulated')} · Demo
           </button>
         </div>
 
-        {/* Patient / Joint context per spec */}
+        {/* Patient / Joint context */}
         <div className="mt-3 card p-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-bold tracking-wider text-secondary uppercase break-words">LIVE ASSESSMENT</p>
@@ -786,7 +791,13 @@ export default function Assessment() {
           </span>
         </div>
 
-        {/* Body position guidance before Start per spec */}
+        {/* Voice assistance for movement screen */}
+        <div className="mt-3 flex flex-wrap gap-2 items-center">
+          <VoiceButton text={voiceText} />
+          <span className="text-[11px] text-secondary break-words">Voice guidance: {jointSideLabel}</span>
+        </div>
+
+        {/* Body position guidance before Start */}
         {phase === 'idle' && mode === 'camera' && (
           <div className="mt-3 card p-4 bg-info-tint/30">
             <p className="text-[13px] font-bold flex items-center gap-1.5"><Info size={14} /> Position guidance</p>
@@ -796,7 +807,7 @@ export default function Assessment() {
               <li>Move slowly through the instructed movement.</li>
               <li>Ensure good lighting and clear background.</li>
             </ul>
-            {!poseLoaded && <p className="mt-2 text-[12px] text-warning-text">Loading pose model… Please wait.</p>}
+            {!poseLoaded && <p className="mt-2 text-[12px] text-warning-text">Loading pose model… Please wait. (Lazy-loaded on entry)</p>}
             {poseLoaded && !personDetected && <p className="mt-2 text-[12px] text-warning-text">No person detected — adjust position to show full body.</p>}
             {poseLoaded && personDetected && !stableDetection && <p className="mt-2 text-[12px] text-info">Person detected — hold steady for ready state.</p>}
             {stableDetection && <p className="mt-2 text-[12px] text-primary font-semibold">✓ Stable detection — ready to start assessment.</p>}
@@ -821,7 +832,7 @@ export default function Assessment() {
               <p className="text-secondary text-[13px] mt-3 max-w-[260px] break-words">
                 {mode === 'camera' ? 'Real camera will measure actual joint movement.' : 'Demo mode uses simulated sensor data.'}
               </p>
-              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded} className="mt-4">
+              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded} className="mt-4 min-h-[44px]">
                 Start Assessment
               </Button>
             </div>
@@ -842,7 +853,7 @@ export default function Assessment() {
           )}
         </div>
 
-        {/* Camera preview — LIVE CAMERA UI per spec */}
+        {/* Camera preview */}
         {mode === 'camera' && (phase === 'recording' || phase === 'countdown' || phase === 'idle') && (
           <div className="card mt-3 overflow-hidden">
             <div className="relative bg-black aspect-[4/3] w-full overflow-hidden">
@@ -859,7 +870,6 @@ export default function Assessment() {
                 style={{ objectFit: 'contain' }}
               />
 
-              {/* Camera state overlays */}
               {cameraState === 'requesting' && (
                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
                   <Camera size={32} className="animate-pulse" />
@@ -869,8 +879,8 @@ export default function Assessment() {
               {cameraState === 'permission-required' && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white p-4 text-center">
                   <Eye size={32} />
-                  <p className="mt-2 font-semibold break-words">Camera permission required</p>
-                  <p className="text-xs mt-1 opacity-80 break-words">Please allow camera access when prompted by your browser.</p>
+                  <p className="mt-2 font-semibold break-words">{t('screening.assessment.camera.permissionRequired')}</p>
+                  <p className="text-xs mt-1 opacity-80 break-words">{t('screening.assessment.camera.permissionRequiredBody')}</p>
                 </div>
               )}
               {cameraState === 'starting' && (
@@ -911,12 +921,11 @@ export default function Assessment() {
               {cameraState === 'security-error' && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white p-4 text-center">
                   <AlertTriangle size={32} />
-                  <p className="mt-2 font-semibold break-words">Security error</p>
-                  <p className="text-xs mt-1 opacity-80 break-words">Camera requires HTTPS. Please open via secure connection.</p>
+                  <p className="mt-2 font-semibold break-words">{t('screening.assessment.camera.securityError')}</p>
+                  <p className="text-xs mt-1 opacity-80 break-words">{t('screening.assessment.camera.securityErrorBody')}</p>
                 </div>
               )}
 
-              {/* Pose model loading */}
               {!poseLoaded && !poseError && (
                 <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[11px] px-2 py-1 rounded">Loading pose model…</div>
               )}
@@ -924,7 +933,6 @@ export default function Assessment() {
                 <div className="absolute bottom-2 left-2 bg-error-tint text-error-text text-[11px] px-2 py-1 rounded">{poseError}</div>
               )}
 
-              {/* Person detection status */}
               {poseLoaded && !personDetected && phase === 'recording' && (
                 <div className="absolute bottom-2 left-2 bg-warning-tint text-warning-text text-[11px] px-2 py-1 rounded flex items-center gap-1">
                   <AlertTriangle size={12} />
@@ -942,28 +950,25 @@ export default function Assessment() {
                 </div>
               )}
 
-              {/* Front/rear camera switch */}
               <button
                 onClick={switchCamera}
-                className="absolute top-2 right-2 h-10 w-10 rounded-full bg-black/60 text-white flex items-center justify-center"
+                className="absolute top-2 right-2 h-10 w-10 min-h-[44px] min-w-[44px] rounded-full bg-black/60 text-white flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
                 aria-label="Switch camera"
               >
                 <SwitchCamera size={18} />
               </button>
 
-              {/* Facing mode indicator */}
               <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded">
                 {facingMode === 'environment' ? 'Rear' : 'Front'} · {videoRef.current?.videoWidth || 0}×{videoRef.current?.videoHeight || 0}
               </div>
             </div>
 
-            {/* Diagnostics dev-only */}
             <div className="p-2 bg-tint-2/50 flex items-center justify-between">
-              <button onClick={() => setShowDiagnostics(!showDiagnostics)} className="text-[11px] text-secondary flex items-center gap-1">
+              <button onClick={() => setShowDiagnostics(!showDiagnostics)} className="text-[11px] text-secondary flex items-center gap-1 min-h-[44px] px-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none">
                 {showDiagnostics ? <EyeOff size={12} /> : <Eye size={12} />} Diagnostics
               </button>
-              <span className="text-[10px] text-muted">
-                {cameraState} · {poseLoaded ? 'pose ready' : 'pose loading'} · {realSamples.current.length} samples
+              <span className="text-[10px] text-muted break-words">
+                {cameraState} · {poseLoaded ? 'pose ready (lazy-loaded)' : 'pose loading'} · {realSamples.current.length} samples
               </span>
             </div>
             {showDiagnostics && (
@@ -973,7 +978,7 @@ export default function Assessment() {
                 <div>video: {videoRef.current?.videoWidth}×{videoRef.current?.videoHeight} readyState: {videoRef.current?.readyState} paused: {videoRef.current?.paused ? 'yes' : 'no'}</div>
                 <div>pose: {poseLoaded ? 'loaded' : 'not loaded'} error: {poseError || 'none'}</div>
                 <div>person: {personDetected ? 'yes' : 'no'} stable: {stableDetection ? 'yes' : 'no'} stableFrames: {stableFramesRef.current} noPersonFrames: {noPersonFramesRef.current}</div>
-                <div>joint: {session.joint} side: {session.side} config: {getJointConfig(session.joint as any, session.side as any).angleTriplet.join('-')}</div>
+                <div>joint: {session.joint} side: {session.side} config: {getJointConfigLight(session.joint as any, session.side as any).angleTriplet.join('-')}</div>
                 <div>angle: {angle.toFixed(1)}° conf: {confidence.toFixed(2)} validSamples: {realSamples.current.filter(s => s.confidence >= 0.3).length}</div>
                 <div>reps: {reps} elapsed: {elapsed.toFixed(1)}s phase: {phase} facing: {facingMode}</div>
                 <div>previewEnv: {isPreview ? 'yes' : 'no'}</div>
@@ -1020,7 +1025,7 @@ export default function Assessment() {
             <div className="mt-3 flex items-center justify-between text-[12px] flex-wrap gap-2">
               <span className="text-secondary font-medium inline-flex items-center gap-1.5 break-words">
                 <Radio size={13} aria-hidden />
-                {mode === 'camera' ? 'REAL Camera + REAL Pose (MediaPipe)' : t('screening.assessment.sensorSim') + ' · Demo'}
+                {mode === 'camera' ? 'REAL Camera + REAL Pose (MediaPipe lazy-loaded)' : t('screening.assessment.sensorSim') + ' · Demo'}
               </span>
               <span className={cx('font-semibold inline-flex items-center gap-1.5', moving ? 'text-primary' : 'text-secondary')}>
                 <span className={cx('h-2 w-2 rounded-full', moving ? 'bg-primary' : 'bg-muted')} aria-hidden />
@@ -1077,15 +1082,15 @@ export default function Assessment() {
         <div className="mt-auto pt-4 space-y-2">
           {(phase === 'idle') && (
             <>
-              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded}>
+              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded} className="min-h-[44px]">
                 Start Assessment
               </Button>
               <div className="flex gap-2">
-                <Button full variant="secondary" onClick={() => { nav(`/patients/${patient.id}`) }}>
+                <Button full variant="secondary" onClick={() => { nav(`/patients/${patient.id}`) }} className="min-h-[44px]">
                   Back
                 </Button>
                 {mode === 'camera' && (
-                  <Button full variant="ghost" onClick={switchCamera}>
+                  <Button full variant="ghost" onClick={switchCamera} className="min-h-[44px]">
                     <SwitchCamera size={16} /> Switch Camera ({facingMode === 'environment' ? 'Front' : 'Rear'})
                   </Button>
                 )}
@@ -1100,7 +1105,7 @@ export default function Assessment() {
               <div className="flex items-center justify-center gap-4 flex-wrap">
                 <button
                   onClick={() => { stopSim.current?.(); stopCamera(); restart() }}
-                  className="h-11 min-h-[44px] px-4 text-[13px] font-semibold text-secondary inline-flex items-center gap-1.5"
+                  className="h-11 min-h-[44px] px-4 text-[13px] font-semibold text-secondary inline-flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 >
                   <RotateCcw size={14} aria-hidden />
                   {t('screening.assessment.discard')}
@@ -1108,7 +1113,7 @@ export default function Assessment() {
                 {phase === 'recording' && mode === 'simulated' && (
                   <button
                     onClick={() => { noMove.current = true; stopSim.current?.(); setPhase('nomove') }}
-                    className="h-11 min-h-[44px] text-xs text-muted underline"
+                    className="h-11 min-h-[44px] text-xs text-muted underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                   >
                     {t('screening.assessment.demoNoMove')}
                   </button>
@@ -1134,7 +1139,7 @@ export default function Assessment() {
                   {t('screening.assessment.camera.continueDemo')} — Demo / Simulated Assessment
                 </Button>
               )}
-              <button className="w-full h-11 min-h-[44px] text-[14px] font-semibold text-secondary break-words" onClick={() => { stopCamera(); nav(`/patients/${patient.id}`) }}>
+              <button className="w-full h-11 min-h-[44px] text-[14px] font-semibold text-secondary break-words focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none" onClick={() => { stopCamera(); nav(`/patients/${patient.id}`) }}>
                 {t('screening.assessment.exit')}
               </button>
             </>

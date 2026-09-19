@@ -6,6 +6,8 @@ import { Button, Card, Chip, cx } from '../../components/ui'
 import { useScreeningPatient } from './useGuard'
 import { useT } from '../../i18n'
 import { VoiceButton } from '../../components/Voice'
+import { exercisesFor } from '../../domain/guidance'
+import type { RiskBand } from '../../domain/types'
 
 const Illustration = ({ id }: { id: string }) => {
   const paths: Record<string, string> = {
@@ -23,7 +25,7 @@ function ExerciseCard({ e, open, onToggle }: { e: any; open: boolean; onToggle: 
   const { t } = useT()
   return (
     <Card className="overflow-hidden">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="w-full text-left p-4 flex gap-4 items-center">
+      <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`${e.name} - ${open ? 'collapse' : 'expand'}`} className="w-full text-left p-4 flex gap-4 items-center min-h-[44px]">
         <span className="h-20 w-20 shrink-0 rounded-[12px] bg-mint-soft text-primary flex items-center justify-center"><Illustration id={e.id} /></span>
         <span className="flex-1 min-w-0">
           <span className="block font-semibold text-[16px] leading-snug break-words">{e.name}</span>
@@ -31,7 +33,7 @@ function ExerciseCard({ e, open, onToggle }: { e: any; open: boolean; onToggle: 
             <Chip icon={Repeat}>{e.reps}</Chip><Chip icon={Timer}>{e.duration}</Chip><Chip icon={Gauge} tone={e.difficulty === t('screening.exercises.easy') ? 'success' : 'warning'}>{e.difficulty}</Chip>
           </span>
         </span>
-        <ChevronDown size={20} className={cx('text-secondary transition-transform', open && 'rotate-180')} aria-hidden />
+        <ChevronDown size={20} className={cx('text-secondary transition-transform shrink-0', open && 'rotate-180')} aria-hidden />
       </button>
       {open && <div className="px-4 pb-4 fade-in">
         <ol className="space-y-2 list-decimal pl-5 text-[15px] break-words">{e.steps.map((s: string) => <li key={s}>{s}</li>)}</ol>
@@ -47,7 +49,17 @@ export default function Exercises() {
   const [open, setOpen] = useState<string | null>(null)
   const { t } = useT()
   if (!patient || !session.result || !session.joint) return null
-  const listIds = ['quad','heel','bridge','fist','catcow','walk']
+
+  const joint = session.joint
+  const band = session.result.band as RiskBand
+
+  // Restore existing exercisesFor(joint, band) filtering per spec
+  // joint affects exercises, band affects difficulty (higher -> Easy only)
+  const filtered = exercisesFor(joint, band)
+  // Preserve original order from domain, but ensure at least one exercise
+  const effective = filtered.length > 0 ? filtered : exercisesFor(joint, 'low')
+  const listIds = effective.map(e => e.id)
+
   const list = listIds.map(id => ({
     id,
     name: t(`screening.exercises.list.${id}.name`),
@@ -57,13 +69,18 @@ export default function Exercises() {
     steps: t(`screening.exercises.list.${id}.steps`) as any,
     safety: t(`screening.exercises.list.${id}.safety`),
   }))
-  const voiceText = list.map(e => `${e.name}. ${e.steps.join(' ')}`).join(' ')
+
+  const jointLabel = t(`screening.joint.joints.${joint}.label`)
+  const bandLabel = t(`screening.result.riskMeta.${band}.label`)
+  const voiceText = `${t('screening.exercises.title')} for ${jointLabel}, ${bandLabel}. ${list.map(e => `${e.name}. ${Array.isArray(e.steps) ? e.steps.join(' ') : ''}. Safety: ${e.safety}`).join(' ')}`
+
   return (
     <FlowShell title={t('screening.exercises.title')} subtitle={t('screening.exercises.subtitle')} barTitle={t('screening.exercises.barTitle')} back="/screening/guidance"
       pill={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">{t('common.daily15')}</span>}
       footer={<Button full icon={FileText} onClick={() => nav(`/records/${session.recordId}`)}>{t('screening.exercises.viewReport')}</Button>}>
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap gap-2 items-center">
         <VoiceButton text={voiceText} />
+        <span className="text-[11px] text-secondary break-words">Joint: {jointLabel} · {bandLabel} · {list.length} exercises</span>
       </div>
       <div className="space-y-3">{list.map(e => <ExerciseCard key={e.id} e={e} open={open === e.id} onToggle={() => setOpen(open === e.id ? null : e.id)} />)}</div>
       <p className="text-xs text-secondary mt-4 break-words">{t('screening.exercises.generalNote')}</p>

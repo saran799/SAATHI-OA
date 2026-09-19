@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { ChevronRight, Languages, User, Bluetooth, Info, LogOut, RotateCcw, Lock, RefreshCw, ClipboardList, Radio, Share2, ShieldCheck, Activity, HardDrive, AlertTriangle, CloudOff } from 'lucide-react'
 import { AppShell, useSyncModel } from '../../components/layout/Shells'
 import { Avatar, Button, IconTile, Toggle, cx } from '../../components/ui'
@@ -6,7 +7,7 @@ import { useApp } from '../../store/appStore'
 import { useT } from '../../i18n'
 
 function RowLink({ icon: Icon, label, value, onClick }: { icon: typeof User; label: string; value?: string; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="w-full min-h-[60px] px-3 flex items-center gap-3 text-left border-b border-tint last:border-0"><IconTile icon={Icon} size={40} iconSize={20} /><span className="flex-1 text-[15px] font-semibold break-words">{label}</span>{value && <span className="text-[13px] text-secondary break-words">{value}</span>}<ChevronRight size={18} className="text-secondary" aria-hidden /></button>
+  return <button type="button" onClick={onClick} className="w-full min-h-[60px] px-3 flex items-center gap-3 text-left border-b border-tint last:border-0 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"><IconTile icon={Icon} size={40} iconSize={20} /><span className="flex-1 text-[15px] font-semibold break-words">{label}</span>{value && <span className="text-[13px] text-secondary break-words">{value}</span>}<ChevronRight size={18} className="text-secondary" aria-hidden /></button>
 }
 
 export default function Settings() {
@@ -16,6 +17,50 @@ export default function Settings() {
   const { t } = useT()
   const lang = t(`languages.${language}.native`)
   const pendingMovement = unsyncedRecords.filter(r => r.movement?.performed).length
+
+  // Real storage estimate per spec — replace heuristic with navigator.storage.estimate()
+  const [storageInfo, setStorageInfo] = useState<{ usedMB: number; quotaMB: number; supported: boolean; loading: boolean }>({
+    usedMB: 0,
+    quotaMB: 0,
+    supported: false,
+    loading: true,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    const estimate = async () => {
+      try {
+        if (typeof navigator !== 'undefined' && (navigator as any).storage && typeof (navigator as any).storage.estimate === 'function') {
+          const result = await (navigator as any).storage.estimate()
+          if (cancelled) return
+          const used = typeof result.usage === 'number' ? result.usage : 0
+          const quota = typeof result.quota === 'number' ? result.quota : 0
+          setStorageInfo({
+            usedMB: used / (1024 * 1024),
+            quotaMB: quota / (1024 * 1024),
+            supported: true,
+            loading: false,
+          })
+        } else {
+          if (!cancelled) setStorageInfo(s => ({ ...s, supported: false, loading: false }))
+        }
+      } catch {
+        if (!cancelled) setStorageInfo(s => ({ ...s, supported: false, loading: false }))
+      }
+    }
+    estimate()
+    return () => { cancelled = true }
+  }, [records.length]) // re-estimate when records change
+
+  const storageDisplay = storageInfo.loading
+    ? t('common.loading')
+    : storageInfo.supported
+      ? t('settings.syncPanel.storageValueReal', { used: storageInfo.usedMB.toFixed(1), quota: storageInfo.quotaMB.toFixed(0) } as any)
+      : t('settings.syncPanel.storageUnavailable')
+
+  const storagePercent = storageInfo.supported && storageInfo.quotaMB > 0
+    ? Math.max(1.5, Math.min(100, (storageInfo.usedMB / storageInfo.quotaMB) * 100))
+    : Math.max(1.5, records.length * 0.4 / 40) // fallback visual only, not fabricated value for display
 
   return (
     <AppShell title={t('common.appName')} subtitle={t('settings.subtitle')}>
@@ -59,8 +104,9 @@ export default function Settings() {
           <div className="flex items-center justify-between text-[13px]"><span className="font-bold break-words">{t('settings.syncPanel.network', { status: online ? t('settings.syncPanel.available') : t('settings.syncPanel.offline') })}</span><span className="h-6 px-2 rounded-full bg-surface text-[11px] font-semibold text-secondary inline-flex items-center break-words">{online ? t('settings.syncPanel.ready') : t('settings.syncPanel.standby')}</span></div>
           <p className="text-[12px] text-secondary mt-1 leading-snug break-words">{online ? t('settings.syncPanel.tapSync') : t('settings.syncPanel.tapOffline')}</p>
           <p className="text-[11px] text-secondary mt-2 break-words">{online ? t('sync.offlineLong') : t('sync.savedLocalLong')}</p>
-          <div className="mt-2 flex items-center justify-between text-[12px]"><span className="text-secondary font-medium break-words">{t('settings.syncPanel.storage')}</span><span className="font-bold text-primary break-words">{t('settings.syncPanel.storageValue', { used: (records.length * 0.4).toFixed(1) })}</span></div>
-          <div className="h-1.5 rounded-full bg-info-tint mt-1.5 overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${Math.max(1.5, records.length * 0.4 / 40)}%` }} /></div>
+          <div className="mt-2 flex items-center justify-between text-[12px]"><span className="text-secondary font-medium break-words">{t('settings.syncPanel.storage')}</span><span className="font-bold text-primary break-words">{storageDisplay}</span></div>
+          <div className="h-1.5 rounded-full bg-info-tint mt-1.5 overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${storagePercent}%` }} /></div>
+          <p className="text-[10px] text-muted mt-1 break-words">{t('settings.syncPanel.storageEstimateNote')}</p>
         </div>
       </section>
 
@@ -79,7 +125,7 @@ export default function Settings() {
           <div className="mt-3 space-y-1">
             <p className="text-[11px] font-bold tracking-wider text-secondary uppercase break-words">Sync queue — idempotent by ID</p>
             {unsyncedRecords.slice(0,5).map(r => (
-              <div key={r.id} className="h-10 px-3 rounded-[10px] bg-tint flex items-center gap-2 text-[12px]">
+              <div key={r.id} className="min-h-[44px] h-11 px-3 rounded-[10px] bg-tint flex items-center gap-2 text-[12px]">
                 <span className={cx('h-2 w-2 rounded-full', r.sync==='local'?'bg-muted': r.sync==='error' || r.sync==='failed' ? 'bg-error' : r.sync==='syncing' ? 'bg-info' : 'bg-warning')} />
                 <span className="font-mono truncate">{r.id}</span>
                 <span className="ml-auto text-[11px] font-semibold capitalize break-words">{r.sync}</span>
@@ -106,7 +152,7 @@ export default function Settings() {
         <div className="card px-3">
           <Toggle checked={!online} onChange={v => setOnline(!v)} label={t('settings.simulateOffline')} description={t('settings.simulateOfflineDesc')} />
           <div className="border-t border-tint"><Toggle checked={failNextSync} onChange={setFailNextSync} label={t('settings.failNextSync')} description={t('settings.failNextSyncDesc')} /></div>
-          <button onClick={() => { if (confirm(t('settings.resetConfirm'))) resetDemo() }} className="w-full min-h-14 flex items-center gap-3 text-left border-t border-tint"><RotateCcw size={20} className="text-secondary" aria-hidden /><span className="text-[15px] font-semibold break-words">{t('settings.resetDemo')}</span></button>
+          <button onClick={() => { if (confirm(t('settings.resetConfirm'))) resetDemo() }} className="w-full min-h-[56px] flex items-center gap-3 text-left border-t border-tint focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"><RotateCcw size={20} className="text-secondary" aria-hidden /><span className="text-[15px] font-semibold break-words">{t('settings.resetDemo')}</span></button>
         </div>
       </section>
 
@@ -120,7 +166,7 @@ export default function Settings() {
         </div>
       </section>
 
-      <button onClick={() => { signOut(); nav('/login') }} className="mt-6 mb-2 w-full h-[52px] rounded-[16px] card text-error-text font-bold flex items-center justify-center gap-2"><LogOut size={18} aria-hidden />{t('settings.signOut')}</button>
+      <button onClick={() => { signOut(); nav('/login') }} aria-label={t('settings.signOut')} className="mt-6 mb-2 w-full h-[52px] min-h-[44px] rounded-[16px] card text-error-text font-bold flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"><LogOut size={18} aria-hidden />{t('settings.signOut')}</button>
       <p className="text-center text-[11px] text-muted mt-3 inline-flex w-full items-center justify-center gap-1 break-words"><ShieldCheck size={12} aria-hidden />{t('settings.screeningSupportNote')}</p>
     </AppShell>
   )
