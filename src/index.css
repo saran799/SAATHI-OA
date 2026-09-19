@@ -1,38 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  /* Figma palette (sampled from exports) */
-  --color-primary: #00685F;
-  --color-primary-dark: #004F48;
-  --color-primary-mid: #2F8981;
-  --color-primary-light: #D5F8F5;
-  --color-mint: #99EFE5;
-  --color-mint-soft: #E1FBF8;
-  --color-bg: #F8F9FF;
+  /* Updated palette per MASTER prompt + preserved variables */
+  --color-primary: #0F766E;
+  --color-primary-dark: #115E59;
+  --color-primary-mid: #14847A;
+  --color-primary-light: #CCFBF1;
+  --color-mint: #CCFBF1;
+  --color-mint-soft: #E6FBF8;
+  --color-bg: #F8FAF9;
   --color-surface: #FFFFFF;
-  --color-tint: #EFF4FF;
-  --color-tint-2: #E4E9F4;
-  --color-ink: #0E1A1A;
-  --color-secondary: #5F6B6B;
+  --color-tint: #EFF6F4;
+  --color-tint-2: #DDE5E2;
+  --color-ink: #17211F;
+  --color-secondary: #66736F;
   --color-muted: #8A9494;
-  --color-border: #E4E9F4;
-  --color-success: #0F7A5A;
+  --color-border: #DDE5E2;
+  --color-success: #16845B;
   --color-success-text: #0F6B50;
-  --color-success-tint: #D5F8F5;
+  --color-success-tint: #D6F5E8;
   --color-warning: #B7791F;
   --color-warning-text: #7A5A17;
   --color-warning-tint: #FFF1D6;
-  --color-error: #BA1B1B;
-  --color-error-text: #A11616;
+  --color-error: #C2413B;
+  --color-error-text: #9E2A24;
   --color-error-tint: #FFDAD6;
-  --color-info: #2A5DA8;
+  --color-info: #2563A8;
   --color-info-tint: #DCE9FF;
   --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --shadow-card: 0 1px 2px rgba(16, 30, 54, 0.04), 0 4px 14px rgba(16, 30, 54, 0.06);
-  --shadow-btn: 0 6px 16px rgba(0, 104, 95, 0.22);
+  --shadow-btn: 0 6px 16px rgba(15, 118, 110, 0.22);
 }
 
 html, body, #root { height: 100%; }

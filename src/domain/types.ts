@@ -2,7 +2,7 @@ export type Sex = 'Female' | 'Male' | 'Other'
 export type Joint = 'knee' | 'hip' | 'hand' | 'spine'
 export type Side = 'left' | 'right' | 'both'
 export type RiskBand = 'low' | 'moderate' | 'higher'
-export type SyncState = 'local' | 'unsynced' | 'synced'
+export type SyncState = 'local' | 'unsynced' | 'syncing' | 'synced' | 'error' | 'failed'
 
 export interface Patient {
   id: string
