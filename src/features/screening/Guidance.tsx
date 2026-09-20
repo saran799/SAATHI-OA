@@ -8,14 +8,14 @@ import { useApp } from '../../store/appStore'
 import { fmtDate } from '../../domain/copy'
 import { useSession } from '../../store/sessionStore'
 import { useT } from '../../i18n'
-import { VoiceButton } from '../../components/Voice'
+import { InstructionPlayer, type SupportedLang } from '../../components/Voice'
 
 export default function Guidance() {
   const nav = useNavigate()
   const { patient, session } = useScreeningPatient(true)
   const rec = useApp(s => s.records.find(r => r.id === session.recordId))
   const reset = useSession(s => s.reset)
-  const { t } = useT()
+  const { t, lang } = useT()
   if (!patient || !session.result || !session.joint) return null
   const r = session.result; const m = RISK_META[r.band]
   const chip = { success: 'bg-mint text-primary-dark', warning: 'bg-info-tint text-info', error: 'bg-error-tint text-error-text' }[m.tone]
@@ -37,7 +37,12 @@ export default function Guidance() {
     { icon: AlertTriangle, t: t('screening.guidance.whenPHC.title'), b: g[g.length - 1], tag: t('screening.guidance.whenPHC.tag'), tagCls: 'bg-error-tint text-error-text' },
   ]
 
-  const voiceText = `${t('screening.guidance.personalised')}. ${t(`screening.result.riskMeta.${r.band}.label`)}. ${t(`screening.result.riskMeta.${r.band}.action`)}. ${g.join(' ')}`
+  // Voice steps - discrete, visible, NO patient name, NO worker name
+  const voiceSteps = [
+    t('screening.guidance.personalised'),
+    `${t(`screening.result.riskMeta.${r.band}.label`)}. ${t(`screening.result.riskMeta.${r.band}.action`)}`,
+    ...g,
+  ]
 
   return (
     <FlowShell title="" barTitle={t('screening.guidance.barTitle')} back="/screening/result"
@@ -58,7 +63,7 @@ export default function Guidance() {
       </div>
 
       <div className="mt-3">
-        <VoiceButton text={voiceText} />
+        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="guidance" />
       </div>
 
       <div className="card mt-4 p-3 flex gap-3">
@@ -68,7 +73,7 @@ export default function Guidance() {
 
       <div className="mt-3 space-y-3">
         {rows.map(row => (
-          <button key={row.t} type="button" onClick={() => row.to ? nav(row.to) : undefined} className={cx('w-full card p-3 flex items-start gap-3 text-left', row.to && 'hover:bg-tint/40 transition-colors')}>
+          <button key={row.t} type="button" onClick={() => row.to ? nav(row.to) : undefined} className={cx('w-full card p-3 flex items-start gap-3 text-left min-h-[44px]', row.to && 'hover:bg-tint/40 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none')}>
             <span className="h-12 w-12 rounded-[12px] bg-tint text-primary flex items-center justify-center shrink-0" aria-hidden><row.icon size={22} /></span>
             <span className="flex-1 min-w-0"><span className="flex items-start gap-2"><span className="text-[16px] font-bold leading-tight break-words">{row.t}</span><span className={cx('ml-auto mt-0.5 h-6 px-2 rounded-full text-[11px] font-semibold whitespace-nowrap inline-flex items-center shrink-0 break-words', row.tagCls)}>{row.tag}</span></span><span className="block text-[13px] text-secondary mt-1 leading-snug break-words">{row.b}</span></span>
           </button>
@@ -84,7 +89,7 @@ export default function Guidance() {
         <p className="text-[11px] font-bold tracking-wider text-secondary uppercase mb-2 break-words">{t('screening.guidance.followUp')}</p>
         <div className="grid grid-cols-2 gap-2">
           <div className="h-12 rounded-[12px] bg-mint text-primary-dark px-3 flex items-center gap-2 text-[13px] font-bold break-words"><CheckCircle2 size={16} aria-hidden />{rec ? fmtDate(rec.followUpDate) : `${m.followUpDays} days`}</div>
-          <button type="button" onClick={() => nav(`/records/${session.recordId}`)} className="h-12 rounded-[12px] bg-tint text-ink px-3 flex items-center gap-2 text-[13px] font-bold break-words"><Printer size={16} aria-hidden />{t('screening.guidance.print')}</button>
+          <button type="button" onClick={() => nav(`/records/${session.recordId}`)} className="h-12 min-h-[44px] rounded-[12px] bg-tint text-ink px-3 flex items-center gap-2 text-[13px] font-bold break-words focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"><Printer size={16} aria-hidden />{t('screening.guidance.print')}</button>
         </div>
       </div>
     </FlowShell>

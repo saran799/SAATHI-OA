@@ -12,7 +12,7 @@ import { useT } from '../../i18n'
 import { cameraService, type CameraState, type FacingMode } from '../../services/camera'
 import { analyzeMovement, angleFromLandmarks, type TimestampedSample } from '../../services/movement'
 import type { PosePoint } from '../../services/pose'
-import { VoiceButton } from '../../components/Voice'
+import { InstructionPlayer, type SupportedLang } from '../../components/Voice'
 
 // Lazy-loaded pose module — MediaPipe only when Assessment entered per spec
 type PoseModule = typeof import('../../services/pose')
@@ -61,7 +61,7 @@ function isPreviewEnv(): boolean {
 export default function Assessment() {
   const nav = useNavigate()
   const { patient, session } = useScreeningPatient(true)
-  const { t } = useT()
+  const { t, lang } = useT()
 
   // Core state
   const [mode, setMode] = useState<Mode>('camera')
@@ -655,7 +655,13 @@ export default function Assessment() {
   const sideLabel = t(`screening.joint.${session.side}`)
   const jointSideLabel = session.side === 'both' ? jointLabel : `${sideLabel} ${jointLabel.toLowerCase()}`
 
-  const voiceText = `${t('screening.assessment.title')} ${jointSideLabel}. Position your full body in camera frame. Keep ${jointSideLabel} visible. Move slowly. ${t('screening.assessment.active', { duration: DURATION })}`
+  // Voice steps - discrete, visible instruction text, NO patient name
+  const voiceSteps = [
+    `Position your full body in the camera frame.`,
+    `Keep the selected joint ${jointSideLabel} visible.`,
+    `Move slowly through the instructed movement.`,
+    `Ensure good lighting and clear background.`,
+  ]
 
   const getCameraErrorMessage = () => {
     switch (cameraState) {
@@ -791,10 +797,9 @@ export default function Assessment() {
           </span>
         </div>
 
-        {/* Voice assistance for movement screen */}
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          <VoiceButton text={voiceText} />
-          <span className="text-[11px] text-secondary break-words">Voice guidance: {jointSideLabel}</span>
+        {/* Voice assistance for movement screen - step-by-step player */}
+        <div className="mt-3">
+          <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="assessment" />
         </div>
 
         {/* Body position guidance before Start */}

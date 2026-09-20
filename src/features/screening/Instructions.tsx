@@ -4,12 +4,12 @@ import { FlowShell } from '../../components/layout/Shells'
 import { Button, cx } from '../../components/ui'
 import { useScreeningPatient, TOTAL_STEPS } from './useGuard'
 import { useT } from '../../i18n'
-import { VoiceButton } from '../../components/Voice'
+import { InstructionPlayer, type SupportedLang } from '../../components/Voice'
 
 export default function Instructions() {
   const nav = useNavigate()
   const { patient, session } = useScreeningPatient(true)
-  const { t } = useT()
+  const { t, lang } = useT()
   if (!patient || !session.joint) return null
   const jointKey = session.joint
   const jointLabel = t(`screening.joint.joints.${jointKey}.label`)
@@ -17,11 +17,21 @@ export default function Instructions() {
   const sideLabel = session.side === 'both' ? t('screening.instructions.sensorSide', { side: t('screening.joint.both') }) : t(`screening.joint.${session.side}`)
   const moveText = t(`screening.instructions.moves.${jointKey}`)
 
+  // Visible steps (includes patient name for display - for CHW context)
   const steps = [
     { icon: Hand, t: t('screening.instructions.steps.attach.t'), b: t('screening.instructions.steps.attach.b', { joint: jointLower, side: sideLabel }) },
     { icon: Footprints, t: session.joint === 'hand' ? t('screening.instructions.steps.seatHand.t') : t('screening.instructions.steps.seat.t'), b: session.joint === 'hand' ? t('screening.instructions.steps.seatHand.b') : t('screening.instructions.steps.seat.b') },
     { icon: User, t: t('screening.instructions.steps.explain.t'), b: t('screening.instructions.steps.explain.b', { name: patient.name, move: moveText }) },
   ]
+
+  // Voice steps - MUST be actual visible instruction text, NEVER patient/worker name, NEVER translation key
+  // Explicitly exclude patient.name to fix wrong-text bug
+  const voiceSteps = [
+    `${t('screening.instructions.steps.attach.t')}. ${t('screening.instructions.steps.attach.b', { joint: jointLower, side: sideLabel })}`,
+    `${session.joint === 'hand' ? t('screening.instructions.steps.seatHand.t') : t('screening.instructions.steps.seat.t')}. ${session.joint === 'hand' ? t('screening.instructions.steps.seatHand.b') : t('screening.instructions.steps.seat.b')}`,
+    `${t('screening.instructions.steps.explain.t')}. ${moveText}. ${t('screening.instructions.nextNote')}`,
+  ]
+
   const tabsRaw = t('screening.instructions.stages') as any
   const tabs = Array.isArray(tabsRaw) ? tabsRaw : [['1. Wear', 'Strap'], ['2. Calib', 'Stand'], ['3. Test', 'Flex'], ['4. Done', 'Report']]
 
@@ -30,15 +40,16 @@ export default function Instructions() {
       pill={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">{t('screening.common.triageActive')}</span>}
       footer={<div>
         <Button full onClick={() => nav('/screening/sensor')}>{t('screening.instructions.startAssessment')} <ArrowRight size={18} aria-hidden /></Button>
-        <button type="button" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }} className="w-full h-10 mt-1 text-[13px] font-semibold text-secondary break-words">{t('screening.instructions.skip')}</button>
+        <button type="button" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }} className="w-full min-h-[44px] h-10 mt-1 text-[13px] font-semibold text-secondary break-words focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none">{t('screening.instructions.skip')}</button>
       </div>}>
       <div className="-mt-6 flex items-start justify-between gap-3 flex-wrap">
         <div><h1 className="text-[22px] font-bold tracking-tight leading-tight break-words">{t('screening.instructions.title', { joint: jointLabel })}</h1><p className="text-[14px] text-secondary mt-1 break-words">{t('screening.instructions.subtitle')}</p></div>
         <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.common.pairReady')}</span>
       </div>
 
+      {/* Voice Instruction Player - step-by-step, no auto-play, no patient name */}
       <div className="mt-3">
-        <VoiceButton text={`${t('screening.instructions.title', { joint: jointLabel })}. ${t('screening.instructions.subtitle')}. ${steps.map(s => `${s.t}. ${s.b}`).join(' ')} ${t('screening.instructions.nextNote')} ${t('screening.instructions.setupTime')}`} />
+        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="instructions" />
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2" aria-label="Assessment stages">
