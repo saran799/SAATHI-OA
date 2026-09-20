@@ -42,8 +42,8 @@ function ExerciseCard({ e, open, onToggle, language }: { e: any; open: boolean; 
       {open && <div className="px-4 pb-4 fade-in space-y-3">
         <ol className="space-y-2 list-decimal pl-5 text-[15px] break-words">{e.steps.map((s: string) => <li key={s}>{s}</li>)}</ol>
         <div className="mt-3 rounded-[12px] bg-error-tint text-error-text p-3 text-sm flex gap-2 break-words"><ShieldAlert size={18} className="shrink-0" aria-hidden /><span><span className="font-semibold">{t('screening.exercises.safety')}</span>{e.safety}</span></div>
-        {/* Per-exercise voice player - speaks only current exercise step, not entire card */}
-        <InstructionPlayer steps={voiceSteps} language={language} contentId={`exercise-${e.id}`} />
+        {/* Per-exercise voice player - simplified: Previous [Start/Stop] Next, auto-speak on navigation */}
+        <InstructionPlayer steps={voiceSteps} language={language} contentId={`exercise-${e.id}`} title={e.name} />
       </div>}
     </Card>
   )

@@ -63,7 +63,7 @@ export default function Guidance() {
       </div>
 
       <div className="mt-3">
-        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="guidance" />
+        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="guidance" title={t('screening.guidance.personalised')} />
       </div>
 
       <div className="card mt-4 p-3 flex gap-3">

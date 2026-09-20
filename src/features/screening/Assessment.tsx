@@ -797,9 +797,9 @@ export default function Assessment() {
           </span>
         </div>
 
-        {/* Voice assistance for movement screen - step-by-step player */}
+        {/* Voice assistance for movement screen - simplified guided UX: Previous [Start/Stop] Next, auto-speak */}
         <div className="mt-3">
-          <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="assessment" />
+          <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="assessment" title="Movement Instructions" />
         </div>
 
         {/* Body position guidance before Start */}

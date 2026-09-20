@@ -47,9 +47,9 @@ export default function Instructions() {
         <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.common.pairReady')}</span>
       </div>
 
-      {/* Voice Instruction Player - step-by-step, no auto-play, no patient name */}
+      {/* Voice Instruction Player - simplified guided UX: Previous [Start/Stop] Next, auto-speak on Next/Previous */}
       <div className="mt-3">
-        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="instructions" />
+        <InstructionPlayer steps={voiceSteps} language={lang as SupportedLang} contentId="instructions" title={t('screening.instructions.title', { joint: jointLabel })} />
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2" aria-label="Assessment stages">
