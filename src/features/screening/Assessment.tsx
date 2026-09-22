@@ -95,6 +95,7 @@ export default function Assessment() {
   const startTimeRef = useRef<number>(0)
   const lastAngleRef = useRef<number>(0)
   const lastUpdateRef = useRef<number>(0)
+  const lastPoseTimeRef = useRef<number>(-1)
   const stableFramesRef = useRef<number>(0)
   const noPersonFramesRef = useRef<number>(0)
   const repStateRef = useRef<{
@@ -324,6 +325,7 @@ export default function Assessment() {
     startTimeRef.current = Date.now()
     lastAngleRef.current = 0
     lastUpdateRef.current = 0
+    lastPoseTimeRef.current = -1
     stableFramesRef.current = 0
     noPersonFramesRef.current = 0
     repStateRef.current = {
@@ -352,7 +354,13 @@ export default function Assessment() {
         return
       }
 
-      const pose = poseMod.detectPose(video, now)
+      let poseNow = performance.now()
+      if (poseNow <= lastPoseTimeRef.current) {
+        poseNow = lastPoseTimeRef.current + 1
+      }
+      lastPoseTimeRef.current = poseNow
+
+      const pose = poseMod.detectPose(video, poseNow)
 
       if (!pose || pose.landmarks.length === 0) {
         noPersonFramesRef.current++
