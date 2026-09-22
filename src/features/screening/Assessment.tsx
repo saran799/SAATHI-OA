@@ -10,6 +10,7 @@ import { angleFromLandmarks, type TimestampedSample } from '../../services/movem
 import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
 import type { TestResult } from '../../domain/types'
+import { estimateRisk } from '../../domain/risk'
 
 const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
@@ -58,7 +59,7 @@ type AssessmentPhase =
 
 export default function Assessment() {
   const nav = useNavigate()
-  const { session } = useScreeningPatient(true)
+  const { patient, session } = useScreeningPatient(true)
   // t is unused but kept if required by i18n system, though we will remove the declaration entirely
   useT()
 
@@ -152,8 +153,19 @@ export default function Assessment() {
       const now = Date.now()
       const elapsedSec = (now - startTimeRef.current) / 1000
 
-      if (phase === 'recording' && now - lastUpdateRef.current > 100) {
-        setElapsed(elapsedSec)
+      if (phase === 'recording') {
+        if (now - lastUpdateRef.current > 100) {
+          setElapsed(elapsedSec)
+          lastUpdateRef.current = now
+        }
+        
+        if (currentTest) {
+          const isComplete = currentTest.completionCriteria(realSamples.current)
+          if (isComplete || elapsedSec >= currentTest.timeoutSec) {
+            setPhase('validating')
+            return
+          }
+        }
       }
 
       if (!video || video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
@@ -180,38 +192,101 @@ export default function Assessment() {
 
         if (hasPerson) {
           const lms = res.landmarks
+          const curAngle = angleFromLandmarks(lms, config)
+
+          if (phase === 'recording') {
+            realSamples.current.push({
+              t: now,
+              angle: curAngle.angle,
+              confidence: curAngle.confidence,
+              valid: curAngle.valid
+            })
+          }
           
           // Draw skeleton on canvas
-          if (ctx && canvas) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            const w = canvas.width
-            const h = canvas.height
-            const [a, b, c] = config.angleTriplet.map((i: number) => lms[i])
-            if (a && b && c) {
-              ctx.beginPath()
-              ctx.moveTo(a.x * w, a.y * h)
-              ctx.lineTo(b.x * w, b.y * h)
-              ctx.lineTo(c.x * w, c.y * h)
-              ctx.strokeStyle = 'var(--color-primary)'
-              ctx.lineWidth = 4
-              ctx.lineJoin = 'round'
-              ctx.stroke()
-              
-              // Angle calculation
-              const curAngle = angleFromLandmarks(lms, config)
-              // valid check moved to sample creation
-              
-              // setAngle(curAngle) - removed as it's unused in UI and curAngle is an object
+          if (ctx && canvas && video) {
+            const dpr = window.devicePixelRatio || 1
+            const displayWidth = canvas.clientWidth
+            const displayHeight = canvas.clientHeight
 
-              if (phase === 'recording') {
-                realSamples.current.push({
-                  t: now,
-                  angle: curAngle.angle,
-                  confidence: curAngle.confidence,
-                  valid: curAngle.valid
-                })
-              }
+            if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
+              canvas.width = displayWidth * dpr
+              canvas.height = displayHeight * dpr
             }
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+            ctx.clearRect(0, 0, displayWidth, displayHeight)
+
+            const videoAspect = video.videoWidth / video.videoHeight
+            const canvasAspect = displayWidth / displayHeight
+            let drawWidth, drawHeight, offsetX, offsetY
+
+            if (videoAspect > canvasAspect) {
+              drawWidth = displayWidth
+              drawHeight = displayWidth / videoAspect
+              offsetX = 0
+              offsetY = (displayHeight - drawHeight) / 2
+            } else {
+              drawHeight = displayHeight
+              drawWidth = displayHeight * videoAspect
+              offsetX = (displayWidth - drawWidth) / 2
+              offsetY = 0
+            }
+
+            const isMirrored = facingMode === 'user'
+
+            ctx.save()
+            if (isMirrored) {
+              ctx.translate(displayWidth, 0)
+              ctx.scale(-1, 1)
+            }
+
+            lms.forEach((p: any, idx: number) => {
+              if ((p.visibility || 0) < 0.3) return
+              let x = offsetX + p.x * drawWidth
+              let y = offsetY + p.y * drawHeight
+              if (isMirrored) x = displayWidth - x
+              
+              const isTriplet = config.angleTriplet.includes(idx)
+              if (isTriplet) {
+                ctx.beginPath()
+                ctx.arc(x, y, idx === config.angleTriplet[1] ? 8 : 6, 0, Math.PI * 2)
+                ctx.fillStyle = idx === config.angleTriplet[1] ? '#0F766E' : '#CCFBF1'
+                ctx.fill()
+              } else {
+                ctx.beginPath()
+                ctx.arc(x, y, 3, 0, Math.PI * 2)
+                ctx.fillStyle = 'rgba(15,118,110,0.8)'
+                ctx.fill()
+              }
+            })
+
+            ctx.strokeStyle = '#0F766E'
+            ctx.lineWidth = 3
+            ctx.beginPath()
+            const [aIdx, bIdx, cIdx] = config.angleTriplet
+            const a = lms[aIdx]
+            const b = lms[bIdx]
+            const c = lms[cIdx]
+            if (a && b && c && (a.visibility || 0) >= 0.3 && (b.visibility || 0) >= 0.3 && (c.visibility || 0) >= 0.3) {
+              let ax = offsetX + a.x * drawWidth
+              let ay = offsetY + a.y * drawHeight
+              let bx = offsetX + b.x * drawWidth
+              let by = offsetY + b.y * drawHeight
+              let cx_ = offsetX + c.x * drawWidth
+              let cy = offsetY + c.y * drawHeight
+              if (isMirrored) {
+                ax = displayWidth - ax
+                bx = displayWidth - bx
+                cx_ = displayWidth - cx_
+              }
+              ctx.moveTo(ax, ay)
+              ctx.lineTo(bx, by)
+              ctx.lineTo(cx_, cy)
+              ctx.stroke()
+            }
+
+            ctx.restore()
           }
         } else if (ctx && canvas) {
           ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -227,7 +302,7 @@ export default function Assessment() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [phase, cameraState, poseLoaded, session.joint, session.side])
+  }, [phase, cameraState, poseLoaded, session.joint, session.side, currentTest])
 
   // 3. State Machine Orchestration
   useEffect(() => {
@@ -243,20 +318,7 @@ export default function Assessment() {
     }
 
     // Recording Validation Logic
-    if (phase === 'recording') {
-      const interval = setInterval(() => {
-        if (!currentTest) return
-        const isComplete = currentTest.completionCriteria(realSamples.current)
-        const elapsedSec = (Date.now() - startTimeRef.current) / 1000
-
-        if (isComplete) {
-          setPhase('validating')
-        } else if (elapsedSec >= currentTest.timeoutSec) {
-          setPhase('validating')
-        }
-      }, 500)
-      return () => clearInterval(interval)
-    }
+    // Moved to RAF loop to ensure deterministic execution and avoid resetting timers on state updates
 
     // Validation -> Result
     if (phase === 'validating') {
@@ -332,7 +394,9 @@ export default function Assessment() {
       setPhase('setup')
       setTestResult(null)
     } else {
-      // All tests complete -> Go to Result
+      // All tests complete -> Calculate risk and go to Result
+      const risk = estimateRisk(patient!, session.answers, session.tests)
+      session.setResult(risk)
       nav('/screening/result')
     }
   }
