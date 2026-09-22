@@ -147,7 +147,7 @@ export default function Assessment() {
     const poseMod = poseModuleRef.current
 
     const loop = () => {
-      if (phase === 'camera_error' || phase === 'pose_error' || phase === 'test_result') return
+      if (phase === 'test_result') return
 
       const now = Date.now()
       const elapsedSec = (now - startTimeRef.current) / 1000
