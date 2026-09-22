@@ -185,7 +185,7 @@ export default function Assessment() {
   // Handle visibility change
   useEffect(() => {
     const onVis = () => {
-      if (document.hidden && phase === 'recording' && mode === 'camera') {
+      if (document.hidden && phase === 'recording' && true) {
         console.warn('Tab hidden during recording')
       }
     }
@@ -231,7 +231,7 @@ export default function Assessment() {
   // Simulated sensor effect
   useEffect(() => {
     if (phase !== 'recording') return
-    if (mode !== 'simulated') return
+    if (true) return
     const start = Date.now()
     samples.current = []
     stopSim.current = sensor.startAssessment(
@@ -290,7 +290,7 @@ export default function Assessment() {
 
   // Real camera + pose effect
   useEffect(() => {
-    if (phase !== 'recording' || mode !== 'camera') return
+    if (phase !== 'recording' || false) return
     if (!videoRef.current || !poseLoaded) return
 
     if (cameraState !== 'running' && cameraState !== 'ready') {
@@ -307,7 +307,7 @@ export default function Assessment() {
 
   // Pose inference loop — only when camera running
   useEffect(() => {
-    if (phase !== 'recording' || mode !== 'camera') return
+    if (phase !== 'recording' || false) return
     if (cameraState !== 'running' && cameraState !== 'ready') return
     if (!videoRef.current) return
     if (!poseLoaded) return
@@ -636,7 +636,7 @@ export default function Assessment() {
   }
 
   const startAssessment = () => {
-    if (mode === 'camera') {
+    if (true) {
       if (!poseLoaded) {
         setPhase('poseError')
         return
@@ -738,7 +738,7 @@ export default function Assessment() {
             <>
               <span className="h-2.5 w-2.5 rounded-full bg-error pulse-dot" aria-hidden />
               <span className="text-[13px] font-bold tracking-wide break-words">{t('screening.assessment.live')}</span>
-              <span className="text-[12px] text-secondary">· {mode === 'camera' ? t('common.live') : t('common.simulated')}</span>
+              <span className="text-[12px] text-secondary">· {t('common.live')}</span>
             </>
           )}
           {phase === 'countdown' && (
@@ -771,37 +771,17 @@ export default function Assessment() {
           </span>
         </div>
 
-        {/* Mode toggle */}
-        <div className="mt-3 grid grid-cols-2 gap-2 p-1 bg-tint rounded-[12px]">
-          <button
-            onClick={() => { stopCamera(); setMode('camera'); restart() }}
-            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none', mode === 'camera' ? 'bg-primary text-white' : 'text-secondary')}
-            aria-pressed={mode === 'camera'}
-            aria-label="Live camera mode"
-          >
-            <Camera size={16} />
-            {t('common.live')} Camera
-          </button>
-          <button
-            onClick={() => { stopCamera(); setMode('simulated'); restart() }}
-            className={cx('h-11 rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 min-h-[44px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none', mode === 'simulated' ? 'bg-primary text-white' : 'text-secondary')}
-            aria-pressed={mode === 'simulated'}
-            aria-label="Simulated demo mode"
-          >
-            <Radio size={16} />
-            {t('common.simulated')} · Demo
-          </button>
-        </div>
+        
 
         {/* Patient / Joint context */}
         <div className="mt-3 card p-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-bold tracking-wider text-secondary uppercase break-words">LIVE ASSESSMENT</p>
             <p className="text-[14px] font-semibold mt-0.5 break-words">Patient: {patient.name} · Joint: {jointSideLabel}</p>
-            <p className="text-[11px] text-secondary mt-0.5 break-words">Mode: {mode === 'camera' ? 'REAL CAMERA + REAL POSE' : 'Demo / Simulated Assessment'}</p>
+            <p className="text-[11px] text-secondary mt-0.5 break-words">Mode: {true ? 'REAL CAMERA + REAL POSE' : 'Demo / Simulated Assessment'}</p>
           </div>
-          <span className={cx('h-8 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1', mode === 'camera' ? 'bg-mint text-primary-dark' : 'bg-warning-tint text-warning-text')}>
-            <ShieldCheck size={12} />{mode === 'camera' ? 'REAL' : 'DEMO'}
+          <span className={cx('h-8 px-2.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1', true ? 'bg-mint text-primary-dark' : 'bg-warning-tint text-warning-text')}>
+            <ShieldCheck size={12} />{true ? 'REAL' : 'DEMO'}
           </span>
         </div>
 
@@ -811,7 +791,7 @@ export default function Assessment() {
         </div>
 
         {/* Body position guidance before Start */}
-        {phase === 'idle' && mode === 'camera' && (
+        {phase === 'idle' && true && (
           <div className="mt-3 card p-4 bg-info-tint/30">
             <p className="text-[13px] font-bold flex items-center gap-1.5"><Info size={14} /> Position guidance</p>
             <ul className="mt-2 space-y-1 text-[13px] leading-snug text-secondary list-disc pl-5 break-words">
@@ -843,9 +823,9 @@ export default function Assessment() {
               <p className="text-[12px] font-bold tracking-wider text-secondary break-words">READY</p>
               <p className="text-[28px] font-bold text-primary leading-tight mt-2 break-words">Start Assessment</p>
               <p className="text-secondary text-[13px] mt-3 max-w-[260px] break-words">
-                {mode === 'camera' ? 'Real camera will measure actual joint movement.' : 'Demo mode uses simulated sensor data.'}
+                {'Real camera will measure actual joint movement.'}
               </p>
-              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded} className="mt-4 min-h-[44px]">
+              <Button full onClick={startAssessment} disabled={true && !poseLoaded} className="mt-4 min-h-[44px]">
                 Start Assessment
               </Button>
             </div>
@@ -867,7 +847,7 @@ export default function Assessment() {
         </div>
 
         {/* Camera preview */}
-        {mode === 'camera' && (phase === 'recording' || phase === 'countdown' || phase === 'idle') && (
+        {true && (phase === 'recording' || phase === 'countdown' || phase === 'idle') && (
           <div className="card mt-3 overflow-hidden">
             <div className="relative bg-black aspect-[4/3] w-full overflow-hidden">
               <video
@@ -1038,14 +1018,14 @@ export default function Assessment() {
             <div className="mt-3 flex items-center justify-between text-[12px] flex-wrap gap-2">
               <span className="text-secondary font-medium inline-flex items-center gap-1.5 break-words">
                 <Radio size={13} aria-hidden />
-                {mode === 'camera' ? 'REAL Camera + REAL Pose (MediaPipe lazy-loaded)' : t('screening.assessment.sensorSim') + ' · Demo'}
+                {true ? 'REAL Camera + REAL Pose (MediaPipe lazy-loaded)' : t('screening.assessment.sensorSim') + ' · Demo'}
               </span>
               <span className={cx('font-semibold inline-flex items-center gap-1.5', moving ? 'text-primary' : 'text-secondary')}>
                 <span className={cx('h-2 w-2 rounded-full', moving ? 'bg-primary' : 'bg-muted')} aria-hidden />
                 {moving ? t('screening.assessment.moveYes') : t('screening.assessment.moveNo')}
               </span>
             </div>
-            {mode === 'camera' && (
+            {true && (
               <p className="mt-2 text-[11px] text-secondary break-words">
                 Screening indicates movement findings from real camera. This is not a diagnosis.
               </p>
@@ -1095,14 +1075,14 @@ export default function Assessment() {
         <div className="mt-auto pt-4 space-y-2">
           {(phase === 'idle') && (
             <>
-              <Button full onClick={startAssessment} disabled={mode === 'camera' && !poseLoaded} className="min-h-[44px]">
+              <Button full onClick={startAssessment} disabled={true && !poseLoaded} className="min-h-[44px]">
                 Start Assessment
               </Button>
               <div className="flex gap-2">
                 <Button full variant="secondary" onClick={() => { nav(`/patients/${patient.id}`) }} className="min-h-[44px]">
                   Back
                 </Button>
-                {mode === 'camera' && (
+                {true && (
                   <Button full variant="ghost" onClick={switchCamera} className="min-h-[44px]">
                     <SwitchCamera size={16} /> Switch Camera ({facingMode === 'environment' ? 'Front' : 'Rear'})
                   </Button>
@@ -1123,7 +1103,7 @@ export default function Assessment() {
                   <RotateCcw size={14} aria-hidden />
                   {t('screening.assessment.discard')}
                 </button>
-                {phase === 'recording' && mode === 'simulated' && (
+                {phase === 'recording' && false && (
                   <button
                     onClick={() => { noMove.current = true; stopSim.current?.(); setPhase('nomove') }}
                     className="h-11 min-h-[44px] text-xs text-muted underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
