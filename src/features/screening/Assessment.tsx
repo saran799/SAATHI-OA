@@ -10,7 +10,6 @@ import { angleFromLandmarks, type TimestampedSample } from '../../services/movem
 import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
 import type { TestResult } from '../../domain/types'
-import { estimateRisk } from '../../domain/risk'
 
 const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
@@ -59,7 +58,7 @@ type AssessmentPhase =
 
 export default function Assessment() {
   const nav = useNavigate()
-  const { patient, session } = useScreeningPatient(true)
+  const { session } = useScreeningPatient(true)
   // t is unused but kept if required by i18n system, though we will remove the declaration entirely
   useT()
 
@@ -394,10 +393,8 @@ export default function Assessment() {
       setPhase('setup')
       setTestResult(null)
     } else {
-      // All tests complete -> Calculate risk and go to Result
-      const risk = estimateRisk(patient!, session.answers, session.tests)
-      session.setResult(risk)
-      nav('/screening/result')
+      // All tests complete -> Go to Analysis to generate risk and record
+      nav('/screening/analysis')
     }
   }
 
