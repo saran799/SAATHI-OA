@@ -70,15 +70,31 @@ export default function Report() {
           <div className="mt-3 rounded-[12px] bg-info-tint p-3 text-[13px] leading-snug flex gap-2 break-words"><Info size={16} className="text-info shrink-0 mt-0.5" aria-hidden /><span><span className="font-bold">{t('reports.recordOnly')}</span></span></div>
         </Section>
 
-        <Section title={t('reports.findings')} right={<span className="text-[12px] font-semibold text-primary break-words">{t('reports.checks', { count: rec.movement?.performed ? 5 : 3 })}</span>}>
+        <Section title={t('reports.findings')} right={<span className="text-[12px] font-semibold text-primary break-words">{t('reports.checks', { count: (rec.tests?.length || 0) + 3 })}</span>}>
           <div className="space-y-2">
-            {rec.movement?.performed && <Finding icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${rec.movement.rangeOfMotionDeg}°`} />}
-            {rec.movement?.performed && <Finding icon={Footprints} t={t('reports.pattern')} b={t('reports.patternDesc', { reps: rec.movement.repetitions, sec: rec.movement.durationSec })} v={rec.movement.smoothness >= 0.6 ? t('reports.even') : <span className="h-6 px-2 rounded-full bg-info-tint text-info text-[11px] inline-flex items-center break-words">{t('reports.uneven')}</span>} />}
+            {rec.tests?.map(test => {
+              if (test.testId === 'rom' && test.measurements?.performed) {
+                return <Finding key={test.testId} icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${test.measurements.rangeOfMotionDeg?.toFixed(1) || 0}°`} />
+              }
+              if (test.testId === 'functional' && test.measurements?.performed) {
+                return <Finding key={test.testId} icon={Activity} t="Functional Movement" b="30s Chair Stand" v={`${test.measurements.repetitions} reps`} />
+              }
+              if (test.testId === 'gait' && test.measurements?.performed) {
+                return <Finding key={test.testId} icon={Footprints} t="Gait" b="Camera-derived estimate" v={`${test.measurements.stepEvents} steps`} />
+              }
+              if (test.testId === 'posture' && test.measurements?.performed) {
+                return <Finding key={test.testId} icon={Activity} t="Posture" b="Stability observation" v={`Shoulder tilt: ${test.measurements.shoulderAlignment} rad`} />
+              }
+              if (!test.measurements?.performed) {
+                return <Finding key={test.testId} icon={Activity} t={test.testId.toUpperCase()} b="Test not completed" v="Insufficient data" />
+              }
+              return null
+            })}
             <Finding icon={Frown} t={t('reports.painActivity')} b={t('reports.reported')} v={ans('pain_activity')} />
             <Finding icon={Sun} t={t('reports.morningStiff')} b={t('reports.reported')} v={ans('stiffness')} />
             <Finding icon={Activity} t={t('reports.dailyTasks')} b={t('reports.reported')} v={ans('function')} />
           </div>
-          {!rec.movement?.performed && <p className="text-[12px] text-secondary mt-2 break-words">{t('reports.notPerformed')}</p>}
+          {(!rec.tests || rec.tests.length === 0) && <p className="text-[12px] text-secondary mt-2 break-words">{t('reports.notPerformed')}</p>}
           <details className="mt-3"><summary className="text-[13px] font-semibold text-primary cursor-pointer h-9 flex items-center break-words">{t('reports.allSymptoms')}</summary>
             <div className="mt-1">{Object.keys(rec.answers).map(qid => <Line key={qid} k={t(`screening.questions.questions.${qid}.factor`)} v={ans(qid)} />)}</div></details>
         </Section>

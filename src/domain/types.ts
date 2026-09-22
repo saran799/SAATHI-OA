@@ -53,6 +53,7 @@ export interface TestDefinition {
   requiredLandmarks: number[]
   recordingMode: 'continuous' | 'event'
   completionCriteria: (samples: any[]) => boolean
+  extractMetrics: (samples: any[]) => any
   timeoutSec: number
   validationCriteria: (result: any) => boolean
   retryConditions: (result: any) => boolean

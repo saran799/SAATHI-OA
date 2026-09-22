@@ -247,7 +247,8 @@ export default function Assessment() {
                 t: now,
                 angle: curAngle.angle,
                 confidence: curAngle.confidence,
-                valid: true
+                valid: true,
+                landmarks: smoothedLms
               })
             }
           }
@@ -299,7 +300,7 @@ export default function Assessment() {
 
             // Draw full skeleton
             if (poseMod.POSE_CONNECTIONS) {
-              ctx.lineWidth = 3 * dpr
+              ctx.lineWidth = 2
               ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
               poseMod.POSE_CONNECTIONS.forEach(([i, j]) => {
                 const p1 = smoothedLms[i]
@@ -322,15 +323,15 @@ export default function Assessment() {
               const isTriplet = config.angleTriplet.includes(idx)
               if (isTriplet) {
                 ctx.beginPath()
-                ctx.arc(x, y, 6 * dpr, 0, 2 * Math.PI)
+                ctx.arc(x, y, 4, 0, 2 * Math.PI)
                 ctx.fillStyle = '#CCFBF1' // mint-100
                 ctx.fill()
-                ctx.lineWidth = 3 * dpr
+                ctx.lineWidth = 2
                 ctx.strokeStyle = '#0F766E' // teal-700
                 ctx.stroke()
               } else {
                 ctx.beginPath()
-                ctx.arc(x, y, 3 * dpr, 0, 2 * Math.PI)
+                ctx.arc(x, y, 2, 0, 2 * Math.PI)
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
                 ctx.fill()
               }
@@ -381,25 +382,18 @@ export default function Assessment() {
     if (phase === 'validating') {
       if (!currentTest) return
       const isComplete = currentTest.completionCriteria(realSamples.current)
-      const maxAngle = realSamples.current.length > 0 ? Math.max(...realSamples.current.map(s => s.angle)) : 0
-      const minAngle = realSamples.current.length > 0 ? Math.min(...realSamples.current.map(s => s.angle)) : 0
+      const metrics = currentTest.extractMetrics ? currentTest.extractMetrics(realSamples.current) : {}
 
       const result: TestResult = {
         testId: currentTest.id,
         status: isComplete ? 'VALID' : 'INSUFFICIENT',
         completed: isComplete,
         quality: isComplete ? 'Good' : 'Low',
-        measurements: {
-          rangeOfMotionDeg: maxAngle - minAngle,
-          durationSec: (Date.now() - startTimeRef.current) / 1000,
-          performed: isComplete
-        },
+        measurements: metrics,
         observations: [],
         technicalDetails: {
           samplesCount: realSamples.current.length,
-          validSamples: realSamples.current.filter(s => s.valid).length,
-          maxAngle,
-          minAngle
+          validSamples: realSamples.current.filter(s => s.valid).length
         },
         timestamp: Date.now()
       }
@@ -582,12 +576,11 @@ export default function Assessment() {
               )}
             </div>
             
-            <p className="text-sm font-semibold text-secondary">
-              Movement: <span className="text-ink">{testResult.measurements?.performed ? 'Detected' : 'Not detected'}</span>
-            </p>
-            <p className="text-sm font-semibold text-secondary">
-              Quality: <span className="text-ink">{testResult.quality}</span>
-            </p>
+            {Object.entries(currentTest?.workerResultFormatter(testResult) || {}).map(([key, val]) => (
+              <p key={key} className="text-sm font-semibold text-secondary capitalize">
+                {key}: <span className="text-ink">{String(val)}</span>
+              </p>
+            ))}
             
             {/* Technical Details Toggle */}
             <div className="mt-4 pt-4 border-t border-border">
@@ -601,9 +594,10 @@ export default function Assessment() {
               {showTechnicalDetails && (
                 <div className="mt-2 text-xs font-mono text-secondary bg-surface-sunken p-3 rounded-[8px] break-all">
                   <p>Status: {testResult.status}</p>
-                  <p>Duration: {testResult.measurements?.durationSec?.toFixed(2)}s</p>
                   <p>Valid Samples: {testResult.technicalDetails?.validSamples}</p>
-                  <p>ROM: {testResult.measurements?.rangeOfMotionDeg?.toFixed(1)}°</p>
+                  {Object.entries(testResult.measurements || {}).map(([k, v]) => (
+                    <p key={k}>{k}: {typeof v === 'number' ? v.toFixed(2) : String(v)}</p>
+                  ))}
                 </div>
               )}
             </div>

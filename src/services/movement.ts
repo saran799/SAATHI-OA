@@ -31,6 +31,7 @@ export interface TimestampedSample {
   angle: number
   confidence: number
   valid?: boolean
+  landmarks?: PosePoint[]
 }
 
 export interface MovementMetrics {
