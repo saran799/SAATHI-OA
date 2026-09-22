@@ -72,6 +72,7 @@ export default function Assessment() {
   const [angle, setAngle] = useState(0)
   const [trace, setTrace] = useState<number[]>([])
   const [confidence, setConfidence] = useState(0)
+  const [diag, setDiag] = useState({ infFrames: 0, infSuccess: 0, err: '', reqVis: '', lastValid: false, diagLandmarks: 0 })
   const [cameraState, setCameraState] = useState<CameraState>('idle')
   const [poseLoaded, setPoseLoaded] = useState(false)
   const [poseError, setPoseError] = useState<string | null>(null)
@@ -358,11 +359,22 @@ export default function Assessment() {
       if (poseNow <= lastPoseTimeRef.current) {
         poseNow = lastPoseTimeRef.current + 1
       }
+      // Throttle inference slightly on mobile to avoid overwhelming GPU (max 30fps)
+      if (poseNow - lastPoseTimeRef.current < 30) {
+        rafRef.current = requestAnimationFrame(loop)
+        return
+      }
       lastPoseTimeRef.current = poseNow
 
-      const pose = poseMod.detectPose(video, poseNow)
+      const poseOut = poseMod.detectPose(video, poseNow)
+      const pose = poseOut.result
 
-      if (!pose || pose.landmarks.length === 0) {
+      const updateDiag = (now - lastUpdateRef.current > 100)
+      if (updateDiag) {
+        setDiag(d => ({ ...d, infFrames: d.infFrames + 1, err: poseOut.diagError || d.err, diagLandmarks: poseOut.diagLandmarks }))
+      }
+
+      if (!pose || !pose.landmarks || pose.landmarks.length === 0) {
         noPersonFramesRef.current++
         if (noPersonFramesRef.current > 30) {
           if (personDetected) setPersonDetected(false)
@@ -373,7 +385,17 @@ export default function Assessment() {
         noPersonFramesRef.current = 0
         if (!personDetected) setPersonDetected(true)
 
+        const [aIdx, bIdx, cIdx] = config.angleTriplet
+        const a = pose.landmarks[aIdx]
+        const b = pose.landmarks[bIdx]
+        const c = pose.landmarks[cIdx]
+        const visMsg = (a && b && c) ? `${(a.visibility||0).toFixed(2)}/${(b.visibility||0).toFixed(2)}/${(c.visibility||0).toFixed(2)}` : 'missing'
+
         const { angle: curAngle, confidence: curConf, valid } = angleFromLandmarks(pose.landmarks, config)
+
+        if (updateDiag) {
+           setDiag(d => ({ ...d, infSuccess: d.infSuccess + 1, reqVis: visMsg, lastValid: valid }))
+        }
 
         if (!valid) {
           stableFramesRef.current = Math.max(0, stableFramesRef.current - 1)
@@ -966,15 +988,21 @@ export default function Assessment() {
             </div>
             {showDiagnostics && (
               <div className="p-3 bg-black text-green-400 text-[10px] font-mono leading-tight break-words">
-                <div>cameraState: {cameraState}</div>
+                <div className="font-bold border-b border-green-800 pb-1 mb-1">DIAGNOSTICS</div>
+                <div>Camera: {cameraState === 'running' ? 'READY' : cameraState}</div>
                 <div>stream: {cameraService.getStream() ? 'active' : 'none'} tracks: {cameraService.getStream()?.getTracks().length || 0}</div>
-                <div>video: {videoRef.current?.videoWidth}×{videoRef.current?.videoHeight} readyState: {videoRef.current?.readyState} paused: {videoRef.current?.paused ? 'yes' : 'no'}</div>
-                <div>pose: {poseLoaded ? 'loaded' : 'not loaded'} error: {poseError || 'none'}</div>
-                <div>person: {personDetected ? 'yes' : 'no'} stable: {stableDetection ? 'yes' : 'no'} stableFrames: {stableFramesRef.current} noPersonFrames: {noPersonFramesRef.current}</div>
-                <div>joint: {session.joint} side: {session.side} config: {getJointConfigLight(session.joint as any, session.side as any).angleTriplet.join('-')}</div>
-                <div>angle: {angle.toFixed(1)}° conf: {confidence.toFixed(2)} validSamples: {realSamples.current.filter(s => s.confidence >= 0.3).length}</div>
-                <div>reps: {reps} elapsed: {elapsed.toFixed(1)}s phase: {phase} facing: {facingMode}</div>
-                <div>previewEnv: {isPreview ? 'yes' : 'no'}</div>
+                <div>Video: {videoRef.current?.videoWidth}×{videoRef.current?.videoHeight} readyState: {videoRef.current?.readyState} paused: {videoRef.current?.paused ? 'yes' : 'no'}</div>
+                <div>Pose: {poseLoaded ? 'READY' : 'not loaded'} error: {poseError || 'none'}</div>
+                <div>Inference frames: {diag.infFrames} Success: {diag.infSuccess}</div>
+                <div>Pose results: {diag.infSuccess}</div>
+                <div>Landmarks: {diag.diagLandmarks}</div>
+                <div>Required landmarks: {diag.reqVis}</div>
+                <div>Valid samples: {realSamples.current.filter(s => s.confidence >= 0.3).length} / {realSamples.current.length}</div>
+                <div>Confidence: {confidence.toFixed(2)}</div>
+                <div>Angle: {Math.round(angle)}°</div>
+                <div>Movement: {reps > 0 || realSamples.current.length > 50 ? 'detected' : 'none'}</div>
+                <div>person: {personDetected ? 'yes' : 'no'} stable: {stableDetection ? 'yes' : 'no'}</div>
+                <div>Error: {diag.err || 'none'}</div>
               </div>
             )}
           </div>

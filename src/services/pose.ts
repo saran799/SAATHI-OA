@@ -140,7 +140,7 @@ export async function loadPoseModel(): Promise<PoseLandmarker> {
         baseOptions: {
           modelAssetPath:
             'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU',
+          delegate: 'CPU',
         },
         runningMode: 'VIDEO',
         numPoses: 1,
@@ -160,16 +160,23 @@ export async function loadPoseModel(): Promise<PoseLandmarker> {
   return loadingPromise
 }
 
-export function detectPose(video: HTMLVideoElement, timestamp: number): PoseResult | null {
-  if (!poseLandmarker) return null
+export interface PoseDiagnosticOutput {
+  result: PoseResult | null
+  diagError: string
+  diagLandmarks: number
+}
+
+export function detectPose(video: HTMLVideoElement, timestamp: number): PoseDiagnosticOutput {
+  if (!poseLandmarker) return { result: null, diagError: 'Model not loaded', diagLandmarks: 0 }
 
   // Guard: never run against zero-dimension/unready video per spec
-  if (!video || video.videoWidth === 0 || video.videoHeight === 0) return null
-  if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null
+  if (!video || video.videoWidth === 0 || video.videoHeight === 0) return { result: null, diagError: 'Video dimensions 0', diagLandmarks: 0 }
+  if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return { result: null, diagError: 'Video readyState < 2', diagLandmarks: 0 }
 
   try {
     const result: PoseLandmarkerResult = poseLandmarker.detectForVideo(video, timestamp)
-    if (!result.landmarks || result.landmarks.length === 0) return null
+    if (!result.landmarks || result.landmarks.length === 0) return { result: null, diagError: 'No landmarks returned', diagLandmarks: 0 }
+    
     const lm = result.landmarks[0]
     const points: PosePoint[] = lm.map((p: any) => ({
       x: p.x,
@@ -178,10 +185,11 @@ export function detectPose(video: HTMLVideoElement, timestamp: number): PoseResu
       visibility: p.visibility ?? 1,
     }))
     const avgVis = points.reduce((a, p) => a + (p.visibility || 0), 0) / (points.length || 1)
-    return { landmarks: points, confidence: avgVis }
+    
+    return { result: { landmarks: points, confidence: avgVis }, diagError: '', diagLandmarks: points.length }
   } catch (e) {
     console.error('Pose detection error', e)
-    return null
+    return { result: null, diagError: e instanceof Error ? e.message : String(e), diagLandmarks: 0 }
   }
 }
 
