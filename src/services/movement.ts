@@ -302,7 +302,7 @@ export function angleFromLandmarks(
   const c = landmarks[cIdx]
 
   if (!a || !b || !c) {
-    return { angle: 0, confidence: 0, valid: false }
+    return { angle: NaN, confidence: 0, valid: false }
   }
 
   // Check finite coordinates
@@ -311,7 +311,7 @@ export function angleFromLandmarks(
     !Number.isFinite(b.x) || !Number.isFinite(b.y) ||
     !Number.isFinite(c.x) || !Number.isFinite(c.y)
   ) {
-    return { angle: 0, confidence: 0, valid: false }
+    return { angle: NaN, confidence: 0, valid: false }
   }
 
   // Check visibility/confidence per spec
@@ -322,13 +322,13 @@ export function angleFromLandmarks(
   // Require at least 0.3 visibility for each required landmark
   if (visA < 0.3 || visB < 0.3 || visC < 0.3) {
     const avgConf = (visA + visB + visC) / 3
-    return { angle: 0, confidence: avgConf, valid: false }
+    return { angle: NaN, confidence: avgConf, valid: false }
   }
 
   const angle = calculateAngle(a, b, c)
 
   if (!Number.isFinite(angle) || angle <= 0 || angle > 180) {
-    return { angle: 0, confidence: 0, valid: false }
+    return { angle: NaN, confidence: 0, valid: false }
   }
 
   const conf = (visA + visB + visC) / 3

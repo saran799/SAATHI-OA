@@ -58,11 +58,24 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     requiredLandmarks: [],
     recordingMode: 'event',
     timeoutSec: 30,
-    completionCriteria: () => false, 
-    validationCriteria: () => false,
-    retryConditions: () => false,
-    workerResultFormatter: () => ({ status: 'Not implemented' }),
-    technicalResultFormatter: () => ({})
+    completionCriteria: (_samples: any[]) => {
+      // Stub: Wait for 30s or explicit 0 reps completion
+      return false
+    }, 
+    validationCriteria: (result: any) => {
+      // Must have detected stand/sit transitions
+      return result?.measurements?.performed === true
+    },
+    retryConditions: (result: any) => {
+      return result?.status === 'INSUFFICIENT'
+    },
+    workerResultFormatter: (result: any) => ({ 
+      movement: result?.measurements?.performed ? 'Detected' : 'Not detected',
+      quality: result?.quality || 'Unknown' 
+    }),
+    technicalResultFormatter: (result: any) => ({
+      ...result?.technicalDetails
+    })
   },
   {
     /*
@@ -79,11 +92,23 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     requiredLandmarks: [],
     recordingMode: 'continuous',
     timeoutSec: 30,
-    completionCriteria: () => false, 
-    validationCriteria: () => false,
-    retryConditions: () => false,
-    workerResultFormatter: () => ({ status: 'Not implemented' }),
-    technicalResultFormatter: () => ({})
+    completionCriteria: (_samples: any[]) => {
+      // Stub: Distance covered or steps counted
+      return false
+    }, 
+    validationCriteria: (result: any) => {
+      return result?.measurements?.performed === true
+    },
+    retryConditions: (result: any) => {
+      return result?.status === 'INSUFFICIENT'
+    },
+    workerResultFormatter: (result: any) => ({
+      movement: result?.measurements?.performed ? 'Detected' : 'Not detected',
+      quality: result?.quality || 'Unknown' 
+    }),
+    technicalResultFormatter: (result: any) => ({
+      ...result?.technicalDetails
+    })
   },
   {
     id: 'posture',
@@ -94,10 +119,22 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     requiredLandmarks: [],
     recordingMode: 'continuous',
     timeoutSec: 10,
-    completionCriteria: () => false, 
-    validationCriteria: () => false,
-    retryConditions: () => false,
-    workerResultFormatter: () => ({ status: 'Not implemented' }),
-    technicalResultFormatter: () => ({})
+    completionCriteria: (_samples: any[]) => {
+      // Stub: 10s held successfully
+      return false
+    }, 
+    validationCriteria: (result: any) => {
+      return result?.measurements?.performed === true
+    },
+    retryConditions: (result: any) => {
+      return result?.status === 'INSUFFICIENT'
+    },
+    workerResultFormatter: (result: any) => ({
+      movement: result?.measurements?.performed ? 'Detected' : 'Not detected',
+      quality: result?.quality || 'Unknown' 
+    }),
+    technicalResultFormatter: (result: any) => ({
+      ...result?.technicalDetails
+    })
   }
 ]

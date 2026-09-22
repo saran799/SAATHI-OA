@@ -9,6 +9,21 @@ export interface PoseResult {
 
 export type JointType = 'knee' | 'hip' | 'hand' | 'spine' | 'shoulder'
 
+export const POSE_CONNECTIONS = [
+  // Torso
+  [11, 12], [11, 23], [12, 24], [23, 24],
+  // Right Arm
+  [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20],
+  // Left Arm
+  [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19],
+  // Right Leg
+  [24, 26], [26, 28], [28, 30], [28, 32], [30, 32],
+  // Left Leg
+  [23, 25], [25, 27], [27, 29], [27, 31], [29, 31],
+  // Face (basic outline to show person is detected)
+  [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10]
+]
+
 export interface JointConfig {
   joint: JointType
   side: 'left' | 'right' | 'both'

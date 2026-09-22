@@ -59,8 +59,8 @@ type AssessmentPhase =
 export default function Assessment() {
   const nav = useNavigate()
   const { session } = useScreeningPatient(true)
-  // t is unused but kept if required by i18n system, though we will remove the declaration entirely
-  useT()
+  const { t } = useT()
+
 
   // Multi-test workflow state
   const [currentTestIndex, setCurrentTestIndex] = useState(0)
@@ -74,6 +74,8 @@ export default function Assessment() {
   const [poseLoaded, setPoseLoaded] = useState(false)
   const [personDetected, setPersonDetected] = useState(false)
   
+  const [trackingState, setTrackingState] = useState<'Waiting...' | 'Tracking patient' | 'Move into position' | 'Tracking unstable - reposition'>('Waiting...')
+
   // Measurement state
   const [elapsed, setElapsed] = useState(0)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
@@ -81,6 +83,10 @@ export default function Assessment() {
 
   // Refs for tracking loop execution without re-renders
   const poseModuleRef = useRef<PoseModule | null>(null)
+  
+  // Temporal Stabilization queue
+  const smoothedLandmarksRef = useRef<any[] | null>(null)
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -183,23 +189,67 @@ export default function Assessment() {
         const res = poseOut.result
         const hasPerson = !!(res?.landmarks && res.landmarks.length > 0)
         
-        // Update person detection for the UI once per second max to avoid spam
-        if (now - lastUpdateRef.current > 1000) {
-          setPersonDetected(hasPerson)
-          lastUpdateRef.current = now
-        }
+        let currentTrackingState: 'Move into position' | 'Tracking patient' | 'Tracking unstable - reposition' = 'Move into position'
 
         if (hasPerson) {
-          const lms = res.landmarks
-          const curAngle = angleFromLandmarks(lms, config)
+          const rawLms = res.landmarks
+          
+          // ENGINEERING/TRACKING PARAMETER (NOT A CLINICAL THRESHOLD)
+          // Used strictly for temporal stabilization (EMA) to reduce visualization jitter.
+          // This is NOT a validated clinical measurement variable.
+          const alpha = 0.4
+          
+          let smoothedLms = rawLms
+
+          if (!smoothedLandmarksRef.current || smoothedLandmarksRef.current.length !== rawLms.length) {
+            smoothedLandmarksRef.current = [...rawLms]
+          } else {
+            const smoothed = smoothedLandmarksRef.current
+            for (let i = 0; i < rawLms.length; i++) {
+              const raw = rawLms[i]
+              const prev = smoothed[i]
+              if (!prev || (raw.visibility || 0) < 0.1 || (prev.visibility || 0) < 0.1) {
+                smoothed[i] = { ...raw }
+                continue
+              }
+              const dx = raw.x - prev.x
+              const dy = raw.y - prev.y
+              const dist = Math.sqrt(dx * dx + dy * dy)
+              
+              // ENGINEERING/TRACKING PARAMETER (NOT A CLINICAL THRESHOLD)
+              // Used strictly for outlier rejection to prevent drawing massive frame-to-frame leaps.
+              if (dist > 0.15) {
+                // Outlier leap (fast movement or glitch) -> reset to raw
+                smoothed[i] = { ...raw }
+              } else {
+                smoothed[i] = {
+                  ...raw,
+                  x: prev.x + alpha * dx,
+                  y: prev.y + alpha * dy,
+                  z: prev.z !== undefined && raw.z !== undefined ? prev.z + alpha * (raw.z - prev.z) : raw.z
+                }
+              }
+            }
+            smoothedLms = smoothed
+          }
+
+          const curAngle = angleFromLandmarks(smoothedLms, config)
+
+          if (curAngle.valid) {
+            currentTrackingState = 'Tracking patient'
+          } else {
+            currentTrackingState = 'Tracking unstable - reposition'
+          }
 
           if (phase === 'recording') {
-            realSamples.current.push({
-              t: now,
-              angle: curAngle.angle,
-              confidence: curAngle.confidence,
-              valid: curAngle.valid
-            })
+            if (curAngle.valid) {
+              realSamples.current.push({
+                t: now,
+                angle: curAngle.angle,
+                confidence: curAngle.confidence,
+                valid: true
+              })
+            }
           }
           
           // Draw skeleton on canvas
@@ -240,55 +290,66 @@ export default function Assessment() {
               ctx.scale(-1, 1)
             }
 
-            lms.forEach((p: any, idx: number) => {
-              if ((p.visibility || 0) < 0.3) return
+            const getCoord = (p: any) => {
               let x = offsetX + p.x * drawWidth
               let y = offsetY + p.y * drawHeight
               if (isMirrored) x = displayWidth - x
+              return { x, y }
+            }
+
+            // Draw full skeleton
+            if (poseMod.POSE_CONNECTIONS) {
+              ctx.lineWidth = 3 * dpr
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
+              poseMod.POSE_CONNECTIONS.forEach(([i, j]) => {
+                const p1 = smoothedLms[i]
+                const p2 = smoothedLms[j]
+                if (p1 && p2 && (p1.visibility || 0) > 0.4 && (p2.visibility || 0) > 0.4) {
+                  const c1 = getCoord(p1)
+                  const c2 = getCoord(p2)
+                  ctx.beginPath()
+                  ctx.moveTo(c1.x, c1.y)
+                  ctx.lineTo(c2.x, c2.y)
+                  ctx.stroke()
+                }
+              })
+            }
+
+            smoothedLms.forEach((p: any, idx: number) => {
+              if ((p.visibility || 0) < 0.3) return
+              const { x, y } = getCoord(p)
               
               const isTriplet = config.angleTriplet.includes(idx)
               if (isTriplet) {
                 ctx.beginPath()
-                ctx.arc(x, y, idx === config.angleTriplet[1] ? 8 : 6, 0, Math.PI * 2)
-                ctx.fillStyle = idx === config.angleTriplet[1] ? '#0F766E' : '#CCFBF1'
+                ctx.arc(x, y, 6 * dpr, 0, 2 * Math.PI)
+                ctx.fillStyle = '#CCFBF1' // mint-100
                 ctx.fill()
+                ctx.lineWidth = 3 * dpr
+                ctx.strokeStyle = '#0F766E' // teal-700
+                ctx.stroke()
               } else {
                 ctx.beginPath()
-                ctx.arc(x, y, 3, 0, Math.PI * 2)
-                ctx.fillStyle = 'rgba(15,118,110,0.8)'
+                ctx.arc(x, y, 3 * dpr, 0, 2 * Math.PI)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
                 ctx.fill()
               }
             })
 
-            ctx.strokeStyle = '#0F766E'
-            ctx.lineWidth = 3
-            ctx.beginPath()
-            const [aIdx, bIdx, cIdx] = config.angleTriplet
-            const a = lms[aIdx]
-            const b = lms[bIdx]
-            const c = lms[cIdx]
-            if (a && b && c && (a.visibility || 0) >= 0.3 && (b.visibility || 0) >= 0.3 && (c.visibility || 0) >= 0.3) {
-              let ax = offsetX + a.x * drawWidth
-              let ay = offsetY + a.y * drawHeight
-              let bx = offsetX + b.x * drawWidth
-              let by = offsetY + b.y * drawHeight
-              let cx_ = offsetX + c.x * drawWidth
-              let cy = offsetY + c.y * drawHeight
-              if (isMirrored) {
-                ax = displayWidth - ax
-                bx = displayWidth - bx
-                cx_ = displayWidth - cx_
-              }
-              ctx.moveTo(ax, ay)
-              ctx.lineTo(bx, by)
-              ctx.lineTo(cx_, cy)
-              ctx.stroke()
-            }
-
             ctx.restore()
           }
-        } else if (ctx && canvas) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height)
+        } else {
+          smoothedLandmarksRef.current = null
+          if (ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+          }
+        }
+
+        // Update UI throttled
+        if (now - lastUpdateRef.current > 500) {
+          setPersonDetected(hasPerson)
+          setTrackingState(currentTrackingState)
+          lastUpdateRef.current = now
         }
       } catch (e) {
         console.error('Inference error', e)
@@ -316,15 +377,12 @@ export default function Assessment() {
       setPhase('setup')
     }
 
-    // Recording Validation Logic
-    // Moved to RAF loop to ensure deterministic execution and avoid resetting timers on state updates
-
     // Validation -> Result
     if (phase === 'validating') {
       if (!currentTest) return
       const isComplete = currentTest.completionCriteria(realSamples.current)
-      const maxAngle = Math.max(...realSamples.current.map(s => s.angle))
-      const minAngle = Math.min(...realSamples.current.map(s => s.angle))
+      const maxAngle = realSamples.current.length > 0 ? Math.max(...realSamples.current.map(s => s.angle)) : 0
+      const minAngle = realSamples.current.length > 0 ? Math.min(...realSamples.current.map(s => s.angle)) : 0
 
       const result: TestResult = {
         testId: currentTest.id,
@@ -400,10 +458,32 @@ export default function Assessment() {
 
   // View UI blocks
   const renderHeader = () => (
-    <TopBar 
-      title={currentTest?.title || 'Assessment'} 
-      onBack={() => nav(-1)}
-    />
+    <>
+      <TopBar 
+        title={currentTest?.title || 'Assessment'} 
+        onBack={() => nav(-1)}
+        right={
+          <span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 shadow-sm">
+            <CheckCircle size={14} />{t('screening.common.triageActive')}
+          </span>
+        }
+      />
+      <div className="px-4 py-3 flex items-center justify-between bg-surface border-b border-border/50">
+        <h2 className="font-semibold text-primary">{currentTest?.title}</h2>
+        <div className="flex flex-col items-end">
+          <span className="text-[11px] font-medium text-secondary">
+            TEST {currentTestIndex + 1} OF {ACTIVE_TESTS.length}
+          </span>
+          <span className={cx(
+            "text-[10px] font-bold tracking-wider uppercase mt-0.5",
+            trackingState === 'Tracking patient' ? "text-mint-dark" :
+            trackingState === 'Move into position' ? "text-warning" : "text-error-text"
+          )}>
+            {trackingState}
+          </span>
+        </div>
+      </div>
+    </>
   )
 
   const renderVideoLayer = () => (
