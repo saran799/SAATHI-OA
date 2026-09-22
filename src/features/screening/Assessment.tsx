@@ -341,7 +341,7 @@ export default function Assessment() {
     }
 
     const loop = () => {
-      if (phase === 'nomove' || phase === 'noPerson' || phase === 'poseError' || phase === 'complete') return
+
 
       const now = Date.now()
       const elapsedSec = (now - startTimeRef.current) / 1000
