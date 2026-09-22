@@ -31,6 +31,34 @@ export interface MovementSummary {
   performed: boolean
 }
 
+export type TestStatus = 'VALID' | 'INSUFFICIENT' | 'INVALID' | 'FAILED' | 'NOT_COMPLETED' | 'BLOCKED' | 'PARTIAL'
+
+export interface TestResult {
+  testId: string
+  status: TestStatus
+  completed: boolean
+  quality: string
+  measurements: any
+  observations: string[]
+  technicalDetails: any
+  timestamp: number
+}
+
+export interface TestDefinition {
+  id: string
+  title: string
+  preparationInstruction: string
+  voiceInstruction: string
+  requiredLandmarks: number[]
+  recordingMode: 'continuous' | 'event'
+  completionCriteria: (samples: any[]) => boolean
+  timeoutSec: number
+  validationCriteria: (result: any) => boolean
+  retryConditions: (result: any) => boolean
+  workerResultFormatter: (result: any) => any
+  technicalResultFormatter: (result: any) => any
+}
+
 export interface ScreeningRecord {
   id: string
   patientId: string
@@ -38,6 +66,7 @@ export interface ScreeningRecord {
   side: Side
   answers: Answers
   movement: MovementSummary | null
+  tests: TestResult[]
   result: RiskResult
   createdAt: string
   workerName: string
