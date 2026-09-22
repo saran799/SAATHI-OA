@@ -308,7 +308,7 @@ export default function Assessment() {
 
   // Pose inference loop — only when camera running
   useEffect(() => {
-    if (phase !== 'recording' || false) return
+    if (phase === 'nomove' || phase === 'noPerson' || phase === 'poseError' || phase === 'complete') return
     if (cameraState !== 'running' && cameraState !== 'ready') return
     if (!videoRef.current) return
     if (!poseLoaded) return
@@ -341,7 +341,7 @@ export default function Assessment() {
     }
 
     const loop = () => {
-      if (phase !== 'recording') return
+      if (phase === 'nomove' || phase === 'noPerson' || phase === 'poseError' || phase === 'complete') return
 
       const now = Date.now()
       const elapsedSec = (now - startTimeRef.current) / 1000
@@ -377,13 +377,13 @@ export default function Assessment() {
       if (!pose || !pose.landmarks || pose.landmarks.length === 0) {
         noPersonFramesRef.current++
         if (noPersonFramesRef.current > 30) {
-          if (personDetected) setPersonDetected(false)
+          setPersonDetected(false)
           stableFramesRef.current = Math.max(0, stableFramesRef.current - 1)
           if (stableFramesRef.current < 5) setStableDetection(false)
         }
       } else {
         noPersonFramesRef.current = 0
-        if (!personDetected) setPersonDetected(true)
+        setPersonDetected(true)
 
         const [aIdx, bIdx, cIdx] = config.angleTriplet
         const a = pose.landmarks[aIdx]
@@ -402,64 +402,66 @@ export default function Assessment() {
           if (stableFramesRef.current < 10) setStableDetection(false)
         } else {
           stableFramesRef.current++
-          if (stableFramesRef.current > 15 && !stableDetection) {
+          if (stableFramesRef.current > 15) {
             setStableDetection(true)
           }
 
           lastAngleRef.current = curAngle
 
-          if (now - lastUpdateRef.current > 100) {
-            setAngle(curAngle)
-            setConfidence(curConf)
-            setTrace(tr => [...tr.slice(-59), curAngle])
-            lastUpdateRef.current = now
-          }
-
-          realSamples.current.push({ t: elapsedSec, angle: curAngle, confidence: curConf })
-
-          const rs = repStateRef.current
-          const minExcursion = 15
-          const minTimeBetween = 0.8
-
-          if (rs.direction === null) {
-            rs.direction = curAngle > lastAngleRef.current ? 'up' : 'down'
-            rs.candidatePeak = { angle: curAngle, t: elapsedSec }
-            rs.candidateValley = { angle: curAngle, t: elapsedSec }
-          } else {
-            const prevAngle = lastAngleRef.current
-            const currDir = curAngle > prevAngle ? 'up' : curAngle < prevAngle ? 'down' : rs.direction
-
-            if (currDir !== rs.direction && Math.abs(curAngle - prevAngle) > 2) {
-              if (rs.direction === 'up') {
-                rs.candidatePeak = { angle: prevAngle, t: elapsedSec - 0.1 }
-                const excursion = rs.candidatePeak.angle - rs.lastValley
-                if (excursion >= minExcursion && elapsedSec - rs.lastPeakTime >= minTimeBetween) {
-                  rs.lastPeak = rs.candidatePeak.angle
-                  rs.lastPeakTime = rs.candidatePeak.t
-                }
-              } else {
-                rs.candidateValley = { angle: prevAngle, t: elapsedSec - 0.1 }
-                const excursion = rs.lastPeak - rs.candidateValley.angle
-                if (
-                  rs.lastPeak !== -Infinity &&
-                  excursion >= minExcursion &&
-                  elapsedSec - rs.lastValleyTime >= minTimeBetween
-                ) {
-                  rs.reps++
-                  setReps(rs.reps)
-                  rs.lastValley = rs.candidateValley.angle
-                  rs.lastValleyTime = rs.candidateValley.t
-                  rs.lastPeak = -Infinity
-                }
-              }
-              rs.direction = currDir
+          if (phase === 'recording') {
+            if (now - lastUpdateRef.current > 100) {
+              setAngle(curAngle)
+              setConfidence(curConf)
+              setTrace(tr => [...tr.slice(-59), curAngle])
+              lastUpdateRef.current = now
             }
 
-            if (rs.direction === 'up' && curAngle > rs.candidatePeak.angle) {
+            realSamples.current.push({ t: elapsedSec, angle: curAngle, confidence: curConf })
+
+            const rs = repStateRef.current
+            const minExcursion = 15
+            const minTimeBetween = 0.8
+
+            if (rs.direction === null) {
+              rs.direction = curAngle > lastAngleRef.current ? 'up' : 'down'
               rs.candidatePeak = { angle: curAngle, t: elapsedSec }
-            }
-            if (rs.direction === 'down' && curAngle < rs.candidateValley.angle) {
               rs.candidateValley = { angle: curAngle, t: elapsedSec }
+            } else {
+              const prevAngle = lastAngleRef.current
+              const currDir = curAngle > prevAngle ? 'up' : curAngle < prevAngle ? 'down' : rs.direction
+
+              if (currDir !== rs.direction && Math.abs(curAngle - prevAngle) > 2) {
+                if (rs.direction === 'up') {
+                  rs.candidatePeak = { angle: prevAngle, t: elapsedSec - 0.1 }
+                  const excursion = rs.candidatePeak.angle - rs.lastValley
+                  if (excursion >= minExcursion && elapsedSec - rs.lastPeakTime >= minTimeBetween) {
+                    rs.lastPeak = rs.candidatePeak.angle
+                    rs.lastPeakTime = rs.candidatePeak.t
+                  }
+                } else {
+                  rs.candidateValley = { angle: prevAngle, t: elapsedSec - 0.1 }
+                  const excursion = rs.lastPeak - rs.candidateValley.angle
+                  if (
+                    rs.lastPeak !== -Infinity &&
+                    excursion >= minExcursion &&
+                    elapsedSec - rs.lastValleyTime >= minTimeBetween
+                  ) {
+                    rs.reps++
+                    setReps(rs.reps)
+                    rs.lastValley = rs.candidateValley.angle
+                    rs.lastValleyTime = rs.candidateValley.t
+                    rs.lastPeak = -Infinity
+                  }
+                }
+                rs.direction = currDir
+              }
+
+              if (rs.direction === 'up' && curAngle > rs.candidatePeak.angle) {
+                rs.candidatePeak = { angle: curAngle, t: elapsedSec }
+              }
+              if (rs.direction === 'down' && curAngle < rs.candidateValley.angle) {
+                rs.candidateValley = { angle: curAngle, t: elapsedSec }
+              }
             }
           }
 
@@ -552,39 +554,40 @@ export default function Assessment() {
 
           ctx.restore()
 
-          if (personDetected) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)'
-            ctx.fillRect(8, displayHeight - 32, 120, 24)
-            ctx.fillStyle = 'white'
-            ctx.font = '11px system-ui'
-            ctx.fillText(`Conf ${(confidence * 100).toFixed(0)}% · ${Math.round(angle)}°`, 12, displayHeight - 16)
-          }
+          // person is detected by definition if we are in this block
+          ctx.fillStyle = 'rgba(0,0,0,0.6)'
+          ctx.fillRect(8, displayHeight - 32, 120, 24)
+          ctx.fillStyle = 'white'
+          ctx.font = '11px system-ui'
+          ctx.fillText(`Conf ${(curConf * 100).toFixed(0)}% · ${Math.round(curAngle)}°`, 12, displayHeight - 16)
         }
       }
 
-      if (elapsedSec >= DURATION) {
-        finishReal()
-        return
-      }
+      if (phase === 'recording') {
+        if (elapsedSec >= DURATION) {
+          finishReal()
+          return
+        }
 
-      if (elapsedSec >= 8 && realSamples.current.length > 20) {
-        const valid = realSamples.current.filter(s => s.confidence >= 0.3)
-        if (valid.length > 5) {
-          const angs = valid.map(s => s.angle)
-          const mx = Math.max(...angs)
-          const mn = Math.min(...angs)
-          if (mx - mn < 10) {
-            setPhase('nomove')
-            stopCamera()
-            return
+        if (elapsedSec >= 8 && realSamples.current.length > 20) {
+          const valid = realSamples.current.filter(s => s.confidence >= 0.3)
+          if (valid.length > 5) {
+            const angs = valid.map(s => s.angle)
+            const mx = Math.max(...angs)
+            const mn = Math.min(...angs)
+            if (mx - mn < 10) {
+              setPhase('nomove')
+              stopCamera()
+              return
+            }
           }
         }
-      }
 
-      if (elapsedSec >= 5 && noPersonFramesRef.current > 90) {
-        setPhase('noPerson')
-        stopCamera()
-        return
+        if (elapsedSec >= 5 && noPersonFramesRef.current > 90) {
+          setPhase('noPerson')
+          stopCamera()
+          return
+        }
       }
 
       rafRef.current = requestAnimationFrame(loop)
@@ -599,7 +602,7 @@ export default function Assessment() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, mode, cameraState, poseLoaded, session.joint, session.side, facingMode, personDetected, confidence, angle])
+  }, [phase, mode, cameraState, poseLoaded, session.joint, session.side, facingMode])
 
   const finishReal = () => {
     const metrics = analyzeMovement(realSamples.current, DURATION)
