@@ -14,6 +14,8 @@ import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
 import type { TestDefinition, TestResult, TestStatus } from '../../domain/types'
 
+const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
+
 type PoseModule = typeof import('../../services/pose')
 
 // Light copy of joint config to avoid needing heavy pose module for UI
@@ -64,19 +66,19 @@ export default function Assessment() {
 
   // Multi-test workflow state
   const [currentTestIndex, setCurrentTestIndex] = useState(0)
-  const currentTest = TEST_PROTOCOLS[currentTestIndex]
+  const currentTest = ACTIVE_TESTS[currentTestIndex]
   const [phase, setPhase] = useState<AssessmentPhase>('setup')
   
   // Voice & camera services
   const voice = useVoiceController('en')
   const [cameraState, setCameraState] = useState<CameraState>('idle')
-  const [facingMode, setFacingMode] = useState<FacingMode>('environment')
+  const [facingMode] = useState<FacingMode>('environment')
   const [poseLoaded, setPoseLoaded] = useState(false)
   const [personDetected, setPersonDetected] = useState(false)
   
   // Measurement state
   const [elapsed, setElapsed] = useState(0)
-  const [angle, setAngle] = useState(0)
+  const [, setAngle] = useState(0)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
 
@@ -327,7 +329,7 @@ export default function Assessment() {
 
   const handleNextTest = () => {
     const nextIndex = currentTestIndex + 1
-    if (nextIndex < TEST_PROTOCOLS.length) {
+    if (nextIndex < ACTIVE_TESTS.length) {
       // Advance to next test
       setCurrentTestIndex(nextIndex)
       setPhase('setup')
@@ -377,7 +379,7 @@ export default function Assessment() {
       )}
       
       {/* Test Completion Overlay */}
-      {phase === 'test_result' && testResult?.status === 'VALID' && currentTestIndex < TEST_PROTOCOLS.length - 1 && (
+      {phase === 'test_result' && testResult?.status === 'VALID' && currentTestIndex < ACTIVE_TESTS.length - 1 && (
         <div className="absolute inset-0 bg-mint/90 flex flex-col items-center justify-center z-30 animate-in fade-in duration-300">
           <CheckCircle size={48} className="text-primary-dark mb-4" />
           <p className="text-primary-dark text-xl font-bold">TEST {currentTestIndex + 1} COMPLETE</p>
@@ -471,7 +473,7 @@ export default function Assessment() {
 
           {testResult.status === 'VALID' ? (
             <Button full onClick={handleNextTest} className="min-h-[54px] text-lg font-bold">
-              {currentTestIndex < TEST_PROTOCOLS.length - 1 ? 'NEXT TEST' : 'FINISH SCREENING'}
+              {currentTestIndex < ACTIVE_TESTS.length - 1 ? 'NEXT TEST' : 'FINISH SCREENING'}
             </Button>
           ) : (
             <Button full onClick={handleRetry} className="min-h-[54px] text-lg font-bold">
@@ -490,7 +492,7 @@ export default function Assessment() {
       {renderHeader()}
       <main className="flex-1 flex flex-col p-4 pb-8 overflow-y-auto w-full max-w-[500px] mx-auto">
         <div className="text-xs font-bold text-muted mb-2 tracking-widest uppercase">
-          TEST {currentTestIndex + 1} OF {TEST_PROTOCOLS.length}
+          TEST {currentTestIndex + 1} OF {ACTIVE_TESTS.length}
         </div>
         
         {renderVideoLayer()}

@@ -30,7 +30,7 @@ export default function Result() {
       <div className="-mt-6">
         <span className="h-7 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5"><CheckCircle2 size={13} aria-hidden />{t('screening.result.finalised')}</span>
         <h1 className="text-[22px] font-bold tracking-tight leading-tight mt-2 break-words">{t('screening.result.complete', { joint: jointSideLabel })}</h1>
-        <p className="text-[14px] text-secondary mt-0.5 break-words">{session.movement ? t('screening.result.symptomsAndSensor') : t('screening.result.symptomsOnly')}</p>
+        <p className="text-[14px] text-secondary mt-0.5 break-words">{session.tests.length > 0 ? t('screening.result.symptomsAndSensor') : t('screening.result.symptomsOnly')}</p>
       </div>
 
       <div className="mt-4 rounded-[14px] bg-tint p-3 flex items-center gap-3">
@@ -61,7 +61,12 @@ export default function Result() {
           {r.factors.map(f => { const Icon = factorIcon(f); return (
             <li key={f} className="rounded-[12px] bg-tint p-3 flex items-center gap-3"><span className="h-9 w-9 rounded-full bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><Icon size={17} /></span><span className="text-[14px] font-semibold flex-1 break-words">{f}</span></li>) })}
         </ul>
-        {session.movement?.performed && <p className="text-[12px] text-secondary mt-3 break-words">{t('screening.result.sensorEstimate', { rom: session.movement.rangeOfMotionDeg, pattern: session.movement.smoothness >= 0.6 ? t('screening.result.even') : t('screening.result.uneven') })}</p>}
+        </ul>
+        {session.tests.find(t => t.testId === 'rom' && t.status === 'VALID') && (
+          <p className="text-[12px] text-secondary mt-3 break-words">
+            {t('screening.result.sensorEstimate', { rom: session.tests.find(t => t.testId === 'rom')?.measurements?.rangeOfMotionDeg?.toFixed(1) || 0, pattern: t('screening.result.even') })}
+          </p>
+        )}
       </div>
 
       <div className="card mt-4 p-4 border-2 border-mint">

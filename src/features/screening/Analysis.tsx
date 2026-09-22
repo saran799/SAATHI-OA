@@ -23,7 +23,7 @@ export default function Analysis() {
   const run = (fail = false) => {
     if (!patient) return
     setError(null); setDone([]); setFinishing(false)
-    cancel.current = runAnalysis(patient, session.answers, session.movement, setDone, r => {
+    cancel.current = runAnalysis(patient, session.answers, session.tests, setDone, r => {
       setFinishing(true)
       const now = new Date().toISOString()
       // Offline-first: save locally immediately, mark based on connectivity per spec
@@ -46,7 +46,7 @@ export default function Analysis() {
   const sub: Record<string, string> = {
     patient: t('screening.analysis.descs.patient'),
     symptoms: t('screening.analysis.descs.symptoms'),
-    movement: session.movement ? t('screening.analysis.descs.movement') : t('screening.analysis.descs.movementSkipped'),
+    movement: session.tests.length > 0 ? t('screening.analysis.descs.movement') : t('screening.analysis.descs.movementSkipped'),
     risk: t('screening.analysis.descs.risk'),
   }
   return (
@@ -79,7 +79,7 @@ export default function Analysis() {
             {ANALYSIS_STEPS.map((st, i) => {
               const isDone = done.includes(st.id)
               const active = !isDone && !error && (i === 0 || done.includes(ANALYSIS_STEPS[i - 1].id))
-              const skipped = st.id === 'movement' && !session.movement
+              const skipped = st.id === 'movement' && session.tests.length === 0
               return (
                 <li key={st.id} className={cx('flex items-start gap-3 px-3 py-2.5 rounded-[12px] transition-colors', active && 'bg-tint')}>
                   <span className={cx('h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5', isDone ? 'bg-mint text-primary-dark' : active ? 'bg-primary text-white' : 'bg-tint text-muted')} aria-hidden>

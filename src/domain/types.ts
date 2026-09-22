@@ -1,7 +1,7 @@
 export type Sex = 'Female' | 'Male' | 'Other'
 export type Joint = 'knee' | 'hip' | 'hand' | 'spine'
 export type Side = 'left' | 'right' | 'both'
-export type RiskBand = 'low' | 'moderate' | 'higher'
+export type RiskBand = 'low' | 'moderate' | 'higher' | 'insufficient'
 export type SyncState = 'local' | 'unsynced' | 'syncing' | 'synced' | 'error' | 'failed'
 
 export interface Patient {
@@ -46,6 +46,7 @@ export interface TestResult {
 
 export interface TestDefinition {
   id: string
+  implemented: boolean
   title: string
   preparationInstruction: string
   voiceInstruction: string
