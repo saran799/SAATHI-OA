@@ -1,4 +1,4 @@
-import type { TestDefinition, TestResult } from '../../domain/types'
+import type { TestDefinition } from '../../domain/types'
 
 export const TEST_PROTOCOLS: TestDefinition[] = [
   {

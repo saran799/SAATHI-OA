@@ -32,7 +32,7 @@ export default function Analysis() {
       // Never falsely claim synced
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
       const syncState = isOnline ? 'unsynced' as const : 'local' as const
-      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, result: r, createdAt: now, workerName, sync: syncState, followUpDate: addDays(now, RISK_META[r.band].followUpDays) }
+      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, tests: session.tests, result: r, createdAt: now, workerName, sync: syncState, followUpDate: addDays(now, RISK_META[r.band].followUpDays) }
       addRecord(rec); session.setResult(r, rec.id)
       setTimeout(() => nav('/screening/result', { replace: true }), 900)
     }, setError, { fail })

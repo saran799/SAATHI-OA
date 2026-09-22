@@ -30,6 +30,7 @@ export interface TimestampedSample {
   t: number // seconds from start
   angle: number
   confidence: number
+  valid?: boolean
 }
 
 export interface MovementMetrics {

@@ -23,8 +23,8 @@ export default function Records() {
       .filter(({ r }) => filter === 'all' || (filter === 'due' && isDue(r.followUpDate)) || (filter === 'unsynced' && r.sync !== 'synced') || r.result.band === filter)
   }, [q, filter, all])
   const count = (f: Filter) => f === 'all' ? all.length : f === 'due' ? all.filter(x => isDue(x.r.followUpDate)).length : f === 'unsynced' ? all.filter(x => x.r.sync !== 'synced').length : all.filter(x => x.r.result.band === f).length
-  const chipTone = { low: 'bg-mint text-primary-dark', moderate: 'bg-info-tint text-info', higher: 'bg-error-tint text-error-text' }
-  const chipIcon = { low: ShieldCheck, moderate: ShieldAlert, higher: AlertTriangle }
+  const chipTone = { low: 'bg-mint text-primary-dark', moderate: 'bg-info-tint text-info', higher: 'bg-error-tint text-error-text', insufficient: 'bg-tint text-secondary' }
+  const chipIcon = { low: ShieldCheck, moderate: ShieldAlert, higher: AlertTriangle, insufficient: AlertTriangle }
   const filters: Filter[] = ['all', 'higher', 'moderate', 'low', 'due', 'unsynced']
 
   const getSyncDisplay = (sync: SyncState) => {

@@ -1,18 +1,15 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Square, Activity, Volume2, VolumeX, RefreshCw, RotateCcw, Camera,
-  SwitchCamera, Eye, EyeOff, ShieldCheck, CheckCircle, VideoOff
-} from 'lucide-react'
+import { ShieldCheck, CheckCircle, VideoOff } from 'lucide-react'
 import { Frame, TopBar } from '../../components/layout/Shells'
-import { Button, Callout, Ring, cx } from '../../components/ui'
+import { Button, cx } from '../../components/ui'
 import { useScreeningPatient } from './useGuard'
 import { useT } from '../../i18n'
 import { cameraService, type CameraState, type FacingMode } from '../../services/camera'
 import { angleFromLandmarks, type TimestampedSample } from '../../services/movement'
 import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
-import type { TestDefinition, TestResult, TestStatus } from '../../domain/types'
+import type { TestResult } from '../../domain/types'
 
 const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
@@ -61,8 +58,9 @@ type AssessmentPhase =
 
 export default function Assessment() {
   const nav = useNavigate()
-  const { patient, session } = useScreeningPatient(true)
-  const { t } = useT()
+  const { session } = useScreeningPatient(true)
+  // t is unused but kept if required by i18n system, though we will remove the declaration entirely
+  useT()
 
   // Multi-test workflow state
   const [currentTestIndex, setCurrentTestIndex] = useState(0)
@@ -78,7 +76,6 @@ export default function Assessment() {
   
   // Measurement state
   const [elapsed, setElapsed] = useState(0)
-  const [, setAngle] = useState(0)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
 
@@ -101,7 +98,7 @@ export default function Assessment() {
     setCameraState('starting')
     try {
       if (videoRef.current) {
-        const stream = await cameraService.start(videoRef.current, facing)
+        const stream = await cameraService.request(setCameraState, videoRef.current, { facingMode: facing })
         setCameraState(stream ? 'running' : 'error')
       }
     } catch (e) {
@@ -119,9 +116,9 @@ export default function Assessment() {
       import('../../services/pose').then(mod => {
         if (!mounted) return
         poseModuleRef.current = mod
-        mod.initialize().then(success => {
+        mod.loadPoseModel().then(success => {
           if (mounted) {
-            setPoseLoaded(success)
+            setPoseLoaded(!!success)
             if (!success) setPhase('pose_error')
           }
         })
@@ -137,7 +134,7 @@ export default function Assessment() {
 
   // 2. Main Pose Inference Loop
   useEffect(() => {
-    if (phase === 'camera_error' || phase === 'pose_error' || phase === 'test_result') return
+    if (phase === 'camera_error' || phase === 'pose_error') return
     if (cameraState !== 'running' && cameraState !== 'ready') return
     if (!videoRef.current || !poseLoaded || !poseModuleRef.current) return
 
@@ -172,7 +169,8 @@ export default function Assessment() {
 
       try {
         const poseOut = poseMod.detectPose(video, poseNow)
-        const hasPerson = !!(poseOut?.landmarks && poseOut.landmarks.length > 0)
+        const res = poseOut.result
+        const hasPerson = !!(res?.landmarks && res.landmarks.length > 0)
         
         // Update person detection for the UI once per second max to avoid spam
         if (now - lastUpdateRef.current > 1000) {
@@ -181,7 +179,7 @@ export default function Assessment() {
         }
 
         if (hasPerson) {
-          const lms = poseOut.landmarks[0]
+          const lms = res.landmarks
           
           // Draw skeleton on canvas
           if (ctx && canvas) {
@@ -201,17 +199,16 @@ export default function Assessment() {
               
               // Angle calculation
               const curAngle = angleFromLandmarks(lms, config)
-              const minVis = Math.min((a.visibility||0), (b.visibility||0), (c.visibility||0))
-              const valid = minVis > 0.3
+              // valid check moved to sample creation
               
-              setAngle(curAngle)
+              // setAngle(curAngle) - removed as it's unused in UI and curAngle is an object
 
               if (phase === 'recording') {
                 realSamples.current.push({
                   t: now,
-                  angle: curAngle,
-                  confidence: minVis,
-                  valid
+                  angle: curAngle.angle,
+                  confidence: curAngle.confidence,
+                  valid: curAngle.valid
                 })
               }
             }
@@ -344,7 +341,7 @@ export default function Assessment() {
   const renderHeader = () => (
     <TopBar 
       title={currentTest?.title || 'Assessment'} 
-      left={<Button variant="ghost" className="px-2" onClick={() => nav(-1)}><Activity size={18} /> Exit</Button>}
+      onBack={() => nav(-1)}
     />
   )
 

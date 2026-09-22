@@ -22,7 +22,7 @@ export default function PatientSearch() {
       .filter(({ last }) => filter === 'all' || last?.result.band === filter)
   }, [q, withLast, filter])
   const count = (f: Filter) => f === 'all' ? patients.length : withLast.filter(x => x.last?.result.band === f).length
-  const chipTone: Record<RiskBand, string> = { low: 'bg-mint text-primary-dark', moderate: 'bg-info-tint text-info', higher: 'bg-error-tint text-error-text' }
+  const chipTone: Record<RiskBand, string> = { low: 'bg-mint text-primary-dark', moderate: 'bg-info-tint text-info', higher: 'bg-error-tint text-error-text', insufficient: 'bg-tint text-secondary' }
 
   const getJointLabel = (joint: string, side: string) => {
     const j = t(`screening.joint.joints.${joint}.label`)

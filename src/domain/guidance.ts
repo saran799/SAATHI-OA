@@ -35,4 +35,5 @@ export const SUPPORTING_GUIDANCE: Record<RiskBand, string[]> = {
   low: ['Stay active with walking and gentle stretching.', 'Maintain a healthy body weight.', 'Return if pain, swelling or stiffness develops.'],
   moderate: ['Avoid deep squatting and prolonged floor sitting.', 'Use warm compress for stiffness, cold for swelling.', 'Wear supportive footwear on uneven ground.', 'Keep a simple pain diary to share at the PHC visit.'],
   higher: ['Limit activities that sharply increase pain.', 'Use a walking stick on the opposite side if unsteady.', 'Do not start new strenuous exercise before the clinical visit.', 'Seek care sooner if the joint becomes hot, red or suddenly swollen.'],
+  insufficient: ['Please return to complete the screening when you have time.'],
 }

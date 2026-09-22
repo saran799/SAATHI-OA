@@ -2,7 +2,7 @@
  * Simulated AI analysis pipeline. Replace `runAnalysis` with a backend call later.
  */
 import { estimateRisk } from '../domain/risk'
-import type { Answers, MovementSummary, Patient, RiskResult } from '../domain/types'
+import type { Answers, TestResult, Patient, RiskResult } from '../domain/types'
 
 export type AnalysisStep = 'patient' | 'symptoms' | 'movement' | 'risk'
 export const ANALYSIS_STEPS: { id: AnalysisStep; label: string }[] = [
@@ -13,7 +13,7 @@ export const ANALYSIS_STEPS: { id: AnalysisStep; label: string }[] = [
 ]
 
 export function runAnalysis(
-  patient: Patient, answers: Answers, movement: MovementSummary | null,
+  patient: Patient, answers: Answers, tests: TestResult[],
   onStep: (done: AnalysisStep[]) => void,
   onComplete: (r: RiskResult) => void,
   onError: (msg: string) => void,
@@ -30,6 +30,6 @@ export function runAnalysis(
     if (opts?.fail) { onError('Analysis could not be completed. Your screening data is saved.'); return }
     done.push('risk'); onStep([...done])
   })
-  schedule(4200, () => onComplete(estimateRisk(patient, answers, movement)))
+  schedule(4200, () => onComplete(estimateRisk(patient, answers, tests)))
   return () => { cancelled = true; timers.forEach(clearTimeout) }
 }

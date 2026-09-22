@@ -61,7 +61,6 @@ export default function Result() {
           {r.factors.map(f => { const Icon = factorIcon(f); return (
             <li key={f} className="rounded-[12px] bg-tint p-3 flex items-center gap-3"><span className="h-9 w-9 rounded-full bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><Icon size={17} /></span><span className="text-[14px] font-semibold flex-1 break-words">{f}</span></li>) })}
         </ul>
-        </ul>
         {session.tests.find(t => t.testId === 'rom' && t.status === 'VALID') && (
           <p className="text-[12px] text-secondary mt-3 break-words">
             {t('screening.result.sensorEstimate', { rom: session.tests.find(t => t.testId === 'rom')?.measurements?.rangeOfMotionDeg?.toFixed(1) || 0, pattern: t('screening.result.even') })}
