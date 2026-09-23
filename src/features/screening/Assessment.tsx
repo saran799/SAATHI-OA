@@ -419,14 +419,23 @@ export default function Assessment() {
     // Validation -> Result
     if (phase === 'validating') {
       if (!currentTest) return
-      const isComplete = currentTest.completionCriteria(realSamples.current)
+      
       const metrics = currentTest.extractMetrics ? currentTest.extractMetrics(realSamples.current) : {}
+
+      // The true validity of the test is determined by whether sufficient evidence was collected
+      // during the capture window (metrics.performed). completionCriteria is only for early loop exit.
+      let isSuccess = false
+      if (metrics && metrics.performed !== undefined) {
+        isSuccess = metrics.performed === true
+      } else {
+        isSuccess = currentTest.completionCriteria(realSamples.current)
+      }
 
       const result: TestResult = {
         testId: currentTest.id,
-        status: isComplete ? 'VALID' : 'INSUFFICIENT',
-        completed: isComplete,
-        quality: isComplete ? 'Good' : 'Low',
+        status: isSuccess ? 'VALID' : 'INSUFFICIENT',
+        completed: isSuccess,
+        quality: isSuccess ? 'Good' : 'Low',
         measurements: metrics,
         observations: [],
         technicalDetails: {
@@ -440,7 +449,7 @@ export default function Assessment() {
       session.setTestResult(result)
       setPhase('test_result')
 
-      if (isComplete) {
+      if (isSuccess) {
         voice.speak(`Test ${currentTestIndex + 1} completed.`)
       } else {
         voice.speak("Assessment could not be completed. Please try again.")
@@ -473,6 +482,9 @@ export default function Assessment() {
   const handleRetry = () => {
     setPhase('setup')
     setTestResult(null)
+    setElapsed(0)
+    realSamples.current = []
+    startTimeRef.current = 0
   }
 
   const handleNextTest = () => {
