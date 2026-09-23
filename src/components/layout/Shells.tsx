@@ -43,7 +43,6 @@ export function useSyncModel() {
 
     syncingRef.current = true
     cancel.current = false
-    const fail = failNextSync
     setFailNextSync(false)
     setSyncStatus('syncing')
     // Mark all toSync as syncing for per-record UI
@@ -52,11 +51,11 @@ export function useSyncModel() {
     try {
       const result = await syncQueue(
         toSync,
+        useApp.getState().patients, // Pass patients
         (id, state) => {
           if (cancel.current) return
           updateRecordSync(id, state as SyncState)
-        },
-        { fail, failIds: fail ? toSync.map(r => r.id) : [] }
+        }
       )
 
       if (cancel.current) return

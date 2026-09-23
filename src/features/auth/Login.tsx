@@ -18,14 +18,34 @@ export default function Login() {
   const [err, setErr] = useState<{ id?: string; pin?: string }>({})
   const [loading, setLoading] = useState(false)
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const next: typeof err = {}
     if (!id.trim()) next.id = t('auth.login.errors.workerId')
     if (!/^\d{4}$/.test(pin)) next.pin = t('auth.login.errors.pin')
     setErr(next); if (Object.keys(next).length) return
     setLoading(true)
-    setTimeout(() => { signIn('Priya Rajan'); nav('/language') }, 700)
+    
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: id, password: pin })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        signIn(data.worker.name, data.token)
+        nav('/language')
+      } else {
+        setErr({ pin: 'Invalid credentials' })
+        setLoading(false)
+      }
+    } catch (error) {
+      // Offline fallback
+      signIn(id)
+      nav('/language')
+    }
   }
   const field = 'w-full h-[44px] rounded-[12px] bg-tint pl-11 pr-11 text-[14px] font-medium text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary'
 

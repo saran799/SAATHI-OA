@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Worker {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  records      ScreeningRecord[]
+}
+
+model Patient {
+  id            String   @id @default(uuid())
+  name          String
+  age           Int
+  sex           String
+  phone         String
+  village       String
+  phc           String
+  healthId      String?
+  heightCm      Float?
+  weightKg      Float?
+  occupation    String
+  priorInjury   Boolean
+  familyHistory Boolean
+  createdAt     DateTime @default(now())
+
+  records       ScreeningRecord[]
+}
+
+model ScreeningRecord {
+  id                String   @id @default(uuid())
+  patientId         String
+  joint             String
+  side              String
+  answers           Json
+  movement          Json?
+  result            Json
+  createdAt         DateTime @default(now())
+  followUpDate      DateTime?
+  
+  workerId          String
+  worker            Worker   @relation(fields: [workerId], references: [id])
+  patient           Patient  @relation(fields: [patientId], references: [id])
+  tests             TestResult[]
+}
+
+model TestResult {
+  id                String   @id @default(uuid())
+  testId            String
+  status            String
+  completed         Boolean
+  quality           String
+  measurements      Json?
+  observations      Json?
+  technicalDetails  Json?
+  timestamp         DateTime
+  
+  screeningRecordId String
+  screeningRecord   ScreeningRecord @relation(fields: [screeningRecordId], references: [id])
+
+  @@unique([screeningRecordId, testId])
+}

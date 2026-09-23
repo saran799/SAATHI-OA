@@ -7,12 +7,12 @@ import { useApp } from '../../store/appStore'
 import { fmtDate } from '../../domain/copy'
 import { useT } from '../../i18n'
 import type { SyncState } from '../../domain/types'
-import { simulateRecordSync } from '../../services/sync'
+import { syncQueue } from '../../services/sync'
 
 type Filter = 'all' | 'higher' | 'moderate' | 'low' | 'due' | 'unsynced'
 export default function Records() {
   const nav = useNavigate(); const [sp] = useSearchParams()
-  const { records, patients, updateRecordSync, failNextSync } = useApp()
+  const { records, patients, updateRecordSync } = useApp()
   const { t } = useT()
   const [q, setQ] = useState(''); const [filter, setFilter] = useState<Filter>((sp.get('filter') as Filter) || 'all')
   const all = useMemo(() => [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(r => ({ r, p: patients.find(p => p.id === r.patientId)! })).filter(x => x.p), [records, patients])
@@ -52,8 +52,8 @@ export default function Records() {
     // Do not duplicate, preserve stable ID
     updateRecordSync(id, 'syncing')
     try {
-      const result = await simulateRecordSync(rec, { fail: failNextSync })
-      if (result.ok) {
+      const result = await syncQueue([rec], patients, updateRecordSync)
+      if (result.syncedIds.includes(id)) {
         updateRecordSync(id, 'synced')
       } else {
         updateRecordSync(id, 'error')
@@ -61,7 +61,7 @@ export default function Records() {
     } catch {
       updateRecordSync(id, 'error')
     }
-  }, [records, updateRecordSync, failNextSync])
+  }, [records, patients, updateRecordSync])
 
   return (
     <AppShell title={t('common.appName')} subtitle={t('records.title')}>

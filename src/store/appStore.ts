@@ -1,8 +1,21 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { get, set, del } from 'idb-keyval'
 import type { Patient, ScreeningRecord, SyncState } from '../domain/types'
 import { SEED_PATIENTS, SEED_RECORDS } from '../services/mockData'
 import type { SyncStatus } from '../services/sync'
+
+const idbStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    return (await get(name)) || null
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    await set(name, value)
+  },
+  removeItem: async (name: string): Promise<void> => {
+    await del(name)
+  },
+}
 
 interface AppState {
   workerName: string
@@ -15,7 +28,7 @@ interface AppState {
   lastSyncedAt: string | null
   failNextSync: boolean
   setFailNextSync: (v: boolean) => void
-  signIn: (name: string) => void
+  signIn: (name: string, token?: string) => void
   signOut: () => void
   setLanguage: (code: string) => void
   addPatient: (p: Patient) => void
@@ -41,27 +54,26 @@ export const useApp = create<AppState>()(persist((set) => ({
   lastSyncedAt: null,
   failNextSync: false,
   setFailNextSync: (failNextSync) => set({ failNextSync }),
-  signIn: (name) => set({ authed: true, workerName: name || 'Priya Rajan' }),
-  signOut: () => set({ authed: false }),
+  signIn: (name, token) => {
+    if (token) localStorage.setItem('token', token)
+    set({ authed: true, workerName: name || 'Priya Rajan' })
+  },
+  signOut: () => {
+    localStorage.removeItem('token')
+    set({ authed: false })
+  },
   setLanguage: (code) => set({ language: code }),
   addPatient: (p) => set(s => {
-    // Prevent duplicate patient IDs (idempotency)
     if (s.patients.some(existing => existing.id === p.id)) return s
     return { patients: [p, ...s.patients] }
   }),
   addRecord: (r) => set(s => {
-    // Prevent duplicate record IDs (idempotency) — critical for retry safety
     if (s.records.some(existing => existing.id === r.id)) {
-      // Update existing instead of duplicating
       return {
         records: s.records.map(existing => existing.id === r.id ? r : existing),
         syncStatus: s.online ? (s.records.some(rec => rec.sync !== 'synced') || r.sync !== 'synced' ? 'local' : s.syncStatus) : 'offline'
       }
     }
-    // Determine sync state based on connectivity per spec:
-    // - If offline: mark as 'local' (saved locally, waiting for connection)
-    // - If online: mark as 'unsynced' (online but not yet synced)
-    // Caller (Analysis) already sets initial sync, but we ensure correct
     const finalRecord = r
     const hasUnsynced = s.records.some(rec => rec.sync !== 'synced') || finalRecord.sync !== 'synced'
     return {
@@ -91,8 +103,6 @@ export const useApp = create<AppState>()(persist((set) => ({
   })),
   setOnline: (v) => set(s => {
     const hasUnsynced = s.records.some(r => r.sync !== 'synced')
-    // When going offline, preserve existing sync status but set offline
-    // When going online, if has unsynced, set to local (needs sync), else keep current or synced
     if (!v) {
       return { online: v, syncStatus: 'offline' as const }
     } else {
@@ -117,6 +127,7 @@ export const useApp = create<AppState>()(persist((set) => ({
   }),
 }), {
   name: 'saathi-v1',
+  storage: createJSONStorage(() => idbStorage),
   partialize: (s) => ({
     failNextSync: s.failNextSync,
     workerName: s.workerName,
@@ -127,3 +138,4 @@ export const useApp = create<AppState>()(persist((set) => ({
     lastSyncedAt: s.lastSyncedAt
   })
 }))
+
