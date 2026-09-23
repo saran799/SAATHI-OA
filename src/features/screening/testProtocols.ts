@@ -233,23 +233,26 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       let stateL = 'ext'
       let stateR = 'ext'
 
+      const isVis = (lm: any) => (lm.visibility || 0) > 0.3
+
       valid.forEach(s => {
           const lms = s.landmarks
           if (!lms) return
-          if (lms[23] && lms[25] && lms[27]) {
+          if (lms[23] && lms[25] && lms[27] && isVis(lms[23]) && isVis(lms[25]) && isVis(lms[27])) {
               const ang = getAngle(lms[23], lms[25], lms[27])
               if (stateL === 'ext' && ang < 150) stateL = 'flex'
               else if (stateL === 'flex' && ang > 165) { stateL = 'ext'; leftCycles++ }
           }
-          if (lms[24] && lms[26] && lms[28]) {
+          if (lms[24] && lms[26] && lms[28] && isVis(lms[24]) && isVis(lms[26]) && isVis(lms[28])) {
               const ang = getAngle(lms[24], lms[26], lms[28])
               if (stateR === 'ext' && ang < 150) stateR = 'flex'
               else if (stateR === 'flex' && ang > 165) { stateR = 'ext'; rightCycles++ }
           }
       })
       
-      // Early completion: if we captured at least 2 valid cycles per leg
-      if (leftCycles >= 2 && rightCycles >= 2) return true
+      const totalCycles = leftCycles + rightCycles
+      // Early completion: if we captured at least 2 valid strides across either leg
+      if (totalCycles >= 2) return true
       
       return (lastT - firstT) >= 15000
     }, 
@@ -274,16 +277,18 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       let minFlexL = 180
       let minFlexR = 180
 
+      const isVis = (lm: any) => (lm.visibility || 0) > 0.3
+
       valid.forEach(s => {
           const lms = s.landmarks
           if (!lms) return
-          if (lms[23] && lms[25] && lms[27]) {
+          if (lms[23] && lms[25] && lms[27] && isVis(lms[23]) && isVis(lms[25]) && isVis(lms[27])) {
               const ang = getAngle(lms[23], lms[25], lms[27])
               if (ang < minFlexL) minFlexL = ang
               if (stateL === 'ext' && ang < 150) stateL = 'flex'
               else if (stateL === 'flex' && ang > 165) { stateL = 'ext'; leftCycles++ }
           }
-          if (lms[24] && lms[26] && lms[28]) {
+          if (lms[24] && lms[26] && lms[28] && isVis(lms[24]) && isVis(lms[26]) && isVis(lms[28])) {
               const ang = getAngle(lms[24], lms[26], lms[28])
               if (ang < minFlexR) minFlexR = ang
               if (stateR === 'ext' && ang < 150) stateR = 'flex'
@@ -293,7 +298,7 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
 
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
-      const totalCycles = Math.min(leftCycles, rightCycles)
+      const totalCycles = leftCycles + rightCycles
       
       return { 
           validCycles: totalCycles,
