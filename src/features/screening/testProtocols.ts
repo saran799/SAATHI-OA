@@ -343,8 +343,16 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     }, 
     extractMetrics: (samples: any[]) => {
       const valid = samples.filter(s => s.valid && s.landmarks)
-      // Enforce minimum valid data ratio: 5 seconds should have ~150 frames, we need at least 60 valid frames
-      if (valid.length < 60) return { performed: false, leftKneeAngle: null, rightKneeAngle: null }
+      
+      const firstT = valid.length > 0 ? valid[0].t : 0
+      const lastT = valid.length > 0 ? valid[valid.length - 1].t : 0
+      const durationSec = valid.length > 0 ? (lastT - firstT) / 1000 : 0
+      
+      // If we don't have at least some basic number of frames, it's totally invalid.
+      // 15 frames is extremely lenient (1.5 seconds at a very low 10 FPS).
+      if (valid.length < 15) {
+        return { performed: false, leftKneeAngle: null, rightKneeAngle: null }
+      }
       
       const getAngle = (h: any, k: any, a: any) => {
           const dx1 = h.x - k.x, dy1 = h.y - k.y
@@ -367,20 +375,21 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
           if (!lms) return
           if (lms[23] && lms[25] && lms[27] && isVis(lms[23]) && isVis(lms[25]) && isVis(lms[27])) {
               const ang = getAngle(lms[23], lms[25], lms[27])
-              sumL += ang
-              anglesL.push(ang)
-              countL++
+              if (isFinite(ang) && !isNaN(ang)) {
+                  sumL += ang
+                  anglesL.push(ang)
+                  countL++
+              }
           }
           if (lms[24] && lms[26] && lms[28] && isVis(lms[24]) && isVis(lms[26]) && isVis(lms[28])) {
               const ang = getAngle(lms[24], lms[26], lms[28])
-              sumR += ang
-              anglesR.push(ang)
-              countR++
+              if (isFinite(ang) && !isNaN(ang)) {
+                  sumR += ang
+                  anglesR.push(ang)
+                  countR++
+              }
           }
       })
-      
-      const firstT = valid[0].t
-      const lastT = valid[valid.length - 1].t
       
       const calcVariance = (angles: number[], mean: number) => {
           if (angles.length === 0) return 0
@@ -388,27 +397,56 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
           return sumSq / angles.length
       }
 
-      const meanL = countL > 30 ? (sumL / countL) : null
-      const meanR = countR > 30 ? (sumR / countR) : null
+      const meanL = countL > 0 ? (sumL / countL) : null
+      const meanR = countR > 0 ? (sumR / countR) : null
       
-      const varL = meanL !== null ? calcVariance(anglesL, meanL) : 0
-      const varR = meanR !== null ? calcVariance(anglesR, meanR) : 0
+      const varL = countL > 1 ? calcVariance(anglesL, meanL!) : 0
+      const varR = countR > 1 ? calcVariance(anglesR, meanR!) : 0
       
-      // Ensure the posture was stable (variance < 100 is approx std dev < 10 degrees)
-      const isStableL = meanL !== null && varL < 100
-      const isStableR = meanR !== null && varR < 100
+      // Ensure the posture was relatively stable (variance < 150 is approx std dev < 12 degrees)
+      const isStableL = countL > 0 && varL < 150
+      const isStableR = countR > 0 && varR < 150
 
       let diff = null
-      if (isStableL && isStableR) {
-          diff = Math.abs(meanL! - meanR!)
+      if (meanL !== null && meanR !== null) {
+          diff = Math.abs(meanL - meanR)
       }
 
+      const performed = isStableL || isStableR
+
+      let rejectionReason = 'Sufficient data'
+      if (!performed) {
+          if (countL === 0 && countR === 0) rejectionReason = 'Insufficient reliable knee landmarks'
+          else if (!isStableL && !isStableR) rejectionReason = 'Pose was unstable (variance too high)'
+          else rejectionReason = 'Unknown failure'
+      }
+
+      console.log('POSTURE DEBUG', {
+        durationSec,
+        realSamples: samples.length,
+        validSamples: valid.length,
+        validLeftKneeAngleFrames: countL,
+        validRightKneeAngleFrames: countR,
+        leftAngleSamplesLength: anglesL.length,
+        rightAngleSamplesLength: anglesR.length,
+        leftMeanAngle: meanL,
+        rightMeanAngle: meanR,
+        leftVariance: varL,
+        rightVariance: varR,
+        leftStdDev: meanL !== null ? Math.sqrt(varL) : 0,
+        rightStdDev: meanR !== null ? Math.sqrt(varR) : 0,
+        validFrameRatio: valid.length / Math.max(1, samples.length),
+        status: performed ? 'SUFFICIENT' : 'INSUFFICIENT',
+        performed,
+        rejectionReason
+      })
+
       return { 
-          leftKneeAngle: isStableL ? meanL.toFixed(1) : null,
-          rightKneeAngle: isStableR ? meanR.toFixed(1) : null,
-          leftRightDifference: diff ? diff.toFixed(1) : null,
-          durationSec: (lastT - firstT)/1000,
-          performed: isStableL || isStableR
+          leftKneeAngle: meanL !== null ? meanL.toFixed(1) : null,
+          rightKneeAngle: meanR !== null ? meanR.toFixed(1) : null,
+          leftRightDifference: diff !== null ? diff.toFixed(1) : null,
+          durationSec,
+          performed
       }
     },
     validationCriteria: (result: any) => {
