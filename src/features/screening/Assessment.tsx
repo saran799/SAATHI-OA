@@ -15,6 +15,17 @@ const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
 type PoseModule = typeof import('../../services/pose')
 
+const RENDER_LANDMARKS = new Set([
+  0, // nose/head
+  11, 12, // shoulders
+  13, 14, // elbows
+  15, 16, 17, 18, 19, 20, 21, 22, // wrists and hands
+  23, 24, // hips
+  25, 26, // knees
+  27, 28, // ankles
+  29, 30, 31, 32 // feet
+])
+
 // Light copy of joint config to avoid needing heavy pose module for UI
 const JOINT_CONFIGS_LIGHT: Record<string, { left: any; right: any }> = {
   knee: {
@@ -253,7 +264,7 @@ export default function Assessment() {
             }
           }
           
-          // Draw skeleton on canvas
+          // Render tracking points on canvas
           if (ctx && canvas && video) {
             const dpr = window.devicePixelRatio || 1
             const displayWidth = canvas.clientWidth
@@ -267,77 +278,52 @@ export default function Assessment() {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
             ctx.clearRect(0, 0, displayWidth, displayHeight)
 
-            const videoAspect = video.videoWidth / video.videoHeight
-            const canvasAspect = displayWidth / displayHeight
-            let drawWidth, drawHeight, offsetX, offsetY
+            // Correct coordinate transformation for object-fit: cover
+            // The video is scaled to cover the container while preserving aspect ratio.
+            const scale = Math.max(displayWidth / video.videoWidth, displayHeight / video.videoHeight)
+            const drawWidth = video.videoWidth * scale
+            const drawHeight = video.videoHeight * scale
+            const offsetX = (displayWidth - drawWidth) / 2
+            const offsetY = (displayHeight - drawHeight) / 2
 
-            if (videoAspect > canvasAspect) {
-              drawWidth = displayWidth
-              drawHeight = displayWidth / videoAspect
-              offsetX = 0
-              offsetY = (displayHeight - drawHeight) / 2
-            } else {
-              drawHeight = displayHeight
-              drawWidth = displayHeight * videoAspect
-              offsetX = (displayWidth - drawWidth) / 2
-              offsetY = 0
-            }
-
-            const isMirrored = facingMode === 'user'
-
-            ctx.save()
-            if (isMirrored) {
-              ctx.translate(displayWidth, 0)
-              ctx.scale(-1, 1)
-            }
-
-            const getCoord = (p: any) => {
-              let x = offsetX + p.x * drawWidth
-              let y = offsetY + p.y * drawHeight
-              if (isMirrored) x = displayWidth - x
-              return { x, y }
-            }
-
-            // Draw full skeleton
-            if (poseMod.POSE_CONNECTIONS) {
-              ctx.lineWidth = 2
-              ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
-              poseMod.POSE_CONNECTIONS.forEach(([i, j]) => {
-                const p1 = smoothedLms[i]
-                const p2 = smoothedLms[j]
-                if (p1 && p2 && (p1.visibility || 0) > 0.4 && (p2.visibility || 0) > 0.4) {
-                  const c1 = getCoord(p1)
-                  const c2 = getCoord(p2)
-                  ctx.beginPath()
-                  ctx.moveTo(c1.x, c1.y)
-                  ctx.lineTo(c2.x, c2.y)
-                  ctx.stroke()
-                }
-              })
-            }
+            // Note: We DO NOT perform mirroring in JavaScript.
+            // The canvas element shares the exact same CSS `scale-x-[-1]` transform as the video,
+            // so any pixels drawn here will be automatically mirrored by the browser rendering engine,
+            // keeping them perfectly aligned with the raw video frames fed to MediaPipe.
 
             smoothedLms.forEach((p: any, idx: number) => {
-              if ((p.visibility || 0) < 0.3) return
-              const { x, y } = getCoord(p)
-              
-              const isTriplet = config.angleTriplet.includes(idx)
-              if (isTriplet) {
-                ctx.beginPath()
-                ctx.arc(x, y, 4, 0, 2 * Math.PI)
-                ctx.fillStyle = '#CCFBF1' // mint-100
-                ctx.fill()
-                ctx.lineWidth = 2
-                ctx.strokeStyle = '#0F766E' // teal-700
-                ctx.stroke()
-              } else {
-                ctx.beginPath()
-                ctx.arc(x, y, 2, 0, 2 * Math.PI)
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-                ctx.fill()
-              }
-            })
+              // 1. Only render specific required human body landmarks
+              if (!RENDER_LANDMARKS.has(idx)) return
 
-            ctx.restore()
+              // 2. Validation: Ensure visibility is high enough (engineering threshold)
+              if ((p.visibility || 0) < 0.3) return
+
+              // 3. Validation: Ensure coordinates are finite
+              if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return
+
+              // Convert normalized MediaPipe coordinates (0-1) to final displayed CSS canvas pixel coordinates
+              const x = offsetX + p.x * drawWidth
+              const y = offsetY + p.y * drawHeight
+              
+              const isTriplet = config.angleTriplet && config.angleTriplet.includes(idx)
+              
+              ctx.beginPath()
+              // Use fixed visual radius independent of height/distance
+              ctx.arc(x, y, 3, 0, 2 * Math.PI)
+              
+              if (isTriplet) {
+                ctx.fillStyle = '#CCFBF1' // mint-100
+                ctx.lineWidth = 1.5
+                ctx.strokeStyle = '#0F766E' // teal-700
+              } else {
+                ctx.fillStyle = '#FFFFFF'
+                ctx.lineWidth = 1.5
+                ctx.strokeStyle = '#0F766E'
+              }
+              
+              ctx.fill()
+              ctx.stroke()
+            })
           }
         } else {
           smoothedLandmarksRef.current = null
