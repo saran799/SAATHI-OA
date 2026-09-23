@@ -85,7 +85,10 @@ export default function Assessment() {
   const [poseLoaded, setPoseLoaded] = useState(false)
   const [personDetected, setPersonDetected] = useState(false)
   
-  const [trackingState, setTrackingState] = useState<'Waiting...' | 'Tracking patient' | 'Move into position' | 'Tracking unstable - reposition'>('Waiting...')
+  const [trackingState, setTrackingState] = useState<'Waiting...' | 'Tracking patient' | 'Move into position' | 'Tracking unstable - reposition' | 'Camera movement detected - Please keep phone steady'>('Waiting...')
+
+  // Live metrics for the UI overlay
+  const [liveMetrics, setLiveMetrics] = useState({ angle: NaN, confidence: 0 })
 
   // Measurement state
   const [elapsed, setElapsed] = useState(0)
@@ -105,6 +108,13 @@ export default function Assessment() {
   const startTimeRef = useRef<number>(0)
   const lastUpdateRef = useRef<number>(0)
   const lastPoseTimeRef = useRef<number>(-1)
+  
+  // Camera movement detection state
+  const ankleEmaRef = useRef<number | null>(null)
+  
+  // Live values tracking before React state updates
+  const liveAngleRef = useRef<number>(NaN)
+  const liveConfRef = useRef<number>(0)
 
   const stopCamera = useCallback(async () => {
     try { await cameraService.stop() } catch {}
@@ -245,15 +255,44 @@ export default function Assessment() {
           }
 
           const curAngle = angleFromLandmarks(smoothedLms, config)
+          
+          if (curAngle.valid) {
+             liveAngleRef.current = curAngle.angle
+             liveConfRef.current = curAngle.confidence
+          } else {
+             liveAngleRef.current = NaN
+             liveConfRef.current = curAngle.confidence
+          }
 
           if (curAngle.valid) {
             currentTrackingState = 'Tracking patient'
+            
+            // Camera movement check using feet/ankles
+            if (smoothedLms[27] && smoothedLms[28]) {
+                const ankleY = (smoothedLms[27].y + smoothedLms[28].y) / 2
+                if (Number.isFinite(ankleY)) {
+                    if (ankleEmaRef.current === null) {
+                        ankleEmaRef.current = ankleY
+                    } else {
+                        const diff = Math.abs(ankleY - ankleEmaRef.current)
+                        if (diff > 0.05) { // significant jump = camera moving
+                            currentTrackingState = 'Camera movement detected - Please keep phone steady'
+                            // fast catchup so it resolves when camera stops
+                            ankleEmaRef.current = ankleEmaRef.current * 0.9 + ankleY * 0.1
+                        } else {
+                            // steady, slow EMA update
+                            ankleEmaRef.current = ankleEmaRef.current * 0.95 + ankleY * 0.05
+                        }
+                    }
+                }
+            }
           } else {
             currentTrackingState = 'Tracking unstable - reposition'
           }
 
           if (phase === 'recording') {
-            if (curAngle.valid) {
+            // Do not record fake movement if camera is moving
+            if (curAngle.valid && currentTrackingState === 'Tracking patient') {
               realSamples.current.push({
                 t: now,
                 angle: curAngle.angle,
@@ -308,21 +347,16 @@ export default function Assessment() {
               const isTriplet = config.angleTriplet && config.angleTriplet.includes(idx)
               
               ctx.beginPath()
-              // Use fixed visual radius independent of height/distance
-              ctx.arc(x, y, 3, 0, 2 * Math.PI)
+              // Use fixed visual radius independent of height/distance. No lines or strokes.
+              ctx.arc(x, y, 4.5, 0, 2 * Math.PI)
               
               if (isTriplet) {
-                ctx.fillStyle = '#CCFBF1' // mint-100
-                ctx.lineWidth = 1.5
-                ctx.strokeStyle = '#0F766E' // teal-700
+                ctx.fillStyle = '#0F766E' // Solid Teal-700 for active triplet
               } else {
-                ctx.fillStyle = '#FFFFFF'
-                ctx.lineWidth = 1.5
-                ctx.strokeStyle = '#0F766E'
+                ctx.fillStyle = '#14B8A6' // Solid Teal-500 for other dots
               }
               
               ctx.fill()
-              ctx.stroke()
             })
           }
         } else {
@@ -335,7 +369,8 @@ export default function Assessment() {
         // Update UI throttled
         if (now - lastUpdateRef.current > 500) {
           setPersonDetected(hasPerson)
-          setTrackingState(currentTrackingState)
+          setTrackingState(currentTrackingState as any)
+          setLiveMetrics({ angle: liveAngleRef.current, confidence: liveConfRef.current })
           lastUpdateRef.current = now
         }
       } catch (e) {
@@ -461,6 +496,11 @@ export default function Assessment() {
           )}>
             {trackingState}
           </span>
+          {trackingState !== 'Move into position' && trackingState !== 'Waiting...' && (
+            <span className="text-[10px] font-medium text-secondary mt-0.5">
+              {config.label} · {Number.isFinite(liveMetrics.angle) ? `${Math.round(liveMetrics.angle)}°` : 'Angle unavailable'} · Conf {Math.round((liveMetrics.confidence || 0) * 100)}%
+            </span>
+          )}
         </div>
       </div>
     </>

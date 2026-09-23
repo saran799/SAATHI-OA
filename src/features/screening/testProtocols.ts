@@ -82,34 +82,104 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       const valid = samples.filter(s => s.valid && s.landmarks)
       if (valid.length === 0) return { performed: false, repetitions: 0, durationSec: 0 }
       
-      let reps = 0
-      let state = 'standing'
-      let max_y = 0
-      let min_y = 1
-      valid.forEach(s => {
-         const lms = s.landmarks
-         if (!lms || !lms[11] || !lms[12]) return
-         const shoulderY = (lms[11].y + lms[12].y) / 2
-         if (state === 'standing') {
-             if (shoulderY > min_y + 0.15) { // moved down significantly
-                 state = 'sitting'
-                 max_y = shoulderY
-             } else if (shoulderY < min_y) {
-                 min_y = shoulderY
-             }
-         } else {
-             if (shoulderY < max_y - 0.15) { // moved up significantly
-                 state = 'standing'
-                 min_y = shoulderY
-                 reps++
-             } else if (shoulderY > max_y) {
-                 max_y = shoulderY
-             }
-         }
-      })
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
-      return { repetitions: reps, durationSec: (lastT - firstT)/1000, performed: true }
+      
+      let reps = 0
+      let state: 'READY' | 'SITTING' | 'RISING' | 'STANDING' | 'LOWERING' = 'READY'
+      
+      let initialTorsoHeightSum = 0
+      let initialFramesCount = 0
+      
+      // Calculate person-scale normalization factor from initial frames
+      for (let i = 0; i < Math.min(30, valid.length); i++) {
+        const lms = valid[i].landmarks
+        if (!lms || !lms[11] || !lms[12] || !lms[23] || !lms[24]) continue
+        const shoulderY = (lms[11].y + lms[12].y) / 2
+        const hipY = (lms[23].y + lms[24].y) / 2
+        const torso = hipY - shoulderY
+        if (torso > 0.05) {
+          initialTorsoHeightSum += torso
+          initialFramesCount++
+        }
+      }
+      
+      const bodyScale = initialFramesCount > 0 ? (initialTorsoHeightSum / initialFramesCount) : 0.2
+      
+      let min_y = 1
+      let max_y = 0
+      let consecutiveFrames = 0
+      let candidateState = state
+      
+      valid.forEach(s => {
+         const lms = s.landmarks
+         if (!lms || !lms[11] || !lms[12] || !lms[23] || !lms[24]) return
+         
+         const shoulderY = (lms[11].y + lms[12].y) / 2
+         const hipY = (lms[23].y + lms[24].y) / 2
+         const centerY = (shoulderY + hipY) / 2
+         
+         if (state === 'READY') {
+             state = 'SITTING' // assume test starts sitting
+             max_y = centerY
+             min_y = centerY
+         }
+         
+         if (state === 'SITTING') {
+             if (centerY > max_y) max_y = centerY
+             
+             // Rising threshold: move up (Y decreases) by 20% of torso height
+             if (max_y - centerY > 0.2 * bodyScale) {
+                 candidateState = 'RISING'
+             } else {
+                 candidateState = 'SITTING'
+             }
+         } 
+         else if (state === 'RISING') {
+             // Standing entry: move up by 45% of torso height
+             if (max_y - centerY > 0.45 * bodyScale) {
+                 candidateState = 'STANDING'
+                 min_y = centerY
+             } else if (centerY > max_y - 0.1 * bodyScale) {
+                 // Aborted rise, fell back down
+                 candidateState = 'SITTING'
+             }
+         }
+         else if (state === 'STANDING') {
+             if (centerY < min_y) min_y = centerY
+             
+             // Lowering threshold: move down (Y increases) by 20% of torso height
+             if (centerY - min_y > 0.2 * bodyScale) {
+                 candidateState = 'LOWERING'
+             } else {
+                 candidateState = 'STANDING'
+             }
+         }
+         else if (state === 'LOWERING') {
+             // Sitting entry: move down by 45% of torso height
+             if (centerY - min_y > 0.45 * bodyScale) {
+                 candidateState = 'SITTING'
+                 max_y = centerY
+                 reps++ // SITTING -> STANDING -> SITTING = 1 cycle completed
+             } else if (centerY < min_y + 0.1 * bodyScale) {
+                 // Aborted lower, stood back up
+                 candidateState = 'STANDING'
+             }
+         }
+         
+         // Temporal confirmation logic (require 3 consecutive frames of candidate state)
+         if (candidateState !== state) {
+             consecutiveFrames++
+             if (consecutiveFrames >= 3) {
+                 state = candidateState
+                 consecutiveFrames = 0
+             }
+         } else {
+             consecutiveFrames = 0
+         }
+      })
+      
+      return { repetitions: reps, durationSec: (lastT - firstT)/1000, performed: true, note: 'Camera-derived estimate' }
     },
     validationCriteria: (result: any) => {
       return result?.measurements?.performed === true
