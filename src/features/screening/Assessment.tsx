@@ -67,10 +67,18 @@ type AssessmentPhase =
   | 'camera_error'
   | 'pose_error'
 
+type TrackingStateType = 
+  | 'Waiting...' 
+  | 'Tracking patient' 
+  | 'Move into position' 
+  | 'Tracking unstable - reposition' 
+  | 'Camera movement detected - Please keep phone steady'
+
 export default function Assessment() {
   const nav = useNavigate()
   const { session } = useScreeningPatient(true)
   const { t } = useT()
+  const activeJointConfig = getJointConfigLight(session.joint as string, session.side as string)
 
 
   // Multi-test workflow state
@@ -85,7 +93,7 @@ export default function Assessment() {
   const [poseLoaded, setPoseLoaded] = useState(false)
   const [personDetected, setPersonDetected] = useState(false)
   
-  const [trackingState, setTrackingState] = useState<'Waiting...' | 'Tracking patient' | 'Move into position' | 'Tracking unstable - reposition' | 'Camera movement detected - Please keep phone steady'>('Waiting...')
+  const [trackingState, setTrackingState] = useState<TrackingStateType>('Waiting...')
 
   // Live metrics for the UI overlay
   const [liveMetrics, setLiveMetrics] = useState({ angle: NaN, confidence: 0 })
@@ -168,9 +176,7 @@ export default function Assessment() {
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    const joint = session.joint as any
-    const side = session.side as any
-    const config = getJointConfigLight(joint, side)
+    const config = activeJointConfig
     const poseMod = poseModuleRef.current
 
     const loop = () => {
@@ -210,7 +216,7 @@ export default function Assessment() {
         const res = poseOut.result
         const hasPerson = !!(res?.landmarks && res.landmarks.length > 0)
         
-        let currentTrackingState: 'Move into position' | 'Tracking patient' | 'Tracking unstable - reposition' = 'Move into position'
+        let currentTrackingState: TrackingStateType = 'Move into position'
 
         if (hasPerson) {
           const rawLms = res.landmarks
@@ -369,7 +375,7 @@ export default function Assessment() {
         // Update UI throttled
         if (now - lastUpdateRef.current > 500) {
           setPersonDetected(hasPerson)
-          setTrackingState(currentTrackingState as any)
+          setTrackingState(currentTrackingState)
           setLiveMetrics({ angle: liveAngleRef.current, confidence: liveConfRef.current })
           lastUpdateRef.current = now
         }
@@ -498,7 +504,7 @@ export default function Assessment() {
           </span>
           {trackingState !== 'Move into position' && trackingState !== 'Waiting...' && (
             <span className="text-[10px] font-medium text-secondary mt-0.5">
-              {config.label} · {Number.isFinite(liveMetrics.angle) ? `${Math.round(liveMetrics.angle)}°` : 'Angle unavailable'} · Conf {Math.round((liveMetrics.confidence || 0) * 100)}%
+              {activeJointConfig.label} · {Number.isFinite(liveMetrics.angle) ? `${Math.round(liveMetrics.angle)}°` : 'Angle unavailable'} · Conf {Math.round((liveMetrics.confidence || 0) * 100)}%
             </span>
           )}
         </div>

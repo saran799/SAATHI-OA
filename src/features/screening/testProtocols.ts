@@ -86,7 +86,9 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       const lastT = valid[valid.length - 1].t
       
       let reps = 0
-      let state: 'READY' | 'SITTING' | 'RISING' | 'STANDING' | 'LOWERING' = 'READY'
+      
+      type ChairStandState = 'READY' | 'SITTING' | 'RISING' | 'STANDING' | 'LOWERING';
+      let state: ChairStandState = 'READY'
       
       let initialTorsoHeightSum = 0
       let initialFramesCount = 0
@@ -109,7 +111,7 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       let min_y = 1
       let max_y = 0
       let consecutiveFrames = 0
-      let candidateState = state
+      let candidateState: ChairStandState = state
       
       valid.forEach(s => {
          const lms = s.landmarks
