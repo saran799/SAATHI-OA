@@ -206,7 +206,7 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
      * Feasibility: Can track asymmetric step lengths or velocity via MediaPipe if patient walks perpendicular to camera.
      */
     id: 'gait',
-    implemented: true,
+    implemented: false,
     title: 'Gait',
     preparationInstruction: 'Please ask the patient to stand at the end of the walkway sideways to the camera.',
     voiceInstruction: 'Please ask the patient to walk across the camera view normally.',
