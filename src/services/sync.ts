@@ -10,6 +10,7 @@
  */
 
 import type { ScreeningRecord, SyncState, Patient } from '../domain/types'
+import { api } from './api'
 
 export type SyncStatus = 'offline' | 'local' | 'syncing' | 'synced' | 'failed'
 
@@ -18,23 +19,9 @@ export interface SyncResult {
   failedIds: string[]
 }
 
-
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
-function getAuthToken() {
-  return localStorage.getItem('token')
-}
-
 // Check if backend reachable
 export async function isBackendReachable(): Promise<boolean> {
-  if (!navigator.onLine) return false
-  try {
-    const res = await fetch(`${API_URL}/api/health`, { method: 'GET' })
-    return res.ok
-  } catch (err) {
-    return false
-  }
+  return await api.checkHealth()
 }
 
 // Sync queue abstraction — processes unsynced records
@@ -51,11 +38,6 @@ export async function syncQueue(
     return { syncedIds, failedIds }
   }
 
-  const token = getAuthToken()
-  if (!token) {
-    return { syncedIds: [], failedIds: toSync.map(r => r.id) }
-  }
-
   // Get patients for the records being synced
   const patientIds = Array.from(new Set(toSync.map(r => r.patientId)))
   const patientsToSync = patients.filter(p => patientIds.includes(p.id))
@@ -66,31 +48,11 @@ export async function syncQueue(
   try {
     // 1. Sync Patients first to satisfy foreign keys
     if (patientsToSync.length > 0) {
-      await fetch(`${API_URL}/api/sync/patients`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ patients: patientsToSync })
-      })
+      await api.syncPatients(patientsToSync)
     }
 
     // 2. Sync Records
-    const res = await fetch(`${API_URL}/api/sync/records`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ records: toSync })
-    })
-
-    if (!res.ok) {
-      throw new Error(`Sync failed with status ${res.status}`)
-    }
-
-    const { synced, failed } = await res.json()
+    const { synced, failed } = await api.syncRecords(toSync)
 
     synced.forEach((id: string) => {
       syncedIds.push(id)

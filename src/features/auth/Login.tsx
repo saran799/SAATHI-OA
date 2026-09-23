@@ -6,6 +6,7 @@ import { Frame } from '../../components/layout/Shells'
 import { useApp } from '../../store/appStore'
 import { useT } from '../../i18n'
 import logo from '../../assets/saathi-logo.png'
+import { api } from '../../services/api'
 
 export default function Login() {
   const nav = useNavigate()
@@ -27,24 +28,17 @@ export default function Login() {
     setLoading(true)
     
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: id, password: pin })
-      })
-      if (res.ok) {
-        const data = await res.json()
-        signIn(data.worker.name, data.token)
-        nav('/language')
-      } else {
-        setErr({ pin: 'Invalid credentials' })
-        setLoading(false)
-      }
-    } catch (error) {
-      // Offline fallback
-      signIn(id)
+      const data = await api.login(id, pin)
+      signIn(data.worker.name, data.token)
       nav('/language')
+    } catch (error: any) {
+      setLoading(false)
+      if (error.status === 401 || error.status === 400) {
+        setErr({ pin: 'Invalid credentials' })
+      } else {
+        // We do not have a secure offline auth mechanism yet.
+        setErr({ pin: 'Network error or offline. Offline login is not yet supported.' })
+      }
     }
   }
   const field = 'w-full h-[44px] rounded-[12px] bg-tint pl-11 pr-11 text-[14px] font-medium text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary'
