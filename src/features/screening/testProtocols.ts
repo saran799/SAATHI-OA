@@ -3,7 +3,7 @@ import type { TestDefinition } from '../../domain/types'
 export const TEST_PROTOCOLS: TestDefinition[] = [
   {
     id: 'rom',
-    implemented: true,
+    implemented: false,
     title: 'Joint Movement',
     preparationInstruction: 'Please ask the patient to sit on the chair and face the camera.',
     voiceInstruction: 'Please ask the patient to slowly bend the affected joint as far as comfortable and then slowly straighten it. Continue the movement naturally.',
@@ -63,7 +63,7 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
      * smartphone computer vision (tracking vertical displacement of hip/shoulder landmarks).
      */
     id: 'functional',
-    implemented: true,
+    implemented: false,
     title: 'Functional Movement',
     preparationInstruction: 'Please ask the patient to prepare for a functional movement test.',
     voiceInstruction: 'Please ask the patient to stand up from the chair and sit back down as many times as possible for 30 seconds.',
@@ -208,48 +208,100 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     id: 'gait',
     implemented: true,
     title: 'Gait',
-    preparationInstruction: 'Please ask the patient to stand at the end of the walkway facing the camera.',
-    voiceInstruction: 'Please ask the patient to walk toward the camera normally.',
+    preparationInstruction: 'Please ask the patient to stand at the end of the walkway sideways to the camera.',
+    voiceInstruction: 'Please ask the patient to walk across the camera view normally.',
     requiredLandmarks: [],
     recordingMode: 'continuous',
-    timeoutSec: 10,
+    timeoutSec: 15,
     completionCriteria: (samples: any[]) => {
       const valid = samples.filter(s => s.valid && s.landmarks)
       if (valid.length < 10) return false
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
-      // Collect 10 seconds of gait data
-      return (lastT - firstT) >= 10000
+      
+      const getAngle = (h: any, k: any, a: any) => {
+          const dx1 = h.x - k.x, dy1 = h.y - k.y
+          const dx2 = a.x - k.x, dy2 = a.y - k.y
+          let angle = Math.atan2(dy1, dx1) - Math.atan2(dy2, dx2)
+          angle = angle * 180 / Math.PI
+          if (angle < 0) angle += 360
+          return angle <= 180 ? angle : 360 - angle
+      }
+
+      let leftCycles = 0
+      let rightCycles = 0
+      let stateL = 'ext'
+      let stateR = 'ext'
+
+      valid.forEach(s => {
+          const lms = s.landmarks
+          if (!lms) return
+          if (lms[23] && lms[25] && lms[27]) {
+              const ang = getAngle(lms[23], lms[25], lms[27])
+              if (stateL === 'ext' && ang < 150) stateL = 'flex'
+              else if (stateL === 'flex' && ang > 165) { stateL = 'ext'; leftCycles++ }
+          }
+          if (lms[24] && lms[26] && lms[28]) {
+              const ang = getAngle(lms[24], lms[26], lms[28])
+              if (stateR === 'ext' && ang < 150) stateR = 'flex'
+              else if (stateR === 'flex' && ang > 165) { stateR = 'ext'; rightCycles++ }
+          }
+      })
+      
+      // Early completion: if we captured at least 2 valid cycles per leg
+      if (leftCycles >= 2 && rightCycles >= 2) return true
+      
+      return (lastT - firstT) >= 15000
     }, 
     extractMetrics: (samples: any[]) => {
       const valid = samples.filter(s => s.valid && s.landmarks)
-      if (valid.length === 0) return { performed: false }
+      if (valid.length === 0) return { performed: false, validCycles: 0 }
       
-      let stepEvents = 0
-      let state = 'apart'
-      let max_d = 0
+      const getAngle = (h: any, k: any, a: any) => {
+          const dx1 = h.x - k.x, dy1 = h.y - k.y
+          const dx2 = a.x - k.x, dy2 = a.y - k.y
+          let angle = Math.atan2(dy1, dx1) - Math.atan2(dy2, dx2)
+          angle = angle * 180 / Math.PI
+          if (angle < 0) angle += 360
+          return angle <= 180 ? angle : 360 - angle
+      }
+
+      let leftCycles = 0
+      let rightCycles = 0
+      let stateL = 'ext'
+      let stateR = 'ext'
       
+      let minFlexL = 180
+      let minFlexR = 180
+
       valid.forEach(s => {
-         const lms = s.landmarks
-         if (!lms || !lms[27] || !lms[28]) return
-         const d = Math.abs(lms[27].x - lms[28].x) + Math.abs(lms[27].z - lms[28].z)
-         if (state === 'apart') {
-             if (d < max_d * 0.5 && max_d > 0.05) {
-                 state = 'together'
-             } else if (d > max_d) {
-                 max_d = d
-             }
-         } else {
-             if (d > 0.05) {
-                 state = 'apart'
-                 max_d = d
-                 stepEvents++
-             }
-         }
+          const lms = s.landmarks
+          if (!lms) return
+          if (lms[23] && lms[25] && lms[27]) {
+              const ang = getAngle(lms[23], lms[25], lms[27])
+              if (ang < minFlexL) minFlexL = ang
+              if (stateL === 'ext' && ang < 150) stateL = 'flex'
+              else if (stateL === 'flex' && ang > 165) { stateL = 'ext'; leftCycles++ }
+          }
+          if (lms[24] && lms[26] && lms[28]) {
+              const ang = getAngle(lms[24], lms[26], lms[28])
+              if (ang < minFlexR) minFlexR = ang
+              if (stateR === 'ext' && ang < 150) stateR = 'flex'
+              else if (stateR === 'flex' && ang > 165) { stateR = 'ext'; rightCycles++ }
+          }
       })
+
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
-      return { stepEvents, durationSec: (lastT - firstT)/1000, performed: true, note: 'Camera-derived estimate' }
+      const totalCycles = Math.min(leftCycles, rightCycles)
+      
+      return { 
+          validCycles: totalCycles,
+          peakKneeFlexionLeft: minFlexL < 180 ? minFlexL.toFixed(1) : null,
+          peakKneeFlexionRight: minFlexR < 180 ? minFlexR.toFixed(1) : null,
+          durationSec: (lastT - firstT)/1000, 
+          performed: totalCycles >= 2
+      }
     },
     validationCriteria: (result: any) => {
       return result?.measurements?.performed === true
@@ -259,7 +311,9 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     },
     workerResultFormatter: (result: any) => ({
       movement: result?.measurements?.performed ? 'Detected' : 'Not detected',
-      stepEvents: result?.measurements?.stepEvents,
+      validCycles: result?.measurements?.validCycles,
+      peakFlexionL: result?.measurements?.peakKneeFlexionLeft ? `${result.measurements.peakKneeFlexionLeft}°` : 'N/A',
+      peakFlexionR: result?.measurements?.peakKneeFlexionRight ? `${result.measurements.peakKneeFlexionRight}°` : 'N/A',
       quality: result?.quality || 'Unknown' 
     }),
     technicalResultFormatter: (result: any) => ({
@@ -280,35 +334,55 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       if (valid.length < 10) return false
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
-      // Collect 5 seconds of stable posture data
       return (lastT - firstT) >= 5000
     }, 
     extractMetrics: (samples: any[]) => {
       const valid = samples.filter(s => s.valid && s.landmarks)
-      if (valid.length === 0) return { performed: false }
+      // Enforce minimum valid data ratio: 5 seconds should have ~150 frames, we need at least 60 valid frames
+      if (valid.length < 60) return { performed: false, leftKneeAngle: null, rightKneeAngle: null }
       
-      let shoulderTiltSum = 0
-      let hipTiltSum = 0
+      const getAngle = (h: any, k: any, a: any) => {
+          const dx1 = h.x - k.x, dy1 = h.y - k.y
+          const dx2 = a.x - k.x, dy2 = a.y - k.y
+          let angle = Math.atan2(dy1, dx1) - Math.atan2(dy2, dx2)
+          angle = angle * 180 / Math.PI
+          if (angle < 0) angle += 360
+          return angle <= 180 ? angle : 360 - angle
+      }
+
+      let sumL = 0, countL = 0
+      let sumR = 0, countR = 0
       
       valid.forEach(s => {
           const lms = s.landmarks
-          if (!lms || !lms[11] || !lms[12] || !lms[23] || !lms[24]) return
-          // angle of shoulder line (11-12) vs horizontal
-          const dxS = lms[12].x - lms[11].x
-          const dyS = lms[12].y - lms[11].y
-          shoulderTiltSum += Math.abs(Math.atan2(dyS, dxS))
-          
-          const dxH = lms[24].x - lms[23].x
-          const dyH = lms[24].y - lms[23].y
-          hipTiltSum += Math.abs(Math.atan2(dyH, dxH))
+          if (!lms) return
+          if (lms[23] && lms[25] && lms[27]) {
+              sumL += getAngle(lms[23], lms[25], lms[27])
+              countL++
+          }
+          if (lms[24] && lms[26] && lms[28]) {
+              sumR += getAngle(lms[24], lms[26], lms[28])
+              countR++
+          }
       })
+      
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
+      
+      const leftKneeAngle = countL > 30 ? (sumL / countL) : null
+      const rightKneeAngle = countR > 30 ? (sumR / countR) : null
+      
+      let diff = null
+      if (leftKneeAngle !== null && rightKneeAngle !== null) {
+          diff = Math.abs(leftKneeAngle - rightKneeAngle)
+      }
+
       return { 
-          shoulderAlignment: (shoulderTiltSum / valid.length).toFixed(2), 
-          hipAlignment: (hipTiltSum / valid.length).toFixed(2),
+          leftKneeAngle: leftKneeAngle ? leftKneeAngle.toFixed(1) : null,
+          rightKneeAngle: rightKneeAngle ? rightKneeAngle.toFixed(1) : null,
+          leftRightDifference: diff ? diff.toFixed(1) : null,
           durationSec: (lastT - firstT)/1000,
-          performed: true 
+          performed: leftKneeAngle !== null || rightKneeAngle !== null
       }
     },
     validationCriteria: (result: any) => {
@@ -318,7 +392,10 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       return result?.status === 'INSUFFICIENT'
     },
     workerResultFormatter: (result: any) => ({
-      movement: result?.measurements?.performed ? 'Detected' : 'Not detected',
+      movement: result?.measurements?.performed ? 'Captured' : 'Insufficient data',
+      leftKneeAngle: result?.measurements?.leftKneeAngle ? `${result.measurements.leftKneeAngle}°` : 'Unavailable',
+      rightKneeAngle: result?.measurements?.rightKneeAngle ? `${result.measurements.rightKneeAngle}°` : 'Unavailable',
+      symmetryDifference: result?.measurements?.leftRightDifference ? `${result.measurements.leftRightDifference}°` : 'Unavailable',
       quality: result?.quality || 'Unknown' 
     }),
     technicalResultFormatter: (result: any) => ({

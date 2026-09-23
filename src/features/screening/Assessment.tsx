@@ -6,7 +6,7 @@ import { Button, cx } from '../../components/ui'
 import { useScreeningPatient } from './useGuard'
 import { useT } from '../../i18n'
 import { cameraService, type CameraState, type FacingMode } from '../../services/camera'
-import { angleFromLandmarks, type TimestampedSample } from '../../services/movement'
+import { type TimestampedSample } from '../../services/movement'
 import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
 import type { TestResult } from '../../domain/types'
@@ -14,6 +14,16 @@ import type { TestResult } from '../../domain/types'
 const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
 type PoseModule = typeof import('../../services/pose')
+
+type TrackingStateType = 
+  | 'Waiting...'
+  | 'Tracking patient'
+  | 'No person detected. Move into the camera frame.'
+  | 'Move back so your full body is visible.'
+  | 'Both knees must be visible. Adjust your position.'
+  | 'Please make sure your feet are visible.'
+  | 'The camera cannot clearly track your movement. Improve lighting and keep your body visible.'
+  | 'Keep the phone steady.'
 
 const RENDER_LANDMARKS = new Set([
   0, // nose/head
@@ -26,35 +36,20 @@ const RENDER_LANDMARKS = new Set([
   29, 30, 31, 32 // feet
 ])
 
-// Light copy of joint config to avoid needing heavy pose module for UI
-const JOINT_CONFIGS_LIGHT: Record<string, { left: any; right: any }> = {
-  knee: {
-    left: { joint: 'knee', side: 'left', angleTriplet: [23, 25, 27], required: [23, 25, 27], label: 'Left knee' },
-    right: { joint: 'knee', side: 'right', angleTriplet: [24, 26, 28], required: [24, 26, 28], label: 'Right knee' },
-  },
-  hip: {
-    left: { joint: 'hip', side: 'left', angleTriplet: [11, 23, 25], required: [11, 23, 25], label: 'Left hip' },
-    right: { joint: 'hip', side: 'right', angleTriplet: [12, 24, 26], required: [12, 24, 26], label: 'Right hip' },
-  },
-  shoulder: {
-    left: { joint: 'shoulder', side: 'left', angleTriplet: [11, 13, 15], required: [11, 13, 15], label: 'Left shoulder' },
-    right: { joint: 'shoulder', side: 'right', angleTriplet: [12, 14, 16], required: [12, 14, 16], label: 'Right shoulder' },
-  },
-  hand: {
-    left: { joint: 'hand', side: 'left', angleTriplet: [11, 13, 15], required: [11, 13, 15], label: 'Left hand' },
-    right: { joint: 'hand', side: 'right', angleTriplet: [12, 14, 16], required: [12, 14, 16], label: 'Right hand' },
-  },
-  spine: {
-    left: { joint: 'spine', side: 'left', angleTriplet: [11, 23, 25], required: [11, 23, 25], label: 'Spine' },
-    right: { joint: 'spine', side: 'right', angleTriplet: [12, 24, 26], required: [12, 24, 26], label: 'Spine' },
-  },
-}
-function getJointConfigLight(joint: string, side: string) {
-  const sideKey = side === 'both' ? 'right' : side
-  const jointKey = joint === 'spine' ? 'spine' : joint
-  const cfg = (JOINT_CONFIGS_LIGHT as any)[jointKey] || JOINT_CONFIGS_LIGHT.knee
-  return cfg[sideKey] || cfg.right
-}
+const POSE_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10], // face
+  [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19], // left arm/shoulder
+  [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20], // right arm/shoulder
+  [11, 23], [12, 24], [23, 24], // trunk
+  [23, 25], [25, 27], [27, 29], [29, 31], [31, 27], // left leg
+  [24, 26], [26, 28], [28, 30], [30, 32], [32, 28]  // right leg
+]
+const KNEE_CHAIN_LEFT = [[23, 25], [25, 27]]
+const KNEE_CHAIN_RIGHT = [[24, 26], [26, 28]]
+const KNEE_POINTS = new Set([23, 25, 27, 24, 26, 28])
+
+
+
 
 type AssessmentPhase = 
   | 'setup'       // Camera turning on, waiting for patient
@@ -67,18 +62,10 @@ type AssessmentPhase =
   | 'camera_error'
   | 'pose_error'
 
-type TrackingStateType = 
-  | 'Waiting...' 
-  | 'Tracking patient' 
-  | 'Move into position' 
-  | 'Tracking unstable - reposition' 
-  | 'Camera movement detected - Please keep phone steady'
-
 export default function Assessment() {
   const nav = useNavigate()
   const { session } = useScreeningPatient(true)
   const { t } = useT()
-  const activeJointConfig = getJointConfigLight(session.joint as string, session.side as string)
 
 
   // Multi-test workflow state
@@ -94,9 +81,6 @@ export default function Assessment() {
   const [personDetected, setPersonDetected] = useState(false)
   
   const [trackingState, setTrackingState] = useState<TrackingStateType>('Waiting...')
-
-  // Live metrics for the UI overlay
-  const [liveMetrics, setLiveMetrics] = useState({ angle: NaN, confidence: 0 })
 
   // Measurement state
   const [elapsed, setElapsed] = useState(0)
@@ -116,13 +100,8 @@ export default function Assessment() {
   const startTimeRef = useRef<number>(0)
   const lastUpdateRef = useRef<number>(0)
   const lastPoseTimeRef = useRef<number>(-1)
-  
-  // Camera movement detection state
-  const ankleEmaRef = useRef<number | null>(null)
-  
-  // Live values tracking before React state updates
-  const liveAngleRef = useRef<number>(NaN)
-  const liveConfRef = useRef<number>(0)
+  const errorActiveSinceRef = useRef<number>(0)
+  const lastErrorSpokenRef = useRef<string>('')
 
   const stopCamera = useCallback(async () => {
     try { await cameraService.stop() } catch {}
@@ -176,7 +155,6 @@ export default function Assessment() {
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
-    const config = activeJointConfig
     const poseMod = poseModuleRef.current
 
     const loop = () => {
@@ -216,16 +194,11 @@ export default function Assessment() {
         const res = poseOut.result
         const hasPerson = !!(res?.landmarks && res.landmarks.length > 0)
         
-        let currentTrackingState: TrackingStateType = 'Move into position'
+        let currentTrackingState: TrackingStateType = 'No person detected. Move into the camera frame.'
 
         if (hasPerson) {
           const rawLms = res.landmarks
-          
-          // ENGINEERING/TRACKING PARAMETER (NOT A CLINICAL THRESHOLD)
-          // Used strictly for temporal stabilization (EMA) to reduce visualization jitter.
-          // This is NOT a validated clinical measurement variable.
           const alpha = 0.4
-          
           let smoothedLms = rawLms
 
           if (!smoothedLandmarksRef.current || smoothedLandmarksRef.current.length !== rawLms.length) {
@@ -242,11 +215,7 @@ export default function Assessment() {
               const dx = raw.x - prev.x
               const dy = raw.y - prev.y
               const dist = Math.sqrt(dx * dx + dy * dy)
-              
-              // ENGINEERING/TRACKING PARAMETER (NOT A CLINICAL THRESHOLD)
-              // Used strictly for outlier rejection to prevent drawing massive frame-to-frame leaps.
               if (dist > 0.15) {
-                // Outlier leap (fast movement or glitch) -> reset to raw
                 smoothed[i] = { ...raw }
               } else {
                 smoothed[i] = {
@@ -260,49 +229,43 @@ export default function Assessment() {
             smoothedLms = smoothed
           }
 
-          const curAngle = angleFromLandmarks(smoothedLms, config)
+          const lHip = smoothedLms[23]
+          const rHip = smoothedLms[24]
+          const lKnee = smoothedLms[25]
+          const rKnee = smoothedLms[26]
+          const lAnkle = smoothedLms[27]
+          const rAnkle = smoothedLms[28]
           
-          if (curAngle.valid) {
-             liveAngleRef.current = curAngle.angle
-             liveConfRef.current = curAngle.confidence
-          } else {
-             liveAngleRef.current = NaN
-             liveConfRef.current = curAngle.confidence
+          const hipVisible = (lHip?.visibility || 0) > 0.3 && (rHip?.visibility || 0) > 0.3
+          const kneeVisible = (lKnee?.visibility || 0) > 0.3 && (rKnee?.visibility || 0) > 0.3
+          const ankleVisible = (lAnkle?.visibility || 0) > 0.3 && (rAnkle?.visibility || 0) > 0.3
+          
+          let cameraMoving = false
+          // Check for significant movement across frames to detect device shake/movement
+          if (rawLms[0] && smoothedLandmarksRef.current[0]) {
+             const dx = rawLms[0].x - smoothedLandmarksRef.current[0].x
+             const dy = rawLms[0].y - smoothedLandmarksRef.current[0].y
+             if (Math.sqrt(dx*dx + dy*dy) > 0.05) cameraMoving = true
           }
 
-          if (curAngle.valid) {
-            currentTrackingState = 'Tracking patient'
-            
-            // Camera movement check using feet/ankles
-            if (smoothedLms[27] && smoothedLms[28]) {
-                const ankleY = (smoothedLms[27].y + smoothedLms[28].y) / 2
-                if (Number.isFinite(ankleY)) {
-                    if (ankleEmaRef.current === null) {
-                        ankleEmaRef.current = ankleY
-                    } else {
-                        const diff = Math.abs(ankleY - ankleEmaRef.current)
-                        if (diff > 0.05) { // significant jump = camera moving
-                            currentTrackingState = 'Camera movement detected - Please keep phone steady'
-                            // fast catchup so it resolves when camera stops
-                            ankleEmaRef.current = ankleEmaRef.current * 0.9 + ankleY * 0.1
-                        } else {
-                            // steady, slow EMA update
-                            ankleEmaRef.current = ankleEmaRef.current * 0.95 + ankleY * 0.05
-                        }
-                    }
-                }
-            }
+          if (!hipVisible) {
+             currentTrackingState = 'Move back so your full body is visible.'
+          } else if (!kneeVisible) {
+             currentTrackingState = 'Both knees must be visible. Adjust your position.'
+          } else if (!ankleVisible) {
+             currentTrackingState = 'Please make sure your feet are visible.'
+          } else if (cameraMoving) {
+             currentTrackingState = 'Keep the phone steady.'
           } else {
-            currentTrackingState = 'Tracking unstable - reposition'
+             currentTrackingState = 'Tracking patient'
           }
 
           if (phase === 'recording') {
-            // Do not record fake movement if camera is moving
-            if (curAngle.valid && currentTrackingState === 'Tracking patient') {
+            if (currentTrackingState === 'Tracking patient') {
               realSamples.current.push({
                 t: now,
-                angle: curAngle.angle,
-                confidence: curAngle.confidence,
+                angle: 0,
+                confidence: 1,
                 valid: true,
                 landmarks: smoothedLms
               })
@@ -336,33 +299,59 @@ export default function Assessment() {
             // so any pixels drawn here will be automatically mirrored by the browser rendering engine,
             // keeping them perfectly aligned with the raw video frames fed to MediaPipe.
 
+            // Draw subtle whole-body skeleton
+            ctx.lineWidth = 1
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'
+            POSE_CONNECTIONS.forEach(([i, j]) => {
+                const p1 = smoothedLms[i]
+                const p2 = smoothedLms[j]
+                if (p1 && p2 && (p1.visibility || 0) > 0.3 && (p2.visibility || 0) > 0.3) {
+                    ctx.beginPath()
+                    ctx.moveTo(offsetX + p1.x * drawWidth, offsetY + p1.y * drawHeight)
+                    ctx.lineTo(offsetX + p2.x * drawWidth, offsetY + p2.y * drawHeight)
+                    ctx.stroke()
+                }
+            })
+
+            // Draw highlighted knee chains
+            ctx.lineWidth = 3
+            ctx.strokeStyle = '#0F766E'
+            ;[...KNEE_CHAIN_LEFT, ...KNEE_CHAIN_RIGHT].forEach(([i, j]) => {
+                const p1 = smoothedLms[i]
+                const p2 = smoothedLms[j]
+                if (p1 && p2 && (p1.visibility || 0) > 0.3 && (p2.visibility || 0) > 0.3) {
+                    ctx.beginPath()
+                    ctx.moveTo(offsetX + p1.x * drawWidth, offsetY + p1.y * drawHeight)
+                    ctx.lineTo(offsetX + p2.x * drawWidth, offsetY + p2.y * drawHeight)
+                    ctx.stroke()
+                }
+            })
+
             smoothedLms.forEach((p: any, idx: number) => {
-              // 1. Only render specific required human body landmarks
               if (!RENDER_LANDMARKS.has(idx)) return
-
-              // 2. Validation: Ensure visibility is high enough (engineering threshold)
               if ((p.visibility || 0) < 0.3) return
-
-              // 3. Validation: Ensure coordinates are finite
               if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return
 
-              // Convert normalized MediaPipe coordinates (0-1) to final displayed CSS canvas pixel coordinates
               const x = offsetX + p.x * drawWidth
               const y = offsetY + p.y * drawHeight
               
-              const isTriplet = config.angleTriplet && config.angleTriplet.includes(idx)
+              const isKneeChain = KNEE_POINTS.has(idx)
               
               ctx.beginPath()
-              // Use fixed visual radius independent of height/distance. No lines or strokes.
-              ctx.arc(x, y, 4.5, 0, 2 * Math.PI)
-              
-              if (isTriplet) {
-                ctx.fillStyle = '#0F766E' // Solid Teal-700 for active triplet
+              if (isKneeChain) {
+                ctx.arc(x, y, 4, 0, 2 * Math.PI)
+                ctx.fillStyle = '#CCFBF1' // mint-100
+                ctx.lineWidth = 2
+                ctx.strokeStyle = '#0F766E' // teal-700
               } else {
-                ctx.fillStyle = '#14B8A6' // Solid Teal-500 for other dots
+                ctx.arc(x, y, 2, 0, 2 * Math.PI)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+                ctx.lineWidth = 1
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
               }
               
               ctx.fill()
+              ctx.stroke()
             })
           }
         } else {
@@ -376,7 +365,6 @@ export default function Assessment() {
         if (now - lastUpdateRef.current > 500) {
           setPersonDetected(hasPerson)
           setTrackingState(currentTrackingState)
-          setLiveMetrics({ angle: liveAngleRef.current, confidence: liveConfRef.current })
           lastUpdateRef.current = now
         }
       } catch (e) {
@@ -393,6 +381,31 @@ export default function Assessment() {
   }, [phase, cameraState, poseLoaded, session.joint, session.side, currentTest])
 
   // 3. State Machine Orchestration
+  useEffect(() => {
+    const errorStates = [
+      'No person detected. Move into the camera frame.',
+      'Move back so your full body is visible.',
+      'Both knees must be visible. Adjust your position.',
+      'Please make sure your feet are visible.',
+      'The camera cannot clearly track your movement. Improve lighting and keep your body visible.',
+      'Keep the phone steady.'
+    ]
+    
+    if (errorStates.includes(trackingState)) {
+       if (errorActiveSinceRef.current === 0) {
+           errorActiveSinceRef.current = Date.now()
+       } else if (Date.now() - errorActiveSinceRef.current > 3000) {
+           if (lastErrorSpokenRef.current !== trackingState) {
+               voice.speak(trackingState)
+               lastErrorSpokenRef.current = trackingState
+           }
+       }
+    } else {
+       errorActiveSinceRef.current = 0
+       lastErrorSpokenRef.current = ''
+    }
+  }, [trackingState, voice])
+
   useEffect(() => {
     // Setup -> Ready
     if (phase === 'setup' && personDetected) {
@@ -497,16 +510,10 @@ export default function Assessment() {
           </span>
           <span className={cx(
             "text-[10px] font-bold tracking-wider uppercase mt-0.5",
-            trackingState === 'Tracking patient' ? "text-mint-dark" :
-            trackingState === 'Move into position' ? "text-warning" : "text-error-text"
+            trackingState === 'Tracking patient' ? "text-mint-dark" : "text-warning"
           )}>
             {trackingState}
           </span>
-          {trackingState !== 'Move into position' && trackingState !== 'Waiting...' && (
-            <span className="text-[10px] font-medium text-secondary mt-0.5">
-              {activeJointConfig.label} · {Number.isFinite(liveMetrics.angle) ? `${Math.round(liveMetrics.angle)}°` : 'Angle unavailable'} · Conf {Math.round((liveMetrics.confidence || 0) * 100)}%
-            </span>
-          )}
         </div>
       </div>
     </>
