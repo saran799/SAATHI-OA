@@ -241,11 +241,11 @@ export default function Assessment() {
           const ankleVisible = (lAnkle?.visibility || 0) > 0.3 && (rAnkle?.visibility || 0) > 0.3
           
           let cameraMoving = false
-          // Check for significant movement across frames to detect device shake/movement
-          if (rawLms[0] && smoothedLandmarksRef.current[0]) {
-             const dx = rawLms[0].x - smoothedLandmarksRef.current[0].x
-             const dy = rawLms[0].y - smoothedLandmarksRef.current[0].y
-             if (Math.sqrt(dx*dx + dy*dy) > 0.05) cameraMoving = true
+          // Check for significant movement across frames using the ankle (more stable than head for standing tests)
+          if (rawLms[27] && smoothedLandmarksRef.current[27]) {
+             const dx = rawLms[27].x - smoothedLandmarksRef.current[27].x
+             const dy = rawLms[27].y - smoothedLandmarksRef.current[27].y
+             if (Math.sqrt(dx*dx + dy*dy) > 0.08) cameraMoving = true
           }
 
           if (!hipVisible) {
@@ -261,15 +261,13 @@ export default function Assessment() {
           }
 
           if (phase === 'recording') {
-            if (currentTrackingState === 'Tracking patient') {
-              realSamples.current.push({
-                t: now,
-                angle: 0,
-                confidence: 1,
-                valid: true,
-                landmarks: smoothedLms
-              })
-            }
+            realSamples.current.push({
+              t: now,
+              angle: 0,
+              confidence: 1,
+              valid: true,
+              landmarks: smoothedLms
+            })
           }
           
           // Render tracking points on canvas
@@ -611,7 +609,7 @@ export default function Assessment() {
               {testResult.status === 'VALID' ? (
                 <><CheckCircle size={18} className="text-mint-dark" /><span className="text-mint-dark font-bold">✓ Completed</span></>
               ) : (
-                <><ShieldCheck size={18} className="text-error" /><span className="text-error font-bold">Insufficient Movement</span></>
+                <><ShieldCheck size={18} className="text-error" /><span className="text-error font-bold">Insufficient Data</span></>
               )}
             </div>
             

@@ -352,16 +352,24 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
 
       let sumL = 0, countL = 0
       let sumR = 0, countR = 0
+      let anglesL: number[] = []
+      let anglesR: number[] = []
       
+      const isVis = (lm: any) => (lm.visibility || 0) > 0.3
+
       valid.forEach(s => {
           const lms = s.landmarks
           if (!lms) return
-          if (lms[23] && lms[25] && lms[27]) {
-              sumL += getAngle(lms[23], lms[25], lms[27])
+          if (lms[23] && lms[25] && lms[27] && isVis(lms[23]) && isVis(lms[25]) && isVis(lms[27])) {
+              const ang = getAngle(lms[23], lms[25], lms[27])
+              sumL += ang
+              anglesL.push(ang)
               countL++
           }
-          if (lms[24] && lms[26] && lms[28]) {
-              sumR += getAngle(lms[24], lms[26], lms[28])
+          if (lms[24] && lms[26] && lms[28] && isVis(lms[24]) && isVis(lms[26]) && isVis(lms[28])) {
+              const ang = getAngle(lms[24], lms[26], lms[28])
+              sumR += ang
+              anglesR.push(ang)
               countR++
           }
       })
@@ -369,20 +377,33 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       const firstT = valid[0].t
       const lastT = valid[valid.length - 1].t
       
-      const leftKneeAngle = countL > 30 ? (sumL / countL) : null
-      const rightKneeAngle = countR > 30 ? (sumR / countR) : null
+      const calcVariance = (angles: number[], mean: number) => {
+          if (angles.length === 0) return 0
+          const sumSq = angles.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0)
+          return sumSq / angles.length
+      }
+
+      const meanL = countL > 30 ? (sumL / countL) : null
+      const meanR = countR > 30 ? (sumR / countR) : null
       
+      const varL = meanL !== null ? calcVariance(anglesL, meanL) : 0
+      const varR = meanR !== null ? calcVariance(anglesR, meanR) : 0
+      
+      // Ensure the posture was stable (variance < 100 is approx std dev < 10 degrees)
+      const isStableL = meanL !== null && varL < 100
+      const isStableR = meanR !== null && varR < 100
+
       let diff = null
-      if (leftKneeAngle !== null && rightKneeAngle !== null) {
-          diff = Math.abs(leftKneeAngle - rightKneeAngle)
+      if (isStableL && isStableR) {
+          diff = Math.abs(meanL! - meanR!)
       }
 
       return { 
-          leftKneeAngle: leftKneeAngle ? leftKneeAngle.toFixed(1) : null,
-          rightKneeAngle: rightKneeAngle ? rightKneeAngle.toFixed(1) : null,
+          leftKneeAngle: isStableL ? meanL.toFixed(1) : null,
+          rightKneeAngle: isStableR ? meanR.toFixed(1) : null,
           leftRightDifference: diff ? diff.toFixed(1) : null,
           durationSec: (lastT - firstT)/1000,
-          performed: leftKneeAngle !== null || rightKneeAngle !== null
+          performed: isStableL || isStableR
       }
     },
     validationCriteria: (result: any) => {
@@ -392,7 +413,7 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       return result?.status === 'INSUFFICIENT'
     },
     workerResultFormatter: (result: any) => ({
-      movement: result?.measurements?.performed ? 'Captured' : 'Insufficient data',
+      postureData: result?.measurements?.performed ? 'Sufficient' : 'Insufficient data',
       leftKneeAngle: result?.measurements?.leftKneeAngle ? `${result.measurements.leftKneeAngle}°` : 'Unavailable',
       rightKneeAngle: result?.measurements?.rightKneeAngle ? `${result.measurements.rightKneeAngle}°` : 'Unavailable',
       symmetryDifference: result?.measurements?.leftRightDifference ? `${result.measurements.leftRightDifference}°` : 'Unavailable',
