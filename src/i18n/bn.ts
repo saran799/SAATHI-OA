@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "কর্মী ID / ব্যবহারকারীর নাম",
       pinLabel: "৪-সংখ্যার নিরাপত্তা PIN",
       pinPlaceholder: "••••",
-      demoPin: "ডেমো: যেকোনো ৪ সংখ্যা লিখুন",
+      demoPin: "Demo PIN: 7749",
       remember: "ডিভাইস মনে রাখুন",
       offlineRecovery: "অফলাইন পুনরুদ্ধার",
       signInBtn: "সাইন ইন এবং ফিল্ড ইনটেকে যান",

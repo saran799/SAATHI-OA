@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "वर्कर ID / उपयोगकर्ता नाम",
       pinLabel: "4-अंकीय सुरक्षा PIN",
       pinPlaceholder: "••••",
-      demoPin: "डेमो: कोई भी 4 अंक दर्ज करें",
+      demoPin: "Demo PIN: 7749",
       remember: "डिवाइस याद रखें",
       offlineRecovery: "ऑफलाइन रिकवरी",
       signInBtn: "साइन इन और फील्ड इंटेक में जाएं",

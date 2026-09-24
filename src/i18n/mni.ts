@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "থবক তৌবগী ID / ইউজার মিং",
       pinLabel: "৪-দিজিট সিকিউরিটি PIN",
       pinPlaceholder: "••••",
-      demoPin: "ডেমো: করিগুম্বা ৪ দিজিট চংউ",
+      demoPin: "Demo PIN: 7749",
       remember: "ডিভাইস নিংশিংদুনা থম",
       offlineRecovery: "অফলাইন রিকভারি",
       signInBtn: "সাইন ইন তৌ অমসুং ফিল্ডতা চং",

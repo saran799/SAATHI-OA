@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "பணியாளர் ID / பயனர் பெயர்",
       pinLabel: "4-இலக்க பாதுகாப்பு PIN",
       pinPlaceholder: "••••",
-      demoPin: "டெமோ: ஏதேனும் 4 இலக்கங்களை உள்ளிடவும்",
+      demoPin: "Demo PIN: 7749",
       remember: "சாதனத்தை நினைவில் வைக்கவும்",
       offlineRecovery: "ஆஃப்லைன் மீட்பு",
       signInBtn: "உள்நுழைந்து கள நுழைவுக்கு செல்லவும்",

@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "Worker ID / Username",
       pinLabel: "4-Digit Security PIN / Password",
       pinPlaceholder: "••••",
-      demoPin: "Demo: enter any 4 digits",
+      demoPin: "Demo PIN: 7749",
       remember: "Remember device",
       offlineRecovery: "Offline Recovery",
       signInBtn: "Sign In & Enter Field Intake",

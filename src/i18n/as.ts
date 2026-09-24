@@ -57,7 +57,7 @@ export default {
       workerIdLabel: "কৰ্মী ID / ব্যৱহাৰকাৰী নাম",
       pinLabel: "৪-সংখ্যাৰ সুৰক্ষা PIN",
       pinPlaceholder: "••••",
-      demoPin: "ডেম': যিকোনো ৪টা সংখ্যা লিখক",
+      demoPin: "Demo PIN: 7749",
       remember: "ডিভাইচ মনত ৰাখক",
       offlineRecovery: "অফলাইন পুনৰুদ্ধাৰ",
       signInBtn: "চাইন ইন আৰু ফিল্ড ইনটেকলৈ যাওক",
