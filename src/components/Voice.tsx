@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Volume2, VolumeX, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useT } from '../i18n'
 import { cx } from './ui'
@@ -15,15 +15,6 @@ const LANG_TO_BCP: Record<SupportedLang, string> = {
   bn: 'bn-IN',
   mni: 'mni-IN',
   ta: 'ta-IN',
-}
-
-const LANG_VARIANTS: Record<SupportedLang, string[]> = {
-  en: ['en-IN', 'en-US', 'en-GB', 'en'],
-  hi: ['hi-IN', 'hi'],
-  as: ['as-IN', 'as'],
-  bn: ['bn-IN', 'bn-BD', 'bn'],
-  mni: ['mni-IN', 'mni'],
-  ta: ['ta-IN', 'ta-LK', 'ta'],
 }
 
 export type VoiceStatus = 'idle' | 'speaking' | 'paused' | 'unavailable' | 'unsupported'
