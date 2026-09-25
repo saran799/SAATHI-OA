@@ -48,235 +48,69 @@ export interface SpeakOptions {
   optionalAudioSource?: string
 }
 
+import { voiceManager } from '../services/voiceManager'
+
 // ============================================================================
-// VoiceEngine
+// VoiceEngine (Refactored to use VoiceManager)
 // ============================================================================
 export function useVoiceEngine() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [supported, setSupported] = useState(false)
+  const [supported, setSupported] = useState(true)
   const [status, setStatus] = useState<VoiceStatus>('idle')
   const [speaking, setSpeaking] = useState(false)
-
-  const utterRef = useRef<SpeechSynthesisUtterance | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
     setSupported(isSupported)
-    if (!isSupported) {
-      setStatus('unsupported')
-      return
-    }
+    
     const loadVoices = () => {
       try {
-        const vs = window.speechSynthesis.getVoices()
-        if (vs.length > 0) setVoices(vs)
+        const vs = window.speechSynthesis?.getVoices()
+        if (vs?.length > 0) setVoices(vs)
       } catch {}
     }
     loadVoices()
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = loadVoices
-      const interval = setInterval(loadVoices, 500)
-      setTimeout(() => clearInterval(interval), 3000)
     }
-    return () => {
-      try { window.speechSynthesis.cancel() } catch {}
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = null
-      }
-    }
+
+    const unsub = voiceManager.onStatusChange((s) => {
+       setStatus(s as VoiceStatus)
+       setSpeaking(s === 'speaking')
+    })
+    
+    return () => unsub()
   }, [])
 
-  const isSupported = useCallback(() => typeof window !== 'undefined' && 'speechSynthesis' in window, [])
-
+  const isSupported = useCallback(() => true, [])
   const getAvailableVoice = useCallback((lang: SupportedLang): VoiceResolution => {
-    const requestedBcp = LANG_TO_BCP[lang] || 'en-IN'
-    const variants = LANG_VARIANTS[lang] || [requestedBcp]
-
-    if (!supported || typeof window === 'undefined' || !('speechSynthesis' in window)) {
       return {
-        found: false, isGenuine: false, voice: null, bcp: requestedBcp, requestedBcp, lang,
-        fallbackUsed: null, status: 'unsupported', audioAvailable: false, reason: 'SpeechSynthesis not supported',
+          found: true, isGenuine: true, voice: null, bcp: LANG_TO_BCP[lang] || 'en-IN',
+          requestedBcp: LANG_TO_BCP[lang] || 'en-IN', lang, fallbackUsed: null,
+          status: 'available', audioAvailable: true
       }
-    }
-    if (voices.length === 0) {
-      return {
-        found: false, isGenuine: false, voice: null, bcp: requestedBcp, requestedBcp, lang,
-        fallbackUsed: null, status: 'unavailable', audioAvailable: false, reason: 'No voices loaded yet',
-      }
-    }
-    for (let i = 0; i < variants.length; i++) {
-      const variant = variants[i]
-      let v = voices.find(vo => vo.lang === variant)
-      if (v) {
-        return {
-          found: true, isGenuine: true, voice: v, bcp: v.lang, requestedBcp, lang,
-          fallbackUsed: i === 0 ? null : `${v.lang} used for ${requestedBcp}`, status: 'available', audioAvailable: false,
-        }
-      }
-      v = voices.find(vo => vo.lang.toLowerCase() === variant.toLowerCase())
-      if (v) {
-        return {
-          found: true, isGenuine: true, voice: v, bcp: v.lang, requestedBcp, lang,
-          fallbackUsed: i === 0 ? null : `${v.lang} used for ${requestedBcp}`, status: 'available', audioAvailable: false,
-        }
-      }
-    }
-    const base = lang
-    for (const variant of variants) {
-      const prefix = variant.split('-')[0].toLowerCase()
-      if (prefix !== base) continue
-      const v = voices.find(vo => vo.lang.toLowerCase().startsWith(prefix + '-') || vo.lang.toLowerCase() === prefix)
-      if (v) {
-        return {
-          found: true, isGenuine: true, voice: v, bcp: v.lang, requestedBcp, lang,
-          fallbackUsed: `${v.lang} used for ${requestedBcp}`, status: 'available', audioAvailable: false,
-        }
-      }
-    }
-    return {
-      found: false, isGenuine: false, voice: null, bcp: requestedBcp, requestedBcp, lang,
-      fallbackUsed: null, status: 'unavailable', audioAvailable: false, reason: `No genuine ${lang} voice found`,
-    }
-  }, [voices, supported])
-
+  }, [])
   const getVoiceStatus = useCallback(() => status, [status])
 
-  const stop = useCallback(() => {
-    try { if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel() } catch {}
-    if (audioRef.current) {
-      try { audioRef.current.pause(); audioRef.current.currentTime = 0 } catch {}
-      audioRef.current = null
-    }
-    setSpeaking(false)
-    setStatus('idle')
-    utterRef.current = null
-  }, [])
-
-  const pause = useCallback(() => {
-    try {
-      if (audioRef.current) { audioRef.current.pause(); setStatus('paused'); return }
-      if (typeof window !== 'undefined' && window.speechSynthesis) { window.speechSynthesis.pause(); setStatus('paused') }
-    } catch {}
-  }, [])
-
-  const resume = useCallback(() => {
-    try {
-      if (audioRef.current) { audioRef.current.play().catch(() => {}); setStatus('speaking'); return }
-      if (typeof window !== 'undefined' && window.speechSynthesis) { window.speechSynthesis.resume(); setStatus('speaking') }
-    } catch {}
-  }, [])
+  const stop = useCallback(() => { voiceManager.stop() }, [])
+  const pause = useCallback(() => { voiceManager.stop() }, [])
+  const resume = useCallback(() => {}, [])
 
   const speak = useCallback(async (opts: SpeakOptions): Promise<VoiceResolution> => {
-    const { language, text, optionalAudioSource } = opts
-    if (!text || !text.trim()) {
-      return {
-        found: false, isGenuine: false, voice: null, bcp: LANG_TO_BCP[language] || 'en-IN',
-        requestedBcp: LANG_TO_BCP[language] || 'en-IN', lang: language, fallbackUsed: null,
-        status: 'unavailable', audioAvailable: false, reason: 'Empty text',
+      const res: VoiceResolution = {
+          found: true, isGenuine: true, voice: null, bcp: LANG_TO_BCP[opts.language] || 'en-IN',
+          requestedBcp: LANG_TO_BCP[opts.language] || 'en-IN', lang: opts.language,
+          fallbackUsed: null, status: 'available', audioAvailable: true,
       }
-    }
-    stop()
-
-    let cloudAudioUrl: string | null = optionalAudioSource || null
-
-    if (!cloudAudioUrl && typeof window !== 'undefined' && navigator.onLine) {
-      try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-        const res = await fetch(`${API_URL}/api/tts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: text.trim(), language: LANG_TO_BCP[language] || 'en-IN' })
-        })
-        if (res.ok) {
-          const blob = await res.blob()
-          cloudAudioUrl = URL.createObjectURL(blob)
-        }
-      } catch (e) {
-        console.warn('Cloud TTS fetch failed, falling back to browser TTS', e)
+      
+      const success = await voiceManager.speak(opts.text, opts.language, opts.optionalAudioSource)
+      if (!success) {
+          res.found = false
+          res.audioAvailable = false
+          res.status = 'unavailable'
       }
-    }
-
-    if (cloudAudioUrl) {
-      try {
-        const audio = new Audio(cloudAudioUrl)
-        audioRef.current = audio
-        setStatus('speaking')
-        setSpeaking(true)
-        const result = await new Promise<VoiceResolution>((resolve) => {
-          audio.onended = () => {
-            setSpeaking(false); setStatus('idle'); audioRef.current = null
-            resolve({
-              found: true, isGenuine: true, voice: null, bcp: LANG_TO_BCP[language],
-              requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'available', audioAvailable: true, audioSource: cloudAudioUrl!,
-            })
-          }
-          audio.onerror = () => {
-            setSpeaking(false); setStatus('idle'); audioRef.current = null
-            resolve({
-              found: false, isGenuine: false, voice: null, bcp: LANG_TO_BCP[language],
-              requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'unavailable', audioAvailable: false, reason: 'Audio file not available', audioSource: cloudAudioUrl!,
-            })
-          }
-          audio.play().catch(() => {
-            setSpeaking(false); setStatus('idle'); audioRef.current = null
-            resolve({
-              found: false, isGenuine: false, voice: null, bcp: LANG_TO_BCP[language],
-              requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'unavailable', audioAvailable: false, reason: 'Audio play failed', audioSource: cloudAudioUrl!,
-            })
-          })
-        })
-        if (result.audioAvailable && result.found) return result
-      } catch {}
-    }
-
-    const resolution = getAvailableVoice(language)
-    if (!resolution.found || !resolution.voice) {
-      setStatus('unavailable')
-      setSpeaking(false)
-      return resolution
-    }
-    try {
-      const utter = new SpeechSynthesisUtterance(text.trim())
-      utter.text = text.trim()
-      utter.lang = resolution.bcp
-      utter.voice = resolution.voice
-      utter.rate = 0.9
-      utter.volume = 1
-
-      if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
-        console.debug('[VoiceEngine DEV]', {
-          language,
-          voiceText: text.trim().substring(0, 120),
-          selectedVoiceName: resolution.voice.name,
-          selectedVoiceLang: resolution.voice.lang,
-          utteranceLang: utter.lang,
-          bcp: resolution.bcp,
-          requestedBcp: resolution.requestedBcp,
-        })
-      }
-
-      utter.onstart = () => { setSpeaking(true); setStatus('speaking') }
-      utter.onend = () => { setSpeaking(false); setStatus('idle'); utterRef.current = null }
-      utter.onerror = () => { setSpeaking(false); setStatus('idle'); utterRef.current = null }
-
-      utterRef.current = utter
-      window.speechSynthesis.speak(utter)
-      return resolution
-    } catch (e) {
-      console.warn('Speech synthesis failed', e)
-      setSpeaking(false)
-      setStatus('unavailable')
-      return { ...resolution, found: false, status: 'unavailable', reason: 'Speech synthesis failed' }
-    }
-  }, [getAvailableVoice, stop])
+      return res
+  }, [])
 
   return { voices, supported, speaking, status, speak, stop, pause, resume, isSupported, getAvailableVoice, getVoiceStatus }
 }
@@ -310,6 +144,7 @@ export function useInstructionPlayer(props: { steps: string[]; language: Support
 
   // Speak current step - used by Start button
   const playCurrent = useCallback(async () => {
+    voiceManager.unlockAudio()
     const text = steps[currentIndex]
     if (!text) return
     const audioSource = audioSources?.[currentIndex]
@@ -320,6 +155,7 @@ export function useInstructionPlayer(props: { steps: string[]; language: Support
 
   // Go to step and immediately speak (for Next/Previous)
   const goToStepAndSpeak = useCallback(async (newIndex: number) => {
+    voiceManager.unlockAudio()
     if (newIndex < 0 || newIndex >= steps.length) return
     voiceEngine.stop()
     setCurrentIndex(newIndex)
@@ -513,6 +349,7 @@ export function VoiceButton({ text, className, language }: { text: string; class
   const [resolution, setResolution] = useState<VoiceResolution | null>(null)
 
   const handlePlay = async () => {
+    voiceManager.unlockAudio()
     if (engine.speaking) engine.stop()
     else {
       const res = await engine.speak({ language: targetLang, text })
