@@ -15,7 +15,7 @@ export function useSyncModel() {
   const {
     online, syncStatus, records,
     setSyncStatus, lastSyncedAt, setOnline,
-    failNextSync, setFailNextSync,
+    setFailNextSync,
     updateRecordSync, markRecordsSynced, markRecordsError, setRecordsSyncState
   } = useApp()
   const { t } = useT()

@@ -93,14 +93,13 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       let initialTorsoHeightSum = 0
       let initialFramesCount = 0
       
-      // Calculate person-scale normalization factor from initial frames
       for (let i = 0; i < Math.min(30, valid.length); i++) {
         const lms = valid[i].landmarks
         if (!lms || !lms[11] || !lms[12] || !lms[23] || !lms[24]) continue
         const shoulderY = (lms[11].y + lms[12].y) / 2
         const hipY = (lms[23].y + lms[24].y) / 2
         const torso = hipY - shoulderY
-        if (torso > 0.05) {
+        if (torso > 0.01) {
           initialTorsoHeightSum += torso
           initialFramesCount++
         }
@@ -115,64 +114,55 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       
       valid.forEach(s => {
          const lms = s.landmarks
-         if (!lms || !lms[11] || !lms[12] || !lms[23] || !lms[24]) return
+         if (!lms || !lms[23] || !lms[24]) return
          
-         const shoulderY = (lms[11].y + lms[12].y) / 2
          const hipY = (lms[23].y + lms[24].y) / 2
-         const centerY = (shoulderY + hipY) / 2
          
          if (state === 'READY') {
-             state = 'SITTING' // assume test starts sitting
-             max_y = centerY
-             min_y = centerY
+             state = 'SITTING'
+             max_y = hipY
+             min_y = hipY
          }
          
          if (state === 'SITTING') {
-             if (centerY > max_y) max_y = centerY
+             if (hipY > max_y) max_y = hipY
              
-             // Rising threshold: move up (Y decreases) by 20% of torso height
-             if (max_y - centerY > 0.2 * bodyScale) {
+             if (max_y - hipY > 0.25 * bodyScale) {
                  candidateState = 'RISING'
              } else {
                  candidateState = 'SITTING'
              }
          } 
          else if (state === 'RISING') {
-             // Standing entry: move up by 45% of torso height
-             if (max_y - centerY > 0.45 * bodyScale) {
+             if (max_y - hipY > 0.55 * bodyScale) {
                  candidateState = 'STANDING'
-                 min_y = centerY
-             } else if (centerY > max_y - 0.1 * bodyScale) {
-                 // Aborted rise, fell back down
+                 min_y = hipY
+             } else if (hipY > max_y - 0.15 * bodyScale) {
                  candidateState = 'SITTING'
              }
          }
          else if (state === 'STANDING') {
-             if (centerY < min_y) min_y = centerY
+             if (hipY < min_y) min_y = hipY
              
-             // Lowering threshold: move down (Y increases) by 20% of torso height
-             if (centerY - min_y > 0.2 * bodyScale) {
+             if (hipY - min_y > 0.25 * bodyScale) {
                  candidateState = 'LOWERING'
              } else {
                  candidateState = 'STANDING'
              }
          }
          else if (state === 'LOWERING') {
-             // Sitting entry: move down by 45% of torso height
-             if (centerY - min_y > 0.45 * bodyScale) {
+             if (hipY - min_y > 0.55 * bodyScale) {
                  candidateState = 'SITTING'
-                 max_y = centerY
-                 reps++ // SITTING -> STANDING -> SITTING = 1 cycle completed
-             } else if (centerY < min_y + 0.1 * bodyScale) {
-                 // Aborted lower, stood back up
+                 max_y = hipY
+                 reps++ 
+             } else if (hipY < min_y + 0.15 * bodyScale) {
                  candidateState = 'STANDING'
              }
          }
          
-         // Temporal confirmation logic (require 3 consecutive frames of candidate state)
          if (candidateState !== state) {
              consecutiveFrames++
-             if (consecutiveFrames >= 3) {
+             if (consecutiveFrames >= 4) {
                  state = candidateState
                  consecutiveFrames = 0
              }
