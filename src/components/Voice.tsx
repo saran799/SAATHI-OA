@@ -182,9 +182,28 @@ export function useVoiceEngine() {
     }
     stop()
 
-    if (optionalAudioSource) {
+    let cloudAudioUrl: string | null = optionalAudioSource || null
+
+    if (!cloudAudioUrl && typeof window !== 'undefined' && navigator.onLine) {
       try {
-        const audio = new Audio(optionalAudioSource)
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+        const res = await fetch(`${API_URL}/api/tts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text.trim(), language: LANG_TO_BCP[language] || 'en-IN' })
+        })
+        if (res.ok) {
+          const blob = await res.blob()
+          cloudAudioUrl = URL.createObjectURL(blob)
+        }
+      } catch (e) {
+        console.warn('Cloud TTS fetch failed, falling back to browser TTS', e)
+      }
+    }
+
+    if (cloudAudioUrl) {
+      try {
+        const audio = new Audio(cloudAudioUrl)
         audioRef.current = audio
         setStatus('speaking')
         setSpeaking(true)
@@ -194,7 +213,7 @@ export function useVoiceEngine() {
             resolve({
               found: true, isGenuine: true, voice: null, bcp: LANG_TO_BCP[language],
               requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'available', audioAvailable: true, audioSource: optionalAudioSource,
+              status: 'available', audioAvailable: true, audioSource: cloudAudioUrl!,
             })
           }
           audio.onerror = () => {
@@ -202,7 +221,7 @@ export function useVoiceEngine() {
             resolve({
               found: false, isGenuine: false, voice: null, bcp: LANG_TO_BCP[language],
               requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'unavailable', audioAvailable: false, reason: 'Audio file not available', audioSource: optionalAudioSource,
+              status: 'unavailable', audioAvailable: false, reason: 'Audio file not available', audioSource: cloudAudioUrl!,
             })
           }
           audio.play().catch(() => {
@@ -210,7 +229,7 @@ export function useVoiceEngine() {
             resolve({
               found: false, isGenuine: false, voice: null, bcp: LANG_TO_BCP[language],
               requestedBcp: LANG_TO_BCP[language], lang: language, fallbackUsed: null,
-              status: 'unavailable', audioAvailable: false, reason: 'Audio play failed', audioSource: optionalAudioSource,
+              status: 'unavailable', audioAvailable: false, reason: 'Audio play failed', audioSource: cloudAudioUrl!,
             })
           })
         })

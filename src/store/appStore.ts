@@ -136,6 +136,14 @@ export const useApp = create<AppState>()(persist((set) => ({
     patients: s.patients,
     records: s.records,
     lastSyncedAt: s.lastSyncedAt
-  })
+  }),
+  onRehydrateStorage: () => (state) => {
+    if (state) {
+      // FIX BUG #2: Reset any stuck 'syncing' records to 'local' on load
+      state.records = state.records.map((r: ScreeningRecord) => 
+        r.sync === 'syncing' ? { ...r, sync: 'local' as const } : r
+      )
+    }
+  }
 }))
 

@@ -31,7 +31,8 @@ export function useSyncModel() {
   // Core sync function — per-record, idempotent, retry only unsynced/failed
   const start = useCallback(async () => {
     if (syncingRef.current) return
-    const toSync = records.filter(r => r.sync === 'local' || r.sync === 'unsynced' || r.sync === 'error' || r.sync === 'failed')
+    const appState = useApp.getState()
+    const toSync = appState.records.filter(r => r.sync === 'local' || r.sync === 'unsynced' || r.sync === 'error' || r.sync === 'failed')
     if (toSync.length === 0) return
 
     // Check backend reachability beyond navigator.onLine per spec
@@ -82,7 +83,7 @@ export function useSyncModel() {
     } finally {
       syncingRef.current = false
     }
-  }, [records, failNextSync, setFailNextSync, setSyncStatus, setRecordsSyncState, updateRecordSync, markRecordsSynced, markRecordsError, setOnline])
+  }, [setFailNextSync, setSyncStatus, setRecordsSyncState, updateRecordSync, markRecordsSynced, markRecordsError, setOnline])
 
   // Auto sync when connectivity returns per spec: 1.Save locally 2.Mark unsynced 3.Queue 4.Attempt when online 5.Mark synced after success 6.Preserve on fail
   useEffect(() => {
@@ -167,7 +168,7 @@ export function useSyncModel() {
   else if (unsyncedCount > 0) displayStatus = 'local'
   else displayStatus = 'synced'
 
-  const ui = map[displayStatus] || map[displayStatus] || map['local']
+  const ui = map[displayStatus] || map['local']
   const clickable = online && (syncStatus === 'local' || syncStatus === 'failed' || unsyncedCount > 0) && syncStatus !== 'syncing'
 
   return {
