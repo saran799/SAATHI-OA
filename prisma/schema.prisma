@@ -12,6 +12,7 @@ model Worker {
   username     String   @unique
   passwordHash String
   name         String
+  role         String   @default("CHW")
   createdAt    DateTime @default(now())
   records      ScreeningRecord[]
 }

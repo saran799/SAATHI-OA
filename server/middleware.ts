@@ -25,3 +25,15 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     return res.status(401).json({ error: 'Invalid token' });
   }
 };
+
+export const requirePHC = (req: AuthRequest, res: Response, next: NextFunction): any => {
+  if (!req.worker || !req.worker.role) {
+    return res.status(403).json({ error: 'Forbidden: Missing role' });
+  }
+  
+  if (req.worker.role !== 'PHC_ADMIN' && req.worker.role !== 'PHC_OFFICER') {
+    return res.status(403).json({ error: 'Forbidden: Requires PHC access' });
+  }
+
+  next();
+};

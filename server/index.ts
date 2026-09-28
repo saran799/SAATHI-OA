@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from './auth';
 import syncRoutes from './sync';
 import ttsRoutes from './tts';
+import phcRoutes from './phc';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/sync', syncRoutes); // which handles patients and records
 app.use('/api/tts', ttsRoutes);
+app.use('/api/phc', phcRoutes);
 
 import { prisma } from './db';
 

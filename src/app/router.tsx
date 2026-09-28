@@ -53,6 +53,7 @@ export const router = createBrowserRouter([
     { path: '/awareness', element: <Awareness /> },
     { path: '/settings', element: <Settings /> },
     { path: '/settings/language', element: <Language fromSettings /> },
+
     { path: '*', element: <Navigate to="/dashboard" replace /> },
   ] },
 ])

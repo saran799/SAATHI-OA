@@ -5,7 +5,11 @@ import jwt from 'jsonwebtoken';
 
 const router = Router();
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET environment variable is not defined in production.');
+  process.exit(1);
+}
+export const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey_dev_only';
 
 router.post('/login', async (req: Request, res: Response): Promise<any> => {
   try {
@@ -34,11 +38,11 @@ router.post('/login', async (req: Request, res: Response): Promise<any> => {
       }
     }
 
-    const token = jwt.sign({ id: worker.id, username: worker.username }, JWT_SECRET, {
+    const token = jwt.sign({ id: worker.id, username: worker.username, role: worker.role }, JWT_SECRET, {
       expiresIn: '7d',
     });
 
-    res.json({ token, worker: { id: worker.id, name: worker.name, username: worker.username } });
+    res.json({ token, worker: { id: worker.id, name: worker.name, username: worker.username, role: worker.role } });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
