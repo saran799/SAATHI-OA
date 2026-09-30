@@ -33,6 +33,10 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
       name = 'hi-IN-Standard-A';
     } else if (languageCode.startsWith('bn')) {
       name = 'bn-IN-Standard-A';
+    } else if (languageCode.startsWith('te')) {
+      name = 'te-IN-Standard-A';
+    } else if (languageCode.startsWith('mr')) {
+      name = 'mr-IN-Standard-A';
     } else if (languageCode.startsWith('mni')) {
       // Google TTS does not support Manipuri natively, fallback to general setting
       name = undefined;
