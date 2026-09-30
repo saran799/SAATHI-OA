@@ -6,6 +6,7 @@ export const LANGUAGES = [
   { code: 'te', native: 'తెలుగు', english: 'Telugu' },
   { code: 'mr', native: 'मराठी', english: 'Marathi' },
   { code: 'bn', native: 'বাংলা', english: 'Bengali' },
+  { code: 'as', native: 'অসমীয়া', english: 'Assamese' },
 ]
 export const JOINT_LABEL: Record<string, string> = { knee: 'Knee', hip: 'Hip', hand: 'Hand', spine: 'Spine' }
 export const SIDE_LABEL: Record<string, string> = { left: 'Left', right: 'Right', both: 'Both' }

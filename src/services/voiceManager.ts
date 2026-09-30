@@ -7,6 +7,8 @@ const LANG_TO_BCP: Record<string, string> = {
   bn: 'bn-IN',
   mni: 'mni-IN',
   ta: 'ta-IN',
+  te: 'te-IN',
+  mr: 'mr-IN',
 }
 
 export type PlaybackStatus = 'idle' | 'speaking' | 'paused' | 'unavailable'

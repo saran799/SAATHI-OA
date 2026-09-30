@@ -6,7 +6,7 @@ import { cx } from './ui'
 // ============================================================================
 // Six-language support - NO silent English fallback
 // ============================================================================
-export type SupportedLang = 'en' | 'hi' | 'as' | 'bn' | 'mni' | 'ta'
+export type SupportedLang = 'en' | 'hi' | 'as' | 'bn' | 'mni' | 'ta' | 'te' | 'mr'
 
 const LANG_TO_BCP: Record<SupportedLang, string> = {
   en: 'en-IN',
@@ -15,6 +15,8 @@ const LANG_TO_BCP: Record<SupportedLang, string> = {
   bn: 'bn-IN',
   mni: 'mni-IN',
   ta: 'ta-IN',
+  te: 'te-IN',
+  mr: 'mr-IN',
 }
 
 export type VoiceStatus = 'idle' | 'speaking' | 'paused' | 'unavailable' | 'unsupported'
