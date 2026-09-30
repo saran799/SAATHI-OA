@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "server:dev": "nodemon --watch server --ext ts --exec tsx server/index.ts",
     "server:build": "tsc -p server/tsconfig.json",
-    "server:start": "node dist/index.js"
+    "server:start": "node server/dist/index.js"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
