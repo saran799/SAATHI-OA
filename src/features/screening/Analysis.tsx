@@ -24,7 +24,7 @@ export default function Analysis() {
     cancel.current = runAnalysis(patient, session.answers, session.movement, setDone, r => {
       setFinishing(true)
       const now = new Date().toISOString()
-      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, result: r, createdAt: now, workerName, sync: 'unsynced' as const, followUpDate: addDays(now, RISK_META[r.band].followUpDays) }
+      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, tests: [], result: r, createdAt: now, workerName, sync: 'unsynced' as const, followUpDate: addDays(now, RISK_META[r.band].followUpDays) }
       addRecord(rec); session.setResult(r, rec.id)
       setTimeout(() => nav('/screening/result', { replace: true }), 900)
     }, setError, { fail })

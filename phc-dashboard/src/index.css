@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    --color-surface: 255, 255, 255;
+    --color-ink: 15, 23, 42; /* slate-900 */
+    --color-primary: 15, 118, 110; /* teal-700 */
+    --color-tint: 204, 251, 241; /* teal-100 / Mint */
+    --color-secondary: 71, 85, 105; /* slate-600 */
+    --color-border: 226, 232, 240; /* slate-200 */
+    
+    --color-error: 220, 38, 38;
+    --color-error-tint: 254, 226, 226;
+    --color-error-text: 153, 27, 27;
+    
+    --color-warning: 217, 119, 6;
+    --color-warning-tint: 254, 243, 199;
+    --color-warning-text: 146, 64, 14;
+    
+    --color-success: 5, 150, 105;
+    --color-success-tint: 209, 250, 229;
+    --color-success-text: 6, 95, 70;
+  }
+}
+
+body {
+  background-color: #F7FAFA; /* Soft background */
+  color: rgb(var(--color-ink));
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media print {
+  body {
+    background-color: white !important;
+  }
+  
+  /* Hide sidebar and navigation */
+  aside, header {
+    display: none !important;
+  }
+
+  /* Reset main content container */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Make sure the report fills the page */
+  .max-w-\[900px\] {
+    max-width: 100% !important;
+  }
+}
