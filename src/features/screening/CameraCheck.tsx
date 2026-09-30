@@ -495,8 +495,8 @@ export default function Assessment() {
       setPhase('setup')
       setTestResult(null)
     } else {
-      // All tests complete -> Go to Analysis to generate risk and record
-      nav('/screening/analysis')
+      // All camera tests complete -> Go to Sensor step for hardware assessment
+      nav('/screening/sensor')
     }
   }
 
