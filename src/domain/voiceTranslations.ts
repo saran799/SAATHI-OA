@@ -1,6 +1,6 @@
 import type { SupportedLang } from '../components/Voice'
 
-const translations: Record<string, Record<SupportedLang, string>> = {
+const translations: Record<string, Partial<Record<SupportedLang, string>>> = {
   'Waiting...': {
     en: 'Waiting...',
     hi: 'प्रतीक्षा हो रही है...',
