@@ -13,7 +13,7 @@ async function main() {
       await prisma.patient.delete({ where: { id } });
       console.log(`Deleted test patient: ${id}`);
     } catch (e) {
-      console.log(`Could not delete or not found: ${id}`, e.message);
+      console.log(`Could not delete or not found: ${id}`, (e as Error).message);
     }
   }
 }
