@@ -10,6 +10,8 @@ import { type TimestampedSample } from '../../services/movement'
 import { useVoiceController } from '../../services/voiceController'
 import { TEST_PROTOCOLS } from './testProtocols'
 import type { TestResult } from '../../domain/types'
+import { tVoice } from '../../domain/voiceTranslations'
+import type { SupportedLang } from '../../components/Voice'
 
 const ACTIVE_TESTS = TEST_PROTOCOLS.filter(t => t.implemented)
 
@@ -74,7 +76,8 @@ export default function Assessment() {
   const [phase, setPhase] = useState<AssessmentPhase>('setup')
   
   // Voice & camera services
-  const voice = useVoiceController('en')
+  const { lang } = useT()
+  const voice = useVoiceController(lang as SupportedLang)
   const [cameraState, setCameraState] = useState<CameraState>('idle')
   const [facingMode] = useState<FacingMode>('environment')
   const [poseLoaded, setPoseLoaded] = useState(false)
@@ -394,7 +397,7 @@ export default function Assessment() {
            errorActiveSinceRef.current = Date.now()
        } else if (Date.now() - errorActiveSinceRef.current > 3000) {
            if (lastErrorSpokenRef.current !== trackingState) {
-               voice.speak(trackingState)
+               voice.speak(tVoice(trackingState, lang as SupportedLang))
                lastErrorSpokenRef.current = trackingState
            }
        }
@@ -407,7 +410,7 @@ export default function Assessment() {
   useEffect(() => {
     // Setup -> Ready
     if (phase === 'setup' && personDetected) {
-      voice.speak("Patient detected. The patient is ready. Please tap Start Assessment.")
+      voice.speak(tVoice("Patient detected. The patient is ready. Please tap Start Assessment.", lang as SupportedLang))
       setPhase('ready')
     }
 
@@ -450,9 +453,9 @@ export default function Assessment() {
       setPhase('test_result')
 
       if (isSuccess) {
-        voice.speak(`Test ${currentTestIndex + 1} completed.`)
+        voice.speak(tVoice(`Test ${currentTestIndex + 1} completed.`, lang as SupportedLang))
       } else {
-        voice.speak("Assessment could not be completed. Please try again.")
+        voice.speak(tVoice("Assessment could not be completed. Please try again.", lang as SupportedLang))
       }
     }
   }, [phase, personDetected, currentTestIndex, currentTest, voice, session])
@@ -465,7 +468,7 @@ export default function Assessment() {
     setTimeout(() => {
       setPhase('instruction')
       if (currentTest) {
-        voice.speak(currentTest.voiceInstruction)
+        voice.speak(tVoice(currentTest.voiceInstruction, lang as SupportedLang))
       }
     }, 2000)
   }
