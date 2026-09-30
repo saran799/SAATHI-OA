@@ -5,6 +5,7 @@ import { Button, cx } from '../../components/ui'
 import { Frame } from '../../components/layout/Shells'
 import { useApp } from '../../store/appStore'
 import logo from '../../assets/saathi-logo.png'
+import { api } from '../../services/api'
 
 export default function Login() {
   const nav = useNavigate()
@@ -16,14 +17,26 @@ export default function Login() {
   const [err, setErr] = useState<{ id?: string; pin?: string }>({})
   const [loading, setLoading] = useState(false)
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const next: typeof err = {}
     if (!id.trim()) next.id = 'Enter your worker ID.'
     if (!/^\d{4}$/.test(pin)) next.pin = 'Enter your 4-digit PIN.'
     setErr(next); if (Object.keys(next).length) return
     setLoading(true)
-    setTimeout(() => { signIn('Priya Rajan'); nav('/language') }, 700)
+    
+    try {
+      const data = await api.login(id, pin)
+      signIn(data.worker.name, data.token)
+      nav('/language')
+    } catch (error: any) {
+      setLoading(false)
+      if (error.status === 401 || error.status === 400) {
+        setErr({ pin: 'Invalid credentials' })
+      } else {
+        setErr({ pin: 'Network error or offline' })
+      }
+    }
   }
   const field = 'w-full h-[44px] rounded-[12px] bg-tint pl-11 pr-11 text-[14px] font-medium text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary'
 
