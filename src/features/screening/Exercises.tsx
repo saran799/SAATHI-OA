@@ -5,6 +5,7 @@ import { FlowShell } from '../../components/layout/Shells'
 import { Button, Card, Chip, cx } from '../../components/ui'
 import { useScreeningPatient } from './useGuard'
 import { exercisesFor, type Exercise } from '../../domain/guidance'
+import { useT } from '../../i18n'
 
 const Illustration = ({ id }: { id: string }) => {
   const paths: Record<string, string> = {
@@ -23,6 +24,8 @@ import heelGif from '../../assets/heel_exercise.gif'
 import quadGif from '../../assets/seated_leg_extensions.gif'
 
 function ExerciseCard({ e, open, onToggle }: { e: Exercise; open: boolean; onToggle: () => void }) {
+  const { t } = useT()
+  const diffWord = e.difficulty === 'Easy' ? t('screening.exercises.easy') : t('screening.exercises.hard') || e.difficulty
   return (
     <Card className="overflow-hidden">
       <button type="button" onClick={onToggle} aria-expanded={open} className="w-full text-left p-4 flex gap-4 items-center">
@@ -30,7 +33,7 @@ function ExerciseCard({ e, open, onToggle }: { e: Exercise; open: boolean; onTog
         <span className="flex-1 min-w-0">
           <span className="block font-semibold text-[16px] leading-snug">{e.name}</span>
           <span className="flex flex-wrap gap-1.5 mt-2">
-            <Chip icon={Repeat}>{e.reps}</Chip><Chip icon={Timer}>{e.duration}</Chip><Chip icon={Gauge} tone={e.difficulty === 'Easy' ? 'success' : 'warning'}>{e.difficulty}</Chip>
+            <Chip icon={Repeat}>{e.reps}</Chip><Chip icon={Timer}>{e.duration}</Chip><Chip icon={Gauge} tone={e.difficulty === 'Easy' ? 'success' : 'warning'}>{diffWord}</Chip>
           </span>
         </span>
         <ChevronDown size={20} className={cx('text-secondary transition-transform', open && 'rotate-180')} aria-hidden />
@@ -42,7 +45,7 @@ function ExerciseCard({ e, open, onToggle }: { e: Exercise; open: boolean; onTog
         {e.id === 'heel' && <img src={heelGif} alt="Heel exercise animation" className="mt-4 rounded-[12px] w-full" />}
         {e.id === 'quad' && <img src={quadGif} alt="Seated leg extensions animation" className="mt-4 rounded-[12px] w-full" />}
         
-        <div className="mt-3 rounded-[12px] bg-error-tint text-error-text p-3 text-sm flex gap-2"><ShieldAlert size={18} className="shrink-0" aria-hidden /><span><span className="font-semibold">Safety: </span>{e.safety}</span></div>
+        <div className="mt-3 rounded-[12px] bg-error-tint text-error-text p-3 text-sm flex gap-2"><ShieldAlert size={18} className="shrink-0" aria-hidden /><span><span className="font-semibold">{t('screening.exercises.safety')}: </span>{e.safety}</span></div>
       </div>}
     </Card>
   )
@@ -50,16 +53,17 @@ function ExerciseCard({ e, open, onToggle }: { e: Exercise; open: boolean; onTog
 
 export default function Exercises() {
   const nav = useNavigate()
+  const { t } = useT()
   const { patient, session } = useScreeningPatient(true)
   const [open, setOpen] = useState<string | null>(null)
   if (!patient || !session.result || !session.joint) return null
-  const list = exercisesFor(session.joint, session.result.band)
+  const list = exercisesFor(session.joint, session.result.band, t)
   return (
-    <FlowShell title="Recommended Exercises" subtitle="Show and explain each one. Start with 1–2 per day." barTitle="Post Screening Guidance" back="/screening/guidance"
-      pill={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">Daily 15 min</span>}
-      footer={<Button full icon={FileText} onClick={() => nav(`/records/${session.recordId}`)}>View Patient Report</Button>}>
+    <FlowShell title={t('screening.exercises.title')} subtitle={t('screening.exercises.subtitle')} barTitle={t('screening.exercises.barTitle')} back="/screening/guidance"
+      pill={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">{t('screening.exercises.daily15')}</span>}
+      footer={<Button full icon={FileText} onClick={() => nav(`/records/${session.recordId}`)}>{t('screening.exercises.viewReport')}</Button>}>
       <div className="space-y-3">{list.map(e => <ExerciseCard key={e.id} e={e} open={open === e.id} onToggle={() => setOpen(open === e.id ? null : e.id)} />)}</div>
-      <p className="text-xs text-secondary mt-4">General joint-care exercises for demonstration. A clinician may adjust these after evaluation.</p>
+      <p className="text-xs text-secondary mt-4">{t('screening.exercises.disclaimer')}</p>
     </FlowShell>
   )
 }

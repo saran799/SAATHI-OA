@@ -6,12 +6,14 @@ import { Button, Callout, Ring, cx } from '../../components/ui'
 import { sensor, type MovementSample } from '../../services/sensor'
 import { useScreeningPatient } from './useGuard'
 import { jointName } from '../../domain/copy'
+import { useT } from '../../i18n'
 
 const DURATION = 30
 type Phase = 'countdown' | 'recording' | 'complete' | 'interrupted' | 'nomove'
 
 export default function Assessment() {
   const nav = useNavigate()
+  const { t } = useT()
   const { patient, session } = useScreeningPatient(true)
   const [phase, setPhase] = useState<Phase>('countdown')
   const [count, setCount] = useState(3)
@@ -78,62 +80,62 @@ export default function Assessment() {
 
   return (
     <Frame>
-      <TopBar title="Movement Assessment" back onBack={cancel} right={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">Triage active</span>} />
+      <TopBar title={t('screening.assessment.title')} back onBack={cancel} right={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">{t('screening.assessment.triageActive')}</span>} />
       <main className="flex-1 flex flex-col px-4 pt-3 pb-6 page-enter">
         <div className="card h-12 px-4 flex items-center gap-2">
-          {phase === 'recording' && <><span className="h-2.5 w-2.5 rounded-full bg-error pulse-dot" aria-hidden /><span className="text-[13px] font-bold tracking-wide">LIVE RECORDING</span><span className="text-[12px] text-secondary">· simulated</span></>}
-          {phase === 'countdown' && <><span className="h-2.5 w-2.5 rounded-full bg-muted" aria-hidden /><span className="text-[13px] font-bold tracking-wide">GET READY</span></>}
-          {phase === 'complete' && <><span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden /><span className="text-[13px] font-bold tracking-wide">COMPLETE</span></>}
-          {(phase === 'nomove' || phase === 'interrupted') && <><span className="h-2.5 w-2.5 rounded-full bg-warning" aria-hidden /><span className="text-[13px] font-bold tracking-wide">STOPPED</span></>}
-          <span className="ml-auto h-7 px-2.5 rounded-full bg-mint text-primary-dark text-[11px] font-semibold inline-flex items-center gap-1 truncate"><RefreshCw size={12} aria-hidden />{patient.name.split(' ')[0]} · {jointName(session.joint, session.side)}</span>
+          {phase === 'recording' && <><span className="h-2.5 w-2.5 rounded-full bg-error pulse-dot" aria-hidden /><span className="text-[13px] font-bold tracking-wide">{t('screening.assessment.liveRecording')}</span><span className="text-[12px] text-secondary">· {t('screening.assessment.simulated')}</span></>}
+          {phase === 'countdown' && <><span className="h-2.5 w-2.5 rounded-full bg-muted" aria-hidden /><span className="text-[13px] font-bold tracking-wide">{t('screening.assessment.getReady')}</span></>}
+          {phase === 'complete' && <><span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden /><span className="text-[13px] font-bold tracking-wide">{t('screening.assessment.complete')}</span></>}
+          {(phase === 'nomove' || phase === 'interrupted') && <><span className="h-2.5 w-2.5 rounded-full bg-warning" aria-hidden /><span className="text-[13px] font-bold tracking-wide">{t('screening.assessment.stopped')}</span></>}
+          <span className="ml-auto h-7 px-2.5 rounded-full bg-mint text-primary-dark text-[11px] font-semibold inline-flex items-center gap-1 truncate"><RefreshCw size={12} aria-hidden />{patient.name.split(' ')[0]} · {jointName(session.joint, session.side, t)}</span>
         </div>
 
         <div className="card mt-3 p-5 flex flex-col items-center">
-          <span className="h-7 px-3 rounded-full bg-tint text-ink text-[12px] font-semibold inline-flex items-center gap-1.5"><Activity size={13} className="text-primary" aria-hidden />Active: {DURATION}s slow movement, 10 repetitions</span>
+          <span className="h-7 px-3 rounded-full bg-tint text-ink text-[12px] font-semibold inline-flex items-center gap-1.5"><Activity size={13} className="text-primary" aria-hidden />{t('screening.assessment.activeDuration', { duration: DURATION })}</span>
           {phase === 'countdown' ? (
-            <div className="my-6 text-center fade-in" key={count}><p className="text-[12px] font-bold tracking-wider text-secondary">STARTING IN</p><p className="text-[64px] font-bold text-primary leading-none mt-2 tabular-nums">{count || 'Go'}</p><p className="text-secondary text-[13px] mt-3 max-w-[240px]">Ask the patient to begin slow movements when you say "go".</p></div>
+            <div className="my-6 text-center fade-in" key={count}><p className="text-[12px] font-bold tracking-wider text-secondary">{t('screening.assessment.startingIn')}</p><p className="text-[64px] font-bold text-primary leading-none mt-2 tabular-nums">{count || t('screening.assessment.go')}</p><p className="text-secondary text-[13px] mt-3 max-w-[240px]">{t('screening.assessment.instructionText')}</p></div>
           ) : (
             <div className="my-5"><Ring value={(elapsed / DURATION) * 100} size={168} stroke={12}>
-              <p className="text-[11px] font-bold tracking-wider text-secondary">REMAINING</p>
+              <p className="text-[11px] font-bold tracking-wider text-secondary">{t('screening.assessment.remaining')}</p>
               <p className="text-[34px] font-bold tabular-nums leading-none mt-1">00:{String(Math.ceil(DURATION - elapsed)).padStart(2, '0')}</p>
-              <p className="text-[12px] text-secondary mt-1">Target: 00:{DURATION}</p>
+              <p className="text-[12px] text-secondary mt-1">{t('screening.assessment.targetDuration', { duration: DURATION })}</p>
             </Ring></div>
           )}
-          {(phase === 'recording' || phase === 'complete') && <span className="h-9 px-4 rounded-full bg-mint-soft text-primary-dark text-[13px] font-semibold inline-flex items-center gap-2"><Volume2 size={15} aria-hidden />{moving ? 'Movement detected — keep going steadily' : 'Waiting for movement…'}</span>}
+          {(phase === 'recording' || phase === 'complete') && <span className="h-9 px-4 rounded-full bg-mint-soft text-primary-dark text-[13px] font-semibold inline-flex items-center gap-2"><Volume2 size={15} aria-hidden />{moving ? t('screening.assessment.movementDetected') : t('screening.assessment.waitingMovement')}</span>}
         </div>
 
         {(phase === 'recording' || phase === 'complete') && (
           <div className="card mt-3 p-4">
-            <div className="flex items-center justify-between"><p className="text-[18px] font-bold inline-flex items-center gap-2"><Activity size={20} className="text-primary" aria-hidden />Movement Trace</p><span className="h-7 px-2.5 rounded-full bg-tint text-[11px] font-semibold text-ink inline-flex items-center">Calibrated</span></div>
+            <div className="flex items-center justify-between"><p className="text-[18px] font-bold inline-flex items-center gap-2"><Activity size={20} className="text-primary" aria-hidden />{t('screening.assessment.movementTrace')}</p><span className="h-7 px-2.5 rounded-full bg-tint text-[11px] font-semibold text-ink inline-flex items-center">{t('screening.assessment.calibrated')}</span></div>
             <div className="mt-3 rounded-[12px] bg-tint p-3">
-              <div className="flex items-center justify-between text-[13px]"><span className="font-bold">Joint angle</span><span className="tabular-nums text-secondary"><span className="text-primary font-bold">{Math.round(angle)}°</span> live</span></div>
+              <div className="flex items-center justify-between text-[13px]"><span className="font-bold">{t('screening.assessment.jointAngle')}</span><span className="tabular-nums text-secondary"><span className="text-primary font-bold">{Math.round(angle)}°</span> {t('screening.assessment.live')}</span></div>
               <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-16 mt-1" aria-hidden><path d={path} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" /></svg>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-3">
-              <div className="rounded-[12px] bg-tint p-3"><p className="text-[11px] font-bold tracking-wide text-secondary uppercase">Flexion</p><p className="text-[22px] font-bold mt-1 tabular-nums">{Math.round(angle)}° <span className="text-[12px] text-secondary font-semibold">dynamic</span></p></div>
-              <div className="rounded-[12px] bg-tint p-3"><p className="text-[11px] font-bold tracking-wide text-secondary uppercase">Repetition</p><p className="text-[22px] font-bold mt-1 tabular-nums text-primary">{Math.min(reps + 1, 5)}<span className="text-[12px] text-secondary font-semibold"> of 5</span></p></div>
+              <div className="rounded-[12px] bg-tint p-3"><p className="text-[11px] font-bold tracking-wide text-secondary uppercase">{t('screening.assessment.flexion')}</p><p className="text-[22px] font-bold mt-1 tabular-nums">{Math.round(angle)}° <span className="text-[12px] text-secondary font-semibold">{t('screening.assessment.dynamic')}</span></p></div>
+              <div className="rounded-[12px] bg-tint p-3"><p className="text-[11px] font-bold tracking-wide text-secondary uppercase">{t('screening.assessment.repetition')}</p><p className="text-[22px] font-bold mt-1 tabular-nums text-primary">{Math.min(reps + 1, 5)}<span className="text-[12px] text-secondary font-semibold"> {t('screening.assessment.of5')}</span></p></div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-[12px]"><span className="text-secondary font-medium inline-flex items-center gap-1.5"><Radio size={13} aria-hidden />SAATHI sensor (simulated)</span><span className={cx('font-semibold inline-flex items-center gap-1.5', moving ? 'text-primary' : 'text-secondary')}><span className={cx('h-2 w-2 rounded-full', moving ? 'bg-primary' : 'bg-muted')} aria-hidden />{moving ? 'Movement detected' : 'No movement'}</span></div>
+            <div className="mt-3 flex items-center justify-between text-[12px]"><span className="text-secondary font-medium inline-flex items-center gap-1.5"><Radio size={13} aria-hidden />{t('screening.assessment.sensorSimulated')}</span><span className={cx('font-semibold inline-flex items-center gap-1.5', moving ? 'text-primary' : 'text-secondary')}><span className={cx('h-2 w-2 rounded-full', moving ? 'bg-primary' : 'bg-muted')} aria-hidden />{moving ? t('screening.assessment.detected') : t('screening.assessment.noMovement')}</span></div>
           </div>
         )}
 
-        {phase === 'nomove' && <div className="mt-3"><Callout tone="warning" title="Movement not detected">The sensor did not detect joint movement. Check the strap is snug and ask the patient to move the joint slowly.</Callout></div>}
-        {phase === 'interrupted' && <div className="mt-3"><Callout tone="warning" title="Assessment interrupted">The recording was stopped before completion. Nothing has been saved.</Callout></div>}
+        {phase === 'nomove' && <div className="mt-3"><Callout tone="warning" title={t('screening.assessment.noMovement')}>{t('screening.assessment.noMovementCallout')}</Callout></div>}
+        {phase === 'interrupted' && <div className="mt-3"><Callout tone="warning" title={t('screening.assessment.interrupted')}>{t('screening.assessment.interruptedCallout')}</Callout></div>}
 
         <div className="mt-auto pt-4 space-y-2">
           {(phase === 'recording' || phase === 'countdown') && <>
-            <Button full variant="danger" icon={Square} onClick={cancel}>Stop Recording</Button>
+            <Button full variant="danger" icon={Square} onClick={cancel}>{t('screening.assessment.stopRecording')}</Button>
             <div className="flex items-center justify-center gap-4">
-              <button onClick={() => { stop.current?.(); restart() }} className="h-10 text-[13px] font-semibold text-secondary inline-flex items-center gap-1.5"><RotateCcw size={14} aria-hidden />Discard &amp; restart test</button>
-              {phase === 'recording' && <button onClick={() => { noMove.current = true; stop.current?.(); setPhase('nomove') }} className="h-10 text-xs text-muted underline">Demo: no movement</button>}
+              <button onClick={() => { stop.current?.(); restart() }} className="h-10 text-[13px] font-semibold text-secondary inline-flex items-center gap-1.5"><RotateCcw size={14} aria-hidden />{t('screening.assessment.discardRestart')}</button>
+              {phase === 'recording' && <button onClick={() => { noMove.current = true; stop.current?.(); setPhase('nomove') }} className="h-10 text-xs text-muted underline">{t('screening.assessment.demoNoMovement')}</button>}
             </div>
           </>}
           {(phase === 'nomove' || phase === 'interrupted') && <>
-            <Button full onClick={() => { noMove.current = false; restart() }}>Try again</Button>
-            <Button full variant="secondary" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }}>Continue without movement data</Button>
-            <button className="w-full h-11 text-[14px] font-semibold text-secondary" onClick={() => nav(`/patients/${patient.id}`)}>Exit screening</button>
+            <Button full onClick={() => { noMove.current = false; restart() }}>{t('screening.assessment.tryAgain')}</Button>
+            <Button full variant="secondary" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }}>{t('screening.assessment.continueWithout')}</Button>
+            <button className="w-full h-11 text-[14px] font-semibold text-secondary" onClick={() => nav(`/patients/${patient.id}`)}>{t('screening.assessment.exitScreening')}</button>
           </>}
-          {phase === 'complete' && <p className="text-center text-primary-dark font-semibold fade-in">Movement recorded. Preparing analysis…</p>}
+          {phase === 'complete' && <p className="text-center text-primary-dark font-semibold fade-in">{t('screening.assessment.movementRecorded')}</p>}
         </div>
       </main>
     </Frame>

@@ -3,7 +3,7 @@ import type { TestDefinition } from '../../domain/types'
 export const TEST_PROTOCOLS: TestDefinition[] = [
   {
     id: 'rom',
-    implemented: false,
+    implemented: true,
     title: 'Joint Movement',
     preparationInstruction: 'Please ask the patient to sit on the chair and face the camera.',
     voiceInstruction: 'Please ask the patient to slowly bend the affected joint as far as comfortable and then slowly straighten it. Continue the movement naturally.',

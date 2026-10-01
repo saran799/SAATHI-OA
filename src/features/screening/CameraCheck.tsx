@@ -46,9 +46,6 @@ const POSE_CONNECTIONS = [
   [23, 25], [25, 27], [27, 29], [29, 31], [31, 27], // left leg
   [24, 26], [26, 28], [28, 30], [30, 32], [32, 28]  // right leg
 ]
-const KNEE_CHAIN_LEFT = [[23, 25], [25, 27]]
-const KNEE_CHAIN_RIGHT = [[24, 26], [26, 28]]
-const KNEE_POINTS = new Set([23, 25, 27, 24, 26, 28])
 
 
 
@@ -232,31 +229,20 @@ export default function Assessment() {
             smoothedLms = smoothed
           }
 
-          const lHip = smoothedLms[23]
-          const rHip = smoothedLms[24]
-          const lKnee = smoothedLms[25]
-          const rKnee = smoothedLms[26]
-          const lAnkle = smoothedLms[27]
-          const rAnkle = smoothedLms[28]
-          
-          const hipVisible = (lHip?.visibility || 0) > 0.3 && (rHip?.visibility || 0) > 0.3
-          const kneeVisible = (lKnee?.visibility || 0) > 0.3 && (rKnee?.visibility || 0) > 0.3
-          const ankleVisible = (lAnkle?.visibility || 0) > 0.3 && (rAnkle?.visibility || 0) > 0.3
+          const jointCfg = poseMod.getJointConfig(session.joint || 'knee', session.side || 'both')
+          const reqNodes = jointCfg.required.map(i => smoothedLms[i])
+          const jointVisible = reqNodes.every(n => (n?.visibility || 0) > 0.3)
           
           let cameraMoving = false
-          // Check for significant movement across frames using the ankle (more stable than head for standing tests)
-          if (rawLms[27] && smoothedLandmarksRef.current[27]) {
-             const dx = rawLms[27].x - smoothedLandmarksRef.current[27].x
-             const dy = rawLms[27].y - smoothedLandmarksRef.current[27].y
+          // Check for significant movement across frames using the torso/nose (more stable than head for standing tests)
+          if (rawLms[0] && smoothedLandmarksRef.current[0]) {
+             const dx = rawLms[0].x - smoothedLandmarksRef.current[0].x
+             const dy = rawLms[0].y - smoothedLandmarksRef.current[0].y
              if (Math.sqrt(dx*dx + dy*dy) > 0.08) cameraMoving = true
           }
 
-          if (!hipVisible) {
+          if (!jointVisible) {
              currentTrackingState = 'Move back so your full body is visible.'
-          } else if (!kneeVisible) {
-             currentTrackingState = 'Both knees must be visible. Adjust your position.'
-          } else if (!ankleVisible) {
-             currentTrackingState = 'Please make sure your feet are visible.'
           } else if (cameraMoving) {
              currentTrackingState = 'Keep the phone steady.'
           } else {
@@ -264,9 +250,14 @@ export default function Assessment() {
           }
 
           if (phase === 'recording') {
+            const a = smoothedLms[jointCfg.angleTriplet[0]]
+            const b = smoothedLms[jointCfg.angleTriplet[1]]
+            const c = smoothedLms[jointCfg.angleTriplet[2]]
+            const angle = poseMod.calculateAngle(a, b, c)
+
             realSamples.current.push({
               t: now,
-              angle: 0,
+              angle: angle,
               confidence: 1,
               valid: true,
               landmarks: smoothedLms
@@ -314,10 +305,12 @@ export default function Assessment() {
                 }
             })
 
-            // Draw highlighted knee chains
+            // Draw highlighted joint chain
             ctx.lineWidth = 3
             ctx.strokeStyle = '#0F766E'
-            ;[...KNEE_CHAIN_LEFT, ...KNEE_CHAIN_RIGHT].forEach(([i, j]) => {
+            const activeChain = [[jointCfg.angleTriplet[0], jointCfg.angleTriplet[1]], [jointCfg.angleTriplet[1], jointCfg.angleTriplet[2]]]
+            const activePoints = new Set(jointCfg.angleTriplet)
+            activeChain.forEach(([i, j]) => {
                 const p1 = smoothedLms[i]
                 const p2 = smoothedLms[j]
                 if (p1 && p2 && (p1.visibility || 0) > 0.3 && (p2.visibility || 0) > 0.3) {
@@ -336,10 +329,10 @@ export default function Assessment() {
               const x = offsetX + p.x * drawWidth
               const y = offsetY + p.y * drawHeight
               
-              const isKneeChain = KNEE_POINTS.has(idx)
+              const isActiveJoint = activePoints.has(idx)
               
               ctx.beginPath()
-              if (isKneeChain) {
+              if (isActiveJoint) {
                 ctx.arc(x, y, 4, 0, 2 * Math.PI)
                 ctx.fillStyle = '#CCFBF1' // mint-100
                 ctx.lineWidth = 2
@@ -537,8 +530,8 @@ export default function Assessment() {
       {cameraState === 'error' ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
           <VideoOff size={48} className="text-error mb-4" />
-          <h2 className="text-lg font-bold text-ink">Camera Error</h2>
-          <p className="text-secondary text-sm">Please check permissions.</p>
+          <h2 className="text-lg font-bold text-ink">{t('screening.assessment.camera.error')}</h2>
+          <p className="text-secondary text-sm">{t('screening.assessment.camera.permissionRequiredBody')}</p>
         </div>
       ) : (
         <video 
@@ -566,8 +559,8 @@ export default function Assessment() {
       {phase === 'test_result' && testResult?.status === 'VALID' && currentTestIndex < ACTIVE_TESTS.length - 1 && (
         <div className="absolute inset-0 bg-mint/90 flex flex-col items-center justify-center z-30 animate-in fade-in duration-300">
           <CheckCircle size={48} className="text-primary-dark mb-4" />
-          <p className="text-primary-dark text-xl font-bold">TEST {currentTestIndex + 1} COMPLETE</p>
-          <h1 className="text-primary-dark text-lg font-semibold mt-2">MOVE TO TEST {currentTestIndex + 2}</h1>
+          <p className="text-primary-dark text-xl font-bold">{t('screening.assessment.complete')} {currentTestIndex + 1}</p>
+          <h1 className="text-primary-dark text-lg font-semibold mt-2">{t('screening.common.next')} TEST {currentTestIndex + 2}</h1>
         </div>
       )}
     </div>
@@ -587,11 +580,11 @@ export default function Assessment() {
       return (
         <div className="flex flex-col gap-4 text-center">
           <p className="text-lg font-semibold text-ink">
-            {phase === 'setup' ? currentTest?.preparationInstruction : "Patient detected. Ready."}
+            {phase === 'setup' ? tVoice(currentTest?.preparationInstruction || "", lang as SupportedLang) : tVoice("Patient detected. The patient is ready. Please tap Start Assessment.", lang as SupportedLang)}
           </p>
           {phase === 'ready' && (
             <Button full onClick={handleStartRecording} className="min-h-[54px] text-lg font-bold">
-              START ASSESSMENT
+              {t('screening.instructions.startAssessment').toUpperCase()}
             </Button>
           )}
         </div>
@@ -604,7 +597,7 @@ export default function Assessment() {
           {phase === 'recording' && (
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-error animate-pulse" />
-              <span className="text-error font-bold tracking-widest uppercase">Recording</span>
+              <span className="text-error font-bold tracking-widest uppercase">{t('screening.assessment.live').toUpperCase()}</span>
             </div>
           )}
           <p className="text-secondary font-medium">
@@ -622,9 +615,9 @@ export default function Assessment() {
             
             <div className="flex items-center gap-2 mb-4">
               {testResult.status === 'VALID' ? (
-                <><CheckCircle size={18} className="text-mint-dark" /><span className="text-mint-dark font-bold">✓ Completed</span></>
+                <><CheckCircle size={18} className="text-mint-dark" /><span className="text-mint-dark font-bold">✓ {t('screening.analysis.completed')}</span></>
               ) : (
-                <><ShieldCheck size={18} className="text-error" /><span className="text-error font-bold">Insufficient Data</span></>
+                <><ShieldCheck size={18} className="text-error" /><span className="text-error font-bold">{t('screening.assessment.camera.insufficient')}</span></>
               )}
             </div>
             
@@ -640,7 +633,7 @@ export default function Assessment() {
                 onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
                 className="text-primary text-sm font-bold w-full text-left focus-visible:outline-none"
               >
-                {showTechnicalDetails ? '[-] HIDE TECHNICAL DETAILS' : '[+] VIEW TECHNICAL DETAILS'}
+                {showTechnicalDetails ? '[-] HIDE' : '[+] VIEW'}
               </button>
               
               {showTechnicalDetails && (
@@ -657,11 +650,11 @@ export default function Assessment() {
 
           {testResult.status === 'VALID' ? (
             <Button full onClick={handleNextTest} className="min-h-[54px] text-lg font-bold">
-              {currentTestIndex < ACTIVE_TESTS.length - 1 ? 'NEXT TEST' : 'FINISH SCREENING'}
+              {currentTestIndex < ACTIVE_TESTS.length - 1 ? t('common.next').toUpperCase() : t('common.continue').toUpperCase()}
             </Button>
           ) : (
             <Button full onClick={handleRetry} className="min-h-[54px] text-lg font-bold">
-              RETRY TEST
+              {t('common.retry').toUpperCase()}
             </Button>
           )}
         </div>

@@ -10,7 +10,7 @@ import { api } from '../../services/api'
 export default function Login() {
   const nav = useNavigate()
   const signIn = useApp(s => s.signIn)
-  const [id, setId] = useState('ASHA-7749')
+  const [id, setId] = useState('')
   const [pin, setPin] = useState('')
   const [show, setShow] = useState(false)
   const [remember, setRemember] = useState(true)
@@ -60,7 +60,6 @@ export default function Login() {
         </div>
 
         <div className="relative mt-3 flex justify-center gap-2">
-          <span className="h-8 px-3 rounded-full bg-tint text-primary text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><Activity size={13} aria-hidden />Movement AI</span>
           <span className="h-8 px-3 rounded-full bg-mint-soft text-primary text-[12px] font-semibold inline-flex items-center gap-1.5 border border-mint whitespace-nowrap"><ShieldCheck size={13} aria-hidden />Screening support</span>
         </div>
 
@@ -83,7 +82,7 @@ export default function Login() {
             <input id="pin" type={show ? 'text' : 'password'} inputMode="numeric" maxLength={4} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" autoComplete="current-password" aria-invalid={!!err.pin || undefined} className={cx(field, 'tracking-[0.2em]', err.pin && 'ring-2 ring-error')} />
             <button type="button" onClick={() => setShow(s => !s)} aria-label={show ? 'Hide PIN' : 'Show PIN'} className="absolute right-0 top-0 h-[44px] w-11 flex items-center justify-center text-secondary">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
           </div>
-          {err.pin ? <p role="alert" className="text-[12px] text-error-text mt-1">{err.pin}</p> : <p className="text-[11px] text-muted mt-1">Demo: enter any 4 digits</p>}
+          {err.pin && <p role="alert" className="text-[12px] text-error-text mt-1">{err.pin}</p>}
 
           <div className="flex items-center justify-between mt-2">
             <button type="button" role="checkbox" aria-checked={remember} onClick={() => setRemember(r => !r)} className="inline-flex items-center gap-2 text-[12px] font-medium h-9 whitespace-nowrap">
@@ -95,7 +94,7 @@ export default function Login() {
           <Button type="submit" full loading={loading} className="mt-2 !h-[50px] text-[15px]">Sign In &amp; Enter Field Intake <ArrowRight size={18} aria-hidden /></Button>
         </form>
 
-        <p className="relative mt-3 text-center text-[11px] text-secondary">v0.1 demo · Screening support only · <span className="text-primary font-semibold">Offline secure</span></p>
+        <p className="relative mt-3 text-center text-[11px] text-secondary">v2.4 Preview · Screening support only · <span className="text-primary font-semibold">Offline secure</span></p>
         <p className="relative mt-1 text-center text-[11px] text-muted">SAATHI does not diagnose osteoarthritis.</p>
       </main>
     </Frame>

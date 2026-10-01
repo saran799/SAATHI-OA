@@ -138,9 +138,48 @@ export default function PHCReportDetail() {
           </p>
         </section>
 
-        {/* 4. Symptom Assessment (Answers) */}
+        {/* 4. Key Measured Findings - 5 checks */}
         <section className="mb-8">
-          <h2 className="text-[13px] font-bold text-secondary uppercase tracking-wider mb-4 border-b border-border pb-2">Symptom Assessment</h2>
+          <h2 className="text-[13px] font-bold text-secondary uppercase tracking-wider mb-4 border-b border-border pb-2">Key Measured Findings - 5 checks</h2>
+          <div className="bg-white border border-border rounded-[12px] overflow-hidden">
+            <table className="w-full text-left text-[14px]">
+              <tbody className="divide-y divide-border">
+                {r.movement?.performed && (
+                  <>
+                    <tr className="hover:bg-[#F7FAFA]">
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Range of movement</td>
+                      <td className="px-4 py-3 text-secondary">≈ {r.movement.rangeOfMotionDeg}°</td>
+                    </tr>
+                    <tr className="hover:bg-[#F7FAFA]">
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Movement pattern</td>
+                      <td className="px-4 py-3 text-secondary">{r.movement.smoothness >= 0.6 ? 'Even' : 'Uneven'}</td>
+                    </tr>
+                  </>
+                )}
+                {r.answers && (
+                  <>
+                    <tr className="hover:bg-[#F7FAFA]">
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Pain during activity</td>
+                      <td className="px-4 py-3 text-secondary">{r.answers['pain_activity'] >= 2 ? 'Yes' : 'No'}</td>
+                    </tr>
+                    <tr className="hover:bg-[#F7FAFA]">
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Morning stiffness</td>
+                      <td className="px-4 py-3 text-secondary">{r.answers['stiffness'] === 3 ? 'More than 30 minutes' : r.answers['stiffness'] === 2 ? 'Less than 30 minutes' : 'No stiffness'}</td>
+                    </tr>
+                    <tr className="hover:bg-[#F7FAFA]">
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Difficulty with daily tasks</td>
+                      <td className="px-4 py-3 text-secondary">{r.answers['function'] === 3 ? 'Cannot do it' : r.answers['function'] === 2 ? 'Very hard' : r.answers['function'] === 1 ? 'A little hard' : 'Not hard'}</td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* 5. All Symptoms */}
+        <section className="mb-8">
+          <h2 className="text-[13px] font-bold text-secondary uppercase tracking-wider mb-4 border-b border-border pb-2">All Symptoms</h2>
           {r.answers && Object.keys(r.answers).length > 0 ? (
             <div className="bg-white border border-border rounded-[12px] overflow-hidden">
               <table className="w-full text-left text-[14px]">
@@ -156,49 +195,6 @@ export default function PHCReportDetail() {
             </div>
           ) : (
             <p className="text-[14px] text-secondary italic">Symptom questionnaire data not available.</p>
-          )}
-        </section>
-
-        {/* 5. Movement / Hardware Assessment */}
-        <section className="mb-8">
-          <h2 className="text-[13px] font-bold text-secondary uppercase tracking-wider mb-4 border-b border-border pb-2">Hardware / Movement Assessment</h2>
-          {r.tests && r.tests.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {r.tests.map((test: any) => (
-                <div key={test.id} className="bg-white border border-border rounded-[12px] p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="font-semibold text-ink uppercase tracking-wide text-[13px]">{test.testId.replace('_', ' ')}</div>
-                    <span className={cx(
-                      "px-2 py-0.5 rounded-[4px] text-[11px] font-bold uppercase",
-                      test.status === 'completed' ? 'bg-mint text-primary-dark' : 'bg-gray-100 text-gray-600'
-                    )}>
-                      {test.status}
-                    </span>
-                  </div>
-                  {test.measurements && Object.keys(test.measurements).length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                      {Object.entries(test.measurements).map(([key, val]) => (
-                         <div key={key} className="bg-[#F7FAFA] p-2 rounded-[6px] border border-border">
-                           <div className="text-[11px] text-secondary uppercase mb-1">{key}</div>
-                           <div className="text-[14px] font-medium text-ink">{String(val)}</div>
-                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[13px] text-secondary italic mt-2">No specific measurements recorded.</p>
-                  )}
-                  {test.observations && (
-                    <div className="mt-3 text-[13px] text-ink">
-                       <strong>Observations:</strong> {JSON.stringify(test.observations)}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[14px] text-secondary flex items-center gap-2 bg-[#F7FAFA] p-4 rounded-[12px] border border-border">
-              <Activity size={16} /> Hardware assessment data not available for this record.
-            </p>
           )}
         </section>
 

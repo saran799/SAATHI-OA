@@ -1,10 +1,12 @@
 import { cx } from '../../components/ui'
 import type { RiskBand as Band } from '../../domain/types'
+import { useT } from '../../i18n'
 
 /** Figma: 3-segment mint → teal → pink bar with a pointer above the active segment. */
 export function RiskBandIndicator({ band }: { band: Band }) {
-  const bands: { id: Band; label: string; color: string }[] = [
-    { id: 'low', label: 'Low', color: 'bg-mint' }, { id: 'moderate', label: 'Moderate', color: 'bg-[#6ED9CC]' }, { id: 'higher', label: 'Higher', color: 'bg-error-tint' },
+  const { t } = useT()
+  const bands: { id: Band; color: string }[] = [
+    { id: 'low', color: 'bg-mint' }, { id: 'moderate', color: 'bg-[#6ED9CC]' }, { id: 'higher', color: 'bg-error-tint' },
   ]
   const idx = bands.findIndex(b => b.id === band)
   return (
@@ -14,7 +16,7 @@ export function RiskBandIndicator({ band }: { band: Band }) {
         {bands.map(b => <div key={b.id} className={cx('h-3', b.color, b.id === band && 'ring-2 ring-primary ring-inset')} />)}
       </div>
       <div className="grid grid-cols-3 mt-1.5 text-[12px]">
-        {bands.map(b => <span key={b.id} className={cx(b.id === band ? 'font-bold text-primary' : 'text-secondary', b.id === 'moderate' && 'text-center', b.id === 'higher' && 'text-right')}>{b.label}</span>)}
+        {bands.map(b => <span key={b.id} className={cx(b.id === band ? 'font-bold text-primary' : 'text-secondary', b.id === 'moderate' && 'text-center', b.id === 'higher' && 'text-right')}>{t(`screening.result.riskMeta.${b.id}.label`)}</span>)}
       </div>
     </div>
   )
