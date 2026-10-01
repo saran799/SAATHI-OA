@@ -8,6 +8,6 @@ export const ARTICLES: Article[] = [
     points: ['Regular gentle movement is better than rest.', 'Maintain a healthy weight — each kilo less means less load on knees.', 'Use a chair instead of floor sitting where possible.', 'Supportive footwear matters on uneven paths.'] },
   { id: 'when', title: 'When to visit the PHC', minutes: 1, summary: 'Know when screening should become a clinical visit.',
     points: ['Pain that wakes the person at night.', 'A joint that is hot, red or suddenly swollen.', 'Sudden inability to bear weight.', 'Symptoms worsening despite home care.'] },
-  { id: 'nutrition', title: 'Nutrition for healthy joints', minutes: 2, summary: 'Dietary habits that support joint health and reduce inflammation.',
-    points: ['Include anti-inflammatory foods like turmeric, ginger, and garlic in meals.', 'Eat omega-3 rich foods like fish, flaxseed, or walnuts to reduce joint stiffness.', 'Get plenty of Vitamin C from citrus fruits to help build collagen and protect cartilage.', 'Avoid excess sugar and highly processed foods, which can increase inflammation in the body.'] },
+  { id: 'nutrition', title: 'Nutrition for healthy joints', minutes: 2, summary: 'Traditional dietary habits that support joint health and reduce inflammation.',
+    points: ['Use anti-inflammatory spices like turmeric (Haldi) with black pepper, ginger, and garlic in daily meals.', 'Consume calcium-rich foods like milk, curd, or dark leafy greens like spinach (Palak) and moringa.', 'Add millets (Ragi, Jowar, Bajra) to your diet—they are rich in nutrients and help maintain a healthy weight.', 'Stay hydrated and limit sugary drinks or excessively oily foods, which can trigger joint swelling.'] },
 ]

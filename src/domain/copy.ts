@@ -13,7 +13,7 @@ export const JOINT_LABEL: Record<string, string> = { knee: 'Knee', hip: 'Hip', h
 export const SIDE_LABEL: Record<string, string> = { left: 'Left', right: 'Right', both: 'Both' }
 export function jointName(joint: string, side: string, t?: any) {
   if (t) {
-    const jLabel = t(`screening.joints.${joint}.label`) || JOINT_LABEL[joint] || joint;
+    const jLabel = t(`screening.joint.joints.${joint}.label`) || JOINT_LABEL[joint] || joint;
     const sLabel = t(`screening.joint.${side}`) || SIDE_LABEL[side] || side;
     return side === 'both' ? t('common.bothJoints', { joint: jLabel.toLowerCase() }) || `Both ${jLabel.toLowerCase()}s` : `${sLabel} ${jLabel.toLowerCase()}`;
   }

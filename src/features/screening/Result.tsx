@@ -38,7 +38,7 @@ export default function Result() {
         <div className="h-1.5 w-full bg-[linear-gradient(90deg,#99EFE5_0%,#6ED9CC_50%,#FFDAD6_100%)]" aria-hidden />
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
-            <div><p className="text-[11px] font-bold tracking-wider text-secondary uppercase">{t('screening.result.screeningResult')}</p><h2 className="text-[21px] font-bold leading-tight mt-1">{t('screening.result.riskTitle', { joint: t(`screening.joints.${session.joint}.label`) })}</h2></div>
+            <div><p className="text-[11px] font-bold tracking-wider text-secondary uppercase">{t('screening.result.screeningResult')}</p><h2 className="text-[21px] font-bold leading-tight mt-1">{t('screening.result.riskTitle', { joint: t(`screening.joint.joints.${session.joint}.label`) })}</h2></div>
             <span className={cx('h-10 px-3 rounded-full text-[13px] font-bold inline-flex items-center gap-1.5 shrink-0', chip)}><ShieldAlert size={15} aria-hidden />{t(`screening.result.riskMeta.${r.band}.short`)} {t('screening.result.riskWord')}</span>
           </div>
           <div className="mt-4 rounded-[14px] bg-tint p-4 flex items-center justify-between gap-3">

@@ -36,8 +36,8 @@ export default function JointSelect() {
               <div className="p-4 flex items-start gap-3">
                 <span className={cx('h-12 w-12 rounded-[12px] flex items-center justify-center shrink-0', sel ? 'bg-primary text-white' : 'bg-tint text-primary')} aria-hidden><Icon size={24} /></span>
                 <span className="flex-1 min-w-0">
-                  <span className="flex items-center gap-2 flex-wrap"><span className="text-[20px] font-bold leading-tight">{t(`screening.joints.${j.id}.label`)}</span>{j.id === 'knee' && <span className="h-6 px-2 rounded-full bg-primary-light text-primary text-[11px] font-semibold inline-flex items-center">{t(`screening.joints.${j.id}.hint`)}</span>}</span>
-                  <span className="block text-[14px] text-secondary mt-1 leading-snug">{t(`screening.joints.${j.id}.desc`)}</span>
+                  <span className="flex items-center gap-2 flex-wrap"><span className="text-[20px] font-bold leading-tight">{t(`screening.joint.joints.${j.id}.label`)}</span>{j.id === 'knee' && <span className="h-6 px-2 rounded-full bg-primary-light text-primary text-[11px] font-semibold inline-flex items-center">{t(`screening.joint.joints.${j.id}.hint`)}</span>}</span>
+                  <span className="block text-[14px] text-secondary mt-1 leading-snug">{t(`screening.joint.joints.${j.id}.desc`)}</span>
                 </span>
                 <span className={cx('h-7 w-7 rounded-full flex items-center justify-center shrink-0', sel ? 'bg-primary text-white' : 'bg-tint')} aria-hidden>{sel && <Check size={16} strokeWidth={3} />}</span>
               </div>

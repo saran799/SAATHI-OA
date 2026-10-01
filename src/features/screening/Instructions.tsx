@@ -19,21 +19,22 @@ const gifs: Record<string, string> = {
 
 export default function Instructions() {
   const nav = useNavigate()
-  const { t } = useT()
+  const { t, tArray } = useT()
   const { patient, session } = useScreeningPatient(true)
   if (!patient || !session.joint) return null
-  const joint = t(`screening.joints.${session.joint}.label`).toLowerCase()
+  const joint = t(`screening.joint.joints.${session.joint}.label`).toLowerCase()
   const steps = [
     { icon: Hand, t: t('screening.instructions.attachStrap'), b: t('screening.instructions.strapDesc', { joint, side: session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`common.${session.side}`) }) },
     { icon: Footprints, t: session.joint === 'hand' ? t('screening.instructions.seatTable') : t('screening.instructions.seatChair'), b: session.joint === 'hand' ? t('screening.instructions.forearmResting') : t('screening.instructions.standingSupport') },
     { icon: User, t: t('screening.instructions.explainMovement'), b: t('screening.instructions.askPatient', { name: patient.name, move: t(`screening.instructions.moves.${session.joint}`) }) },
   ]
-  const tabs = [
-    [t('screening.instructions.tabs.0.a'), t('screening.instructions.tabs.0.b')],
-    [t('screening.instructions.tabs.1.a'), t('screening.instructions.tabs.1.b')],
-    [t('screening.instructions.tabs.2.a'), t('screening.instructions.tabs.2.b')],
-    [t('screening.instructions.tabs.3.a'), t('screening.instructions.tabs.3.b')],
-  ]
+  const stages = tArray('screening.instructions.stages')
+  const tabs = stages?.length === 8 ? [
+    [stages[0], stages[1]],
+    [stages[2], stages[3]],
+    [stages[4], stages[5]],
+    [stages[6], stages[7]],
+  ] : []
 
   return (
     <FlowShell title="" step={3} total={TOTAL_STEPS} stepLabel={t('screening.instructions.placement')} barTitle={t('screening.instructions.barTitle')} back="/screening/questions"
@@ -43,7 +44,7 @@ export default function Instructions() {
         <button type="button" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }} className="w-full h-10 mt-1 text-[13px] font-semibold text-secondary">{t('screening.instructions.skipStep')}</button>
       </div>}>
       <div className="-mt-6 flex items-start justify-between gap-3">
-        <div><h1 className="text-[22px] font-bold tracking-tight leading-tight">{t('screening.instructions.title', { joint: t(`screening.joints.${session.joint}.label`) })}</h1><p className="text-[14px] text-secondary mt-1">{t('screening.instructions.subtitle')}</p></div>
+        <div><h1 className="text-[22px] font-bold tracking-tight leading-tight">{t('screening.instructions.title', { joint: t(`screening.joint.joints.${session.joint}.label`) })}</h1><p className="text-[14px] text-secondary mt-1">{t('screening.instructions.subtitle')}</p></div>
         <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.instructions.pairReady')}</span>
       </div>
 
@@ -52,14 +53,10 @@ export default function Instructions() {
       </div>
 
       <div className="card mt-4 p-4">
-        <div className="flex items-center gap-2 flex-wrap"><span className="h-7 px-2.5 rounded-full bg-tint text-primary text-[11px] font-bold inline-flex items-center">{t('screening.instructions.placementGuide')}</span><span className="h-7 px-2.5 rounded-full bg-mint text-primary-dark text-[11px] font-bold inline-flex items-center">{t('screening.instructions.sensorLabel')}: {session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`common.${session.side}`)}</span></div>
-        <div className="mt-3 rounded-[14px] bg-tint p-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="space-y-3">
-            <div className="card rounded-[10px] p-2.5"><p className="text-[12px] font-bold flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.instructions.upperStrap')}</p><p className="text-[11px] text-secondary">{t('screening.instructions.aboveJoint', { joint })}</p></div>
-            <div className="card rounded-[10px] p-2.5"><p className="text-[12px] font-bold flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.instructions.lowerStrap')}</p><p className="text-[11px] text-secondary">{t('screening.instructions.belowJoint', { joint })}</p></div>
-          </div>
+        <div className="flex items-center gap-2 flex-wrap"><span className="h-7 px-2.5 rounded-full bg-tint text-primary text-[11px] font-bold inline-flex items-center">{t('screening.instructions.placement')}</span><span className="h-7 px-2.5 rounded-full bg-mint text-primary-dark text-[11px] font-bold inline-flex items-center">{t('screening.instructions.sensorSide', { side: session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`common.${session.side}`) })}</span></div>
+        <div className="mt-3 rounded-[14px] bg-tint p-4 flex flex-col items-center justify-center gap-4">
           {gifs[session.joint] ? (
-            <img src={gifs[session.joint]} alt={`How to attach sensor to ${joint}`} className="w-[120px] h-auto object-contain rounded-lg" />
+            <img src={gifs[session.joint]} alt={`How to attach sensor to ${joint}`} className="w-full max-w-[240px] h-auto object-contain rounded-lg" />
           ) : (
             <svg width="56" height="150" viewBox="0 0 56 150" fill="none" aria-hidden>
               <path d="M22 4c-4 30-4 60 0 70s6 40 0 72" stroke="#B9C7D6" strokeWidth="14" strokeLinecap="round" /><path d="M34 4c4 30 4 60 0 70s-6 40 0 72" stroke="#B9C7D6" strokeWidth="14" strokeLinecap="round" />
@@ -67,7 +64,10 @@ export default function Instructions() {
               <circle cx="28" cy="75" r="8" stroke="#00685F" strokeWidth="3" strokeDasharray="4 3" />
             </svg>
           )}
-          <div className="card rounded-[10px] p-2.5"><p className="text-[12px] font-bold">{t('screening.instructions.jointCentre', { joint: t(`screening.joints.${session.joint}.label`) })}</p><p className="text-[11px] text-secondary">{t('screening.instructions.jointLine')}</p></div>
+          <div className="card w-full rounded-[10px] p-3 text-center">
+            <p className="text-[14px] font-bold">{t('screening.instructions.steps.attach.t')}</p>
+            <p className="text-[12px] text-secondary mt-1">{t('screening.instructions.steps.attach.b', { joint: t(`screening.joint.joints.${session.joint}.label`).toLowerCase(), side: session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`common.${session.side}`) })}</p>
+          </div>
         </div>
       </div>
 

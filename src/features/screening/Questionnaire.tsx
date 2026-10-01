@@ -24,7 +24,7 @@ export default function Questionnaire() {
   const cols = compact ? (q.options.length <= 2 ? 'grid-cols-2' : q.options.length === 3 ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'
 
   return (
-    <FlowShell title="" step={2} total={TOTAL_STEPS} stepLabel={t('screening.questions.pctDone', { pct })} barTitle={t('screening.questions.title')} back="/screening/joint" onBack={i > 0 ? () => setI(i - 1) : undefined}
+    <FlowShell title="" step={2} total={TOTAL_STEPS} stepLabel={t('screening.questions.done', { pct })} barTitle={t('screening.questions.barTitle')} back="/screening/joint" onBack={i > 0 ? () => setI(i - 1) : undefined}
       footer={<div className="grid grid-cols-[1fr_2fr] gap-3">
         <Button variant="secondary" onClick={() => i > 0 ? setI(i - 1) : nav('/screening/joint')}><ArrowLeft size={18} aria-hidden />{t('common.back')}</Button>
         <Button disabled={!answered} onClick={() => last ? nav('/screening/instructions') : setI(i + 1)}>{last ? t('screening.questions.nextSensor') : t('screening.questions.nextQuestion')} <ArrowRight size={18} aria-hidden /></Button>
@@ -52,7 +52,7 @@ export default function Questionnaire() {
 
       <div className="mt-4 rounded-[16px] bg-mint-soft border border-mint p-3 flex items-center gap-3">
         <span className="h-10 w-10 rounded-[12px] bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><TrendingUp size={20} /></span>
-        <div className="min-w-0"><p className="text-[13px] font-bold text-primary-dark">{t('screening.questions.progress')}</p><p className="text-[12px] text-secondary truncate">{t('screening.questions.progressDesc', { done, total: QUESTIONS.length })}</p></div>
+        <div className="min-w-0"><p className="text-[13px] font-bold text-primary-dark">{t('screening.common.screeningProgress')}</p><p className="text-[12px] text-secondary truncate">{t('screening.questions.progressNote', { done, total: QUESTIONS.length })}</p></div>
       </div>
     </FlowShell>
   )
