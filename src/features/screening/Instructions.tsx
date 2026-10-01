@@ -43,9 +43,9 @@ export default function Instructions() {
         <Button full onClick={() => nav('/screening/camera')}>{t('screening.instructions.startAssessment')} <ArrowRight size={18} aria-hidden /></Button>
         <button type="button" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }} className="w-full h-10 mt-1 text-[13px] font-semibold text-secondary">{t('screening.instructions.skipStep')}</button>
       </div>}>
-      <div className="-mt-6 flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div><h1 className="text-[22px] font-bold tracking-tight leading-tight">{t('screening.instructions.title', { joint: t(`screening.joint.joints.${session.joint}.label`) })}</h1><p className="text-[14px] text-secondary mt-1">{t('screening.instructions.subtitle')}</p></div>
-        <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.instructions.pairReady')}</span>
+        <span className="h-9 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 mt-1"><span className="h-2 w-2 rounded-full bg-primary" aria-hidden />{t('screening.common.pairReady')}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-4 gap-2" aria-label="Assessment stages">
@@ -66,7 +66,7 @@ export default function Instructions() {
           )}
           <div className="card w-full rounded-[10px] p-3 text-center">
             <p className="text-[14px] font-bold">{t('screening.instructions.steps.attach.t')}</p>
-            <p className="text-[12px] text-secondary mt-1">{t('screening.instructions.steps.attach.b', { joint: t(`screening.joint.joints.${session.joint}.label`).toLowerCase(), side: session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`common.${session.side}`) })}</p>
+            <p className="text-[12px] text-secondary mt-1">{t('screening.instructions.steps.attach.b', { joint: t(`screening.joint.joints.${session.joint}.label`).toLowerCase(), side: session.side === 'both' ? t('screening.instructions.morePainfulSide') : t(`screening.joint.${session.side}`) })}</p>
           </div>
         </div>
       </div>

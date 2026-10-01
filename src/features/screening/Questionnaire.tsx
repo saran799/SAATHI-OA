@@ -29,7 +29,7 @@ export default function Questionnaire() {
         <Button variant="secondary" onClick={() => i > 0 ? setI(i - 1) : nav('/screening/joint')}><ArrowLeft size={18} aria-hidden />{t('common.back')}</Button>
         <Button disabled={!answered} onClick={() => last ? nav('/screening/instructions') : setI(i + 1)}>{last ? t('screening.questions.nextSensor') : t('screening.questions.nextQuestion')} <ArrowRight size={18} aria-hidden /></Button>
       </div>}>
-      <div className="-mt-6 mb-4 h-11 rounded-[12px] bg-tint px-3 flex items-center gap-2 text-[13px]">
+      <div className="mb-4 h-11 rounded-[12px] bg-tint px-3 flex items-center gap-2 text-[13px]">
         <ClipboardCheck size={16} className="text-primary" aria-hidden /><span className="font-semibold">{t('screening.questions.triageProtocol')}</span><span className="text-secondary">· {jointName(session.joint, session.side, t)}</span>
         <span className="ml-auto h-6 px-2 rounded-full bg-surface text-[11px] font-semibold text-secondary inline-flex items-center">Q {i + 1} / {QUESTIONS.length}</span>
       </div>

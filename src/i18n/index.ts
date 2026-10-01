@@ -19,7 +19,14 @@ const resources: Record<LangCode, Dict> = {
 }
 
 function getNested(obj: any, path: string): any {
-  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj)
+  return path.split('.').reduce((o, k) => {
+    if (!o) return undefined;
+    if (Array.isArray(o)) {
+      const match = o.find((item: any) => item && String(item.value) === k);
+      if (match !== undefined) return match;
+    }
+    return o[k] !== undefined ? o[k] : undefined;
+  }, obj);
 }
 
 function interpolate(str: string, params?: Record<string, any>): string {
