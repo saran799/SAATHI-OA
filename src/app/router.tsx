@@ -21,6 +21,7 @@ import Report from '../features/reports/Report'
 import Records from '../features/records/Records'
 import Awareness from '../features/awareness/Awareness'
 import Settings from '../features/settings/Settings'
+import PatientPdf from '../features/reports/PatientPdf'
 
 function Protected() {
   const { authed, language } = useApp()
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
     { path: '/awareness', element: <Awareness /> },
     { path: '/settings', element: <Settings /> },
     { path: '/settings/language', element: <Language fromSettings /> },
-    { path: '*', element: <Navigate to="/dashboard" replace /> },
   ] },
+  { path: '/patient-pdf', element: <PatientPdf /> },
+  { path: '*', element: <Navigate to="/dashboard" replace /> },
 ])

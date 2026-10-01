@@ -43,6 +43,19 @@ export default function Report() {
 
   if (generating) return <AppShell title={t('reports.title')} subtitle={t('reports.subtitle')} back={fromFlow ? '/screening/result' : `/patients/${p.id}`}><div className="mt-24 flex flex-col items-center text-center"><span className="spin h-10 w-10 rounded-full border-[3px] border-primary border-t-transparent" aria-hidden /><p className="mt-4 font-semibold" aria-live="polite">{t('common.generatingReport')}</p></div></AppShell>
 
+  const qrData = JSON.stringify({
+    n: p.name,
+    a: p.age,
+    s: p.sex,
+    j: rec.joint,
+    sd: rec.side,
+    d: rec.date,
+    rb: rec.result.band,
+    w: workerName,
+    phc: p.phc,
+  })
+  const qrUrl = `${window.location.origin}/patient-pdf?d=${btoa(unescape(encodeURIComponent(qrData)))}`
+
   return (
     <AppShell title={t('reports.title')} subtitle={t('reports.subtitle')} back={fromFlow ? '/screening/result' : `/patients/${p.id}`}>
       <article className="pt-4">
@@ -104,7 +117,7 @@ export default function Report() {
         <div className="mt-5 card p-4 flex flex-col items-center justify-center text-center no-print">
           <h3 className="text-[14px] font-bold mb-2">Scan to Download Report</h3>
           <p className="text-[12px] text-secondary mb-4">Patient can scan this code to save their screening summary</p>
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(window.location.href)}`} alt="QR Code to Report" className="w-[150px] h-[150px] rounded-lg shadow-sm" />
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`} alt="QR Code to Report" className="w-[150px] h-[150px] rounded-lg shadow-sm" />
         </div>
 
         <div className="mt-5 space-y-2 no-print">
