@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, ArrowRight, Settings2, Lightbulb, Hand, MapPin, Activity } from 'lucide-react'
+import { Check, ArrowRight, Settings2, Hand, MapPin, Activity } from 'lucide-react'
 import { FlowShell } from '../../components/layout/Shells'
 import { Button, Segmented, cx } from '../../components/ui'
 import { JOINTS } from '../../domain/questions'

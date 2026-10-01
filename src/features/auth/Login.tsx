@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, IdCard, Lock, ArrowRight, Check, ShieldCheck, Activity } from 'lucide-react'
+import { Eye, EyeOff, IdCard, Lock, ArrowRight, Check, ShieldCheck } from 'lucide-react'
 import { Button, cx } from '../../components/ui'
 import { Frame } from '../../components/layout/Shells'
 import { useApp } from '../../store/appStore'
