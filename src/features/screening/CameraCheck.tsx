@@ -492,7 +492,7 @@ export default function Assessment() {
       setTestResult(null)
     } else {
       // All camera tests complete -> Go to Sensor step for hardware assessment
-      nav('/screening/sensor')
+      nav('/screening/instructions')
     }
   }
 

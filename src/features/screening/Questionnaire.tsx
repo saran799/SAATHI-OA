@@ -27,7 +27,7 @@ export default function Questionnaire() {
     <FlowShell title="" step={2} total={TOTAL_STEPS} stepLabel={t('screening.questions.done', { pct })} barTitle={t('screening.questions.barTitle')} back="/screening/joint" onBack={i > 0 ? () => setI(i - 1) : undefined}
       footer={<div className="grid grid-cols-[1fr_2fr] gap-3">
         <Button variant="secondary" onClick={() => i > 0 ? setI(i - 1) : nav('/screening/joint')}><ArrowLeft size={18} aria-hidden />{t('common.back')}</Button>
-        <Button disabled={!answered} onClick={() => last ? nav('/screening/instructions') : setI(i + 1)}>{last ? t('screening.questions.nextSensor') : t('screening.questions.nextQuestion')} <ArrowRight size={18} aria-hidden /></Button>
+        <Button disabled={!answered} onClick={() => last ? nav('/screening/camera') : setI(i + 1)}>{last ? t('screening.questions.nextSensor') : t('screening.questions.nextQuestion')} <ArrowRight size={18} aria-hidden /></Button>
       </div>}>
       <div className="mb-4 h-11 rounded-[12px] bg-tint px-3 flex items-center gap-2 text-[13px]">
         <ClipboardCheck size={16} className="text-primary" aria-hidden /><span className="font-semibold">{t('screening.questions.triageProtocol')}</span><span className="text-secondary">· {jointName(session.joint, session.side, t)}</span>

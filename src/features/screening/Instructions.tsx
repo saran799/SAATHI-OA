@@ -37,10 +37,10 @@ export default function Instructions() {
   ] : []
 
   return (
-    <FlowShell title="" step={3} total={TOTAL_STEPS} stepLabel={t('screening.instructions.placement')} barTitle={t('screening.instructions.barTitle')} back="/screening/questions"
+    <FlowShell title="" step={3} total={TOTAL_STEPS} stepLabel={t('screening.instructions.placement')} barTitle={t('screening.instructions.barTitle')} back="/screening/camera"
       pill={<span className="h-8 px-3 rounded-full bg-mint text-primary-dark text-[12px] font-semibold inline-flex items-center">{t('screening.instructions.triageActive')}</span>}
       footer={<div>
-        <Button full onClick={() => nav('/screening/camera')}>{t('screening.instructions.startAssessment')} <ArrowRight size={18} aria-hidden /></Button>
+        <Button full onClick={() => nav('/screening/sensor')}>{t('screening.instructions.startAssessment')} <ArrowRight size={18} aria-hidden /></Button>
         <button type="button" onClick={() => { session.setMovement(null, true); nav('/screening/analysis') }} className="w-full h-10 mt-1 text-[13px] font-semibold text-secondary">{t('screening.instructions.skipStep')}</button>
       </div>}>
       <div className="flex items-start justify-between gap-3">

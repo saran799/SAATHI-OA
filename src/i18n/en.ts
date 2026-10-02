@@ -47,6 +47,7 @@ export default {
     selected: "Selected",
     bothJoints: "Both {{joint}}s",
     sideJoint: "{{side}} {{joint}}",
+    id: "ID",
   },
   languages: {
     en: { native: "English", english: "English" },
@@ -148,6 +149,7 @@ export default {
       stepLabels: ["Demographics & Intake", "Location", "Health background"],
       fullName: "Full Name",
       fullNamePlaceholder: "e.g. Ramesh Kumar",
+      years: "years",
       age: "Age (Yrs)",
       mobile: "Mobile number",
       mobilePlaceholder: "98765 43210",
