@@ -154,8 +154,8 @@ export default {
   },
   screening: {
     common: { stepOf: "পদক্ষেপ {{current}} / {{total}}", triageProtocol: "ট্ৰায়াজ প্ৰ'ট'কল", screeningProgress: "স্ক্ৰীনিং অগ্ৰগতি", triageActive: "ট্ৰায়াজ সক্ৰিয়", pairReady: "সংযুক্ত হ'বলৈ সাজু", saved: "সংৰক্ষিত", movementTestAvailable: "মুভমেণ্ট টেষ্ট উপলব্ধ", mostCommon: "আটাইতকৈ সাধাৰণ", groinPain: "কঁকাল বা উৰুৰ বিষ", fingerNodes: "আঙুলিত", lowerBack: "ডিঙি বা পিঠিৰ তলত" },
-    joint: {
-      title: "মূল্যায়নৰ বাবে জইণ্ট বাছনি কৰক",
+    joint: {\n
+      noSelection: "কোনো নিৰ্বাচন নাই",\n      title: "মূল্যায়নৰ বাবে জইণ্ট বাছনি কৰক",
       subtitle: "{{name}} ৰ বাবে স্ক্ৰীনিং। আটাইতকৈ বেছি সমস্যাৰ জইণ্ট বাছনি কৰক।",
       next: "পৰৱৰ্তী: ক্লিনিকেল মূল্যায়ন",
       whichSide: "কোন ফালে?",
@@ -217,8 +217,15 @@ export default {
       startAssessment: "মূল্যায়ন আৰম্ভ কৰক",
       skip: "ৰোগীয়ে মুভমেণ্ট কৰিব পৰা নাই — এই পদক্ষেপ এৰক",
     },
-    sensor: {
-      barTitle: "মুভমেণ্ট মূল্যায়ন",
+    sensor: {\n
+      pairingProg: "পেয়াৰ কৰা হৈছে...",
+      connectBtn: "কানেক্ট কৰক",
+      signalStrength: "চিগনেলৰ শক্তি",
+      timeLft: "বাকী থকা সময়",
+      errorTitle: "কানেকচন ত্ৰুটি",
+      errorDesc: "ছেন্সৰৰ সৈতে কানেক্ট কৰিব পৰা নগ'ল। অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক।",
+      ledCheck: "ছেন্সৰৰ LED নীলা ৰঙত জ্বলিছে নেকি পৰীক্ষা কৰক।",
+      refreshDevices: "ডিভাইচ ৰিফ্ৰেচ কৰক",\n      barTitle: "মুভমেণ্ট মূল্যায়ন",
       title: "চেন্সৰ পেয়াৰিং",
       subtitle: "পৰিধানযোগ্য চেন্সৰ অন কৰক আৰু ফোনৰ পৰা ২ মিটাৰৰ ভিতৰত ৰাখক।",
             states: {
@@ -281,8 +288,21 @@ export default {
       failedBody: "ছেটআপৰ সময়ত চেন্সৰ লৰিছে। ৰোগীক জইণ্ট সম্পূৰ্ণ স্থিৰ ৰাখিবলৈ কওক, তাৰ পিছত পুনৰ চেষ্টা কৰক।",
       demoFail: "ডেম': কেলিব্ৰেচন বিফলতা দেখুৱাওক",
     },
-    assessment: {
-      title: "মুভমেণ্ট মূল্যায়ন",
+    assessment: {\n
+      liveRecording: "লাইভ ৰেকৰ্ডিং",
+      getReady: "প্ৰস্তুত হওক",
+      instructionText: "ৰোগীক কওক যেতিয়া আপুনি 'গো' ক'ব তেতিয়া লাহে লাহে লৰচৰ কৰিবলৈ আৰম্ভ কৰিব।",
+      movementDetected: "লৰচৰ ধৰা পৰিছে — স্থিৰভাৱে চলাই যাওক",
+      waitingMovement: "লৰচৰৰ বাবে অপেক্ষা কৰা হৈছে…",
+      movementTrace: "লৰচৰৰ ট্ৰেচ",
+      sensorSimulated: "সাথী ছেন্সৰ (চিমুলেটেড)",
+      noMovementCallout: "ছেন্সৰে গাঁঠিৰ লৰচৰ ধৰা পেলাব নোৱাৰিলে।",
+      interruptedCallout: "সম্পূৰ্ণ হোৱাৰ আগতেই ৰেকৰ্ডিং বন্ধ কৰা হৈছিল। একো ছেভ কৰা হোৱা নাই।",
+      stopRecording: "ৰেকৰ্ডিং বন্ধ কৰক",
+      discardRestart: "বাদ দিয়ক আৰু পুনৰ পৰীক্ষা কৰক",
+      demoNoMovement: "ডেমো: কোনো লৰচৰ নাই",
+      exitScreening: "স্ক্ৰীনিঙৰ পৰা প্ৰস্থান কৰক",
+      movementRecorded: "লৰচৰ ৰেকৰ্ড কৰা হ'ল। বিশ্লেষণ প্ৰস্তুত কৰা হৈছে…",\n      title: "মুভমেণ্ট মূল্যায়ন",
       live: "লাইভ ৰেকৰ্ডিং",
       ready: "সাজু হওক",
       complete: "সম্পূৰ্ণ",
@@ -373,8 +393,9 @@ export default {
       active: "সক্ৰিয়",
       pending: "বাকী",
     },
-    result: {
-      barTitle: "স্ক্ৰীনিং ফলাফল সাৰাংশ",
+    result: {\n
+      viewDetailedReport: "বিতং ৰিপৰ্ট চাওক",
+      notRequired: "প্ৰয়োজন নাই",\n      barTitle: "স্ক্ৰীনিং ফলাফল সাৰাংশ",
       finalised: "মূল্যায়ন চূড়ান্ত",
       complete: "{{joint}} স্ক্ৰীনিং সম্পূৰ্ণ",
       symptomsAndSensor: "লক্ষণ আৰু চেন্সৰ মুভমেণ্ট বিশ্লেষণ",
@@ -421,8 +442,20 @@ export default {
         noFactors: "কোনো প্ৰধান অৱদানকাৰী কাৰক নাই",
       },
     },
-    guidance: {
-      barTitle: "স্ক্ৰীনিং পিছৰ নিৰ্দেশনা",
+    guidance: {\n
+      recommendedExercises: "পৰামৰ্শ দিয়া ব্যায়াম",
+      exercisesDesc: "গাঁঠিৰ কাৰ্যক্ষমতা বজাই ৰাখিবলৈ আৰু বিষ কমাবলৈ সহজ ব্যায়াম।",
+      lifestyleCare: "জীৱনশৈলীৰ যতন",
+      essential: "প্ৰয়োজনীয় দৈনন্দিন অভ্যাস",
+      weightActivity: "ওজন আৰু কাৰ্যকলাপ",
+      weightActivityDesc: "সুস্থ ওজন বজাই ৰাখক।",
+      whenToVisitPHC: "কেতিয়া PHC লৈ যাব",
+      priority: "বিষৰ বাবে টোপনিত ব্যাঘাত জন্মিলে চিকিৎসকৰ পৰামৰ্শ লওক।",
+      shareTitle: "মাৰ্গদৰ্শন শ্বেয়াৰ কৰক",
+      copiedAlert: "ক্লিপবৰ্ডলৈ কপি কৰা হ'ল",
+      shareBtn: "WhatsApp ৰ জৰিয়তে শ্বেয়াৰ কৰক",
+      personalisedGuidelines: "ব্যক্তিগত নিৰ্দেশিকা",
+      printBooklet: "বুকলেট প্ৰিণ্ট কৰক",\n      barTitle: "স্ক্ৰীনিং পিছৰ নিৰ্দেশনা",
       ready: "সাজু",
       personalised: "ব্যক্তিগত নিৰ্দেশনা",
       actionable: "{{band}} ৰ বাবে উপযোগী যত্নৰ পদক্ষেপ",
@@ -444,8 +477,8 @@ export default {
         higher: ["তীব্ৰ বিষ বঢ়োৱা কাৰ্যকলাপ সীমিত কৰক।", "অস্থিৰ হ'লে বিপৰীত ফালে লাখুটি ব্যৱহাৰ কৰক।", "ক্লিনিকেল ভ্ৰমণৰ আগতে নতুন কঠিন ব্যায়াম আৰম্ভ নকৰিব।", "জইণ্ট গৰম, ৰঙা বা হঠাৎ ফুলি গ'লে সোনকালে যত্ন লওক।"],
       },
     },
-    exercises: {
-      title: "পৰামৰ্শিত ব্যায়াম",
+    exercises: {\n
+      easy: "সহজ",\n      title: "পৰামৰ্শিত ব্যায়াম",
       subtitle: "প্ৰতিটো দেখুৱাওক আৰু বুজাওক। দিনে ১–২টাৰে আৰম্ভ কৰক।",
       barTitle: "স্ক্ৰীনিং পিছৰ নিৰ্দেশনা",
       daily: "দৈনিক ১৫ মিনিট",

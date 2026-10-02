@@ -154,8 +154,8 @@ export default {
   },
   screening: {
     common: { stepOf: "খোংথাং {{current}} / {{total}}", triageProtocol: "ট্রায়াজ প্রোটোকল", screeningProgress: "স্ক্রীনিংগী চত্থরক", triageActive: "ট্রায়াজ থবক তৌরি", pairReady: "শম্ননবা শেম শারে", saved: "শেম্লে", movementTestAvailable: "মুভমেন্ট টেস্ট লৈ", mostCommon: "খ্বাইদগী মাংজিল্লিবা", groinPain: "খোংবান নত্ত্রগা খোমগী না", fingerNodes: "খুৎশাগী", lowerBack: "ঙকশম নত্ত্রগা নিংখাগী মখাদা" },
-    joint: {
-      title: "য়েংশিনবা জয়েন্ট খন",
+    joint: {\n
+      noSelection: "No selection",\n      title: "য়েংশিনবা জয়েন্ট খন",
       subtitle: "{{name}} গী স্ক্রীনিং। খ্বাইদগী হেন্না ৱানা লৈবা জয়েন্ট খন।",
       next: "মথং: ক্লিনিকেল য়েংশিনবা",
       whichSide: "কনাগী নাক?",
@@ -217,8 +217,15 @@ export default {
       startAssessment: "য়েংশিনবা হৌ",
       skip: "অনাবনা মুভমেন্ট তৌবা ঙমদে — মসি খোংথাং থাদোক",
     },
-    sensor: {
-      barTitle: "মুভমেন্ট য়েংশিনবা",
+    sensor: {\n
+      pairingProg: "Pairing...",
+      connectBtn: "Connect",
+      signalStrength: "Signal Strength",
+      timeLft: "Time Left",
+      errorTitle: "Connection Error",
+      errorDesc: "Could not connect to the sensor. Please try again.",
+      ledCheck: "Check that the sensor LED is blinking blue.",
+      refreshDevices: "Refresh Devices",\n      barTitle: "মুভমেন্ট য়েংশিনবা",
       title: "সেন্সর শম্নবা",
       subtitle: "শেৎপা য়াবা সেন্সর থা অমসুং ফোনদগী ২ মিটারগী মনুংদা থম।",
             states: {
@@ -281,8 +288,21 @@ export default {
       failedBody: "সেটআপতা সেন্সর লেঙখ্রে। অনাববু জয়েন্ট মপুং ফানা লেঙদনা থমহন, মতুংদা অমুক থৌরাং।",
       demoFail: "ডেমো: কেলিব্রেশন ফেল ওইবা উৎ",
     },
-    assessment: {
-      title: "মুভমেন্ট য়েংশিনবা",
+    assessment: {\n
+      liveRecording: "Live Recording",
+      getReady: "Semsabiro",
+      instructionText: "Ask the patient to begin slow movements when you say 'go'.",
+      movementDetected: "Movement detected — keep going steadily",
+      waitingMovement: "Waiting for movement…",
+      movementTrace: "Movement Trace",
+      sensorSimulated: "SAATHI sensor (simulated)",
+      noMovementCallout: "The sensor did not detect joint movement.",
+      interruptedCallout: "The recording was stopped before completion.",
+      stopRecording: "Stop Recording",
+      discardRestart: "Discard & restart test",
+      demoNoMovement: "Demo: no movement",
+      exitScreening: "Exit screening",
+      movementRecorded: "Movement recorded. Preparing analysis…",\n      title: "মুভমেন্ট য়েংশিনবা",
       live: "লাইভ রেকর্ডিং",
       ready: "শেম শা",
       complete: "লোইশিনখ্রে",
@@ -373,8 +393,9 @@ export default {
       active: "থবক তৌরি",
       pending: "লেমহৌরি",
     },
-    result: {
-      barTitle: "স্ক্রীনিং ফলগী সারাংশ",
+    result: {\n
+      viewDetailedReport: "View detailed report",
+      notRequired: "Not required",\n      barTitle: "স্ক্রীনিং ফলগী সারাংশ",
       finalised: "য়েংশিনবা লোইশিনখ্রে",
       complete: "{{joint}} স্ক্রীনিং লোইশিনখ্রে",
       symptomsAndSensor: "লক্ষণ অমসুং সেন্সর মুভমেন্ট এনালাইসিস",
@@ -421,8 +442,20 @@ export default {
         noFactors: "মরু ওইবা ফ্যাক্টর লৈতে",
       },
     },
-    guidance: {
-      barTitle: "স্ক্রীনিং মতুংগী লমজিং",
+    guidance: {\n
+      recommendedExercises: "Recommended Exercises",
+      exercisesDesc: "Simple exercises to maintain joint function and reduce pain.",
+      lifestyleCare: "Lifestyle Care",
+      essential: "Essential everyday habits",
+      weightActivity: "Weight and Activity",
+      weightActivityDesc: "Maintain a healthy weight.",
+      whenToVisitPHC: "When to Visit PHC",
+      priority: "Seek clinical care if pain prevents sleep.",
+      shareTitle: "Share Guidance",
+      copiedAlert: "Copied to clipboard",
+      shareBtn: "Share via WhatsApp",
+      personalisedGuidelines: "Personalised Guidelines",
+      printBooklet: "Print Booklet",\n      barTitle: "স্ক্রীনিং মতুংগী লমজিং",
       ready: "শেম শারে",
       personalised: "নহাক্কী ওইবা লমজিং",
       actionable: "{{band}} গীদমক চুনবা যত্নগী খোংথাং",
@@ -444,8 +477,8 @@ export default {
         higher: ["না হেন্না ফংহনবা থবকশিং থাদোক।", "লেংদনা লৈত্রবদি মায়া ওনবা নাকতা চেকোন শীজিন্ন।", "ক্লিনিকেল য়েংশিনবগী মমাংদা অনৌবা লুনা এক্সারসাইজ হৌগনু।", "জয়েন্ট শাবা, অঙাংবা নত্ত্রগা খরদং হৌদোক্লবদি থুনা ডাক্টরদা উ।"],
       },
     },
-    exercises: {
-      title: "পাউতাক পীবা এক্সারসাইজ",
+    exercises: {\n
+      easy: "Easy",\n      title: "পাউতাক পীবা এক্সারসাইজ",
       subtitle: "খুদিংমক উৎ অমসুং শন্দোক। নোংমা ১–২ না হৌ।",
       barTitle: "স্ক্রীনিং মতুংগী লমজিং",
       daily: "নোংমা ১৫ মিনিট",
