@@ -22,9 +22,9 @@ export default function Guidance() {
   const dot = { success: 'bg-primary', warning: 'bg-info', error: 'bg-error' }[m.tone]
 
   const rows = [
-    { icon: Dumbbell, t: t('screening.guidance.recommendedExercises'), b: t('screening.guidance.exercisesDesc'), tag: t('screening.guidance.daily15'), tagCls: 'bg-mint text-primary-dark', to: '/screening/exercises' },
+    { icon: Dumbbell, t: t('screening.guidance.recommendedExercises'), b: t('screening.guidance.exercisesDesc'), tag: t('screening.guidance.exercises.tag', { defaultValue: '15 mins daily' }), tagCls: 'bg-mint text-primary-dark', to: '/screening/exercises' },
     { icon: Accessibility, t: t('screening.guidance.lifestyleCare'), b: g[0], tag: t('screening.guidance.essential'), tagCls: 'bg-info-tint text-info' },
-    { icon: Apple, t: t('screening.guidance.weightActivity'), b: g[1] ?? t('screening.guidance.weightActivityDesc'), tag: t('screening.guidance.guideline'), tagCls: 'bg-tint text-ink' },
+    { icon: Apple, t: t('screening.guidance.weightActivity'), b: g[1] ?? t('screening.guidance.weightActivityDesc'), tag: t('screening.guidance.weight.tag', { defaultValue: 'Guideline' }), tagCls: 'bg-tint text-ink' },
     { icon: AlertTriangle, t: t('screening.guidance.whenToVisitPHC'), b: g[g.length - 1], tag: t('screening.guidance.priority'), tagCls: 'bg-error-tint text-error-text' },
   ]
 
@@ -48,7 +48,7 @@ export default function Guidance() {
 
       <div className="card mt-4 p-3 flex gap-3">
         <span className="h-[76px] w-[76px] rounded-[12px] bg-mint-soft flex items-center justify-center shrink-0 text-primary" aria-hidden><Users size={34} /></span>
-        <div className="min-w-0"><p className="text-[11px] font-bold tracking-wider text-primary uppercase inline-flex items-center gap-1"><CheckCircle2 size={12} aria-hidden />{t('screening.guidance.targetJoint')}: {jointName(session.joint, session.side, t)}</p><p className="text-[15px] font-bold mt-0.5 leading-snug">{t('screening.result.recommendedAction')}</p><p className="text-[13px] text-secondary leading-snug mt-0.5">{r.recommendedAction}</p></div>
+        <div className="min-w-0"><p className="text-[11px] font-bold tracking-wider text-primary uppercase inline-flex items-center gap-1"><CheckCircle2 size={12} aria-hidden />{t('screening.guidance.targetJoint', { joint: jointName(session.joint, session.side, t) })}</p><p className="text-[15px] font-bold mt-0.5 leading-snug">{t('screening.result.recommendedAction')}</p><p className="text-[13px] text-secondary leading-snug mt-0.5">{r.recommendedAction}</p></div>
       </div>
 
       <div className="mt-3 space-y-3">
@@ -62,7 +62,7 @@ export default function Guidance() {
 
       <div className="mt-4 rounded-[16px] bg-primary text-white p-4 flex gap-3">
         <span className="h-9 w-9 rounded-full bg-primary-mid flex items-center justify-center shrink-0" aria-hidden><MessageSquare size={18} /></span>
-        <div><p className="text-[11px] font-bold tracking-wider uppercase text-white/90">{t('screening.guidance.chwNote')}</p><p className="text-[14px] mt-1 leading-snug">{t('screening.guidance.chwNoteDesc', { name: patient.name.split(' ')[0] })}</p></div>
+        <div><p className="text-[11px] font-bold tracking-wider uppercase text-white/90">{t('screening.guidance.chwNoteTitle')}</p><p className="text-[14px] mt-1 leading-snug">{t('screening.guidance.chwNoteBody', { name: patient.name.split(' ')[0] })}</p></div>
       </div>
 
       <div className="card mt-4 p-3">
