@@ -20,7 +20,7 @@ export default function Questionnaire() {
   const last = i === QUESTIONS.length - 1
   const done = Object.keys(session.answers).length
   const pct = Math.round((done / QUESTIONS.length) * 100)
-  const compact = q.options.every(o => (t(`screening.questions.${q.id}.options.${o.value}.label`, { defaultValue: o.label }) || o.label).length <= 12)
+  const compact = q.options.every(o => (t(`screening.questions.questions.${q.id}.options.${o.value}.label`, { defaultValue: o.label }) || o.label).length <= 12)
   const cols = compact ? (q.options.length <= 2 ? 'grid-cols-2' : q.options.length === 3 ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'
 
   return (
@@ -36,15 +36,15 @@ export default function Questionnaire() {
 
       <div key={q.id} className="card p-4 fade-in">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-[17px] font-bold leading-snug">{i + 1}. {t(`screening.questions.${q.id}.text`, { defaultValue: q.text }) || q.text}</h2>
-          {answered && <span className="h-7 px-2.5 rounded-full bg-info-tint text-info text-[12px] font-bold whitespace-nowrap shrink-0 inline-flex items-center">{t(`screening.questions.${q.id}.options.${val}.label`, { defaultValue: q.options.find(o => o.value === val)?.label }) || q.options.find(o => o.value === val)?.label}</span>}
+          <h2 className="text-[17px] font-bold leading-snug">{i + 1}. {t(`screening.questions.questions.${q.id}.text`, { defaultValue: q.text }) || q.text}</h2>
+          {answered && <span className="h-7 px-2.5 rounded-full bg-info-tint text-info text-[12px] font-bold whitespace-nowrap shrink-0 inline-flex items-center">{t(`screening.questions.questions.${q.id}.options.${val}.label`, { defaultValue: q.options.find(o => o.value === val)?.label }) || q.options.find(o => o.value === val)?.label}</span>}
         </div>
-        {q.helper && <p className="text-[13px] text-secondary mt-1">{t(`screening.questions.${q.id}.helper`, { defaultValue: q.helper }) || q.helper}</p>}
+        {q.helper && <p className="text-[13px] text-secondary mt-1">{t(`screening.questions.questions.${q.id}.helper`, { defaultValue: q.helper }) || q.helper}</p>}
         <div role="radiogroup" aria-label={q.text} className={cx('mt-4 grid gap-2', cols)}>
           {q.options.map(o => {
             const sel = val === o.value
             return <button key={o.label} type="button" role="radio" aria-checked={sel} onClick={() => session.answer(q.id, o.value)}
-              className={cx('min-h-[50px] px-3 rounded-[12px] text-[14px] font-semibold transition-colors leading-tight inline-flex items-center gap-2', compact ? 'justify-center text-center' : 'justify-start text-left px-4', sel ? 'bg-primary text-white shadow-[var(--shadow-btn)]' : 'bg-tint text-ink hover:bg-tint-2')}>{sel && <Check size={16} strokeWidth={3} aria-hidden />}{t(`screening.questions.${q.id}.options.${o.value}.label`, { defaultValue: o.label }) || o.label}</button>
+              className={cx('min-h-[50px] px-3 rounded-[12px] text-[14px] font-semibold transition-colors leading-tight inline-flex items-center gap-2', compact ? 'justify-center text-center' : 'justify-start text-left px-4', sel ? 'bg-primary text-white shadow-[var(--shadow-btn)]' : 'bg-tint text-ink hover:bg-tint-2')}>{sel && <Check size={16} strokeWidth={3} aria-hidden />}{t(`screening.questions.questions.${q.id}.options.${o.value}.label`, { defaultValue: o.label }) || o.label}</button>
           })}
         </div>
         {i === 2 && <div className="mt-3 rounded-[12px] bg-tint p-3 text-[12px] text-ink flex gap-2"><Info size={15} className="text-primary shrink-0 mt-0.5" aria-hidden /><span>{t('screening.questions.screeningNote')}</span></div>}

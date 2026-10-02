@@ -81,13 +81,13 @@ export default function Report() {
           <div className="space-y-2">
             {rec.movement?.performed && <Finding icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${rec.movement.rangeOfMotionDeg}°`} />}
             {rec.movement?.performed && <Finding icon={Footprints} t={t('reports.pattern')} b={t('reports.patternDesc', { reps: rec.movement.repetitions, sec: rec.movement.durationSec })} v={rec.movement.smoothness >= 0.6 ? t('reports.even') : <span className="h-6 px-2 rounded-full bg-info-tint text-info text-[11px] inline-flex items-center">{t('reports.uneven')}</span>} />}
-            <Finding icon={Frown} t={t('reports.painActivity')} b={t('reports.reported')} v={t(`screening.questions.pain_activity.options.${rec.answers['pain_activity']}.label`) || ans('pain_activity')} />
-            <Finding icon={Sun} t={t('reports.morningStiff')} b={t('reports.reported')} v={t(`screening.questions.stiffness.options.${rec.answers['stiffness']}.label`) || ans('stiffness')} />
-            <Finding icon={Activity} t={t('reports.dailyTasks')} b={t('reports.reported')} v={t(`screening.questions.function.options.${rec.answers['function']}.label`) || ans('function')} />
+            <Finding icon={Frown} t={t('reports.painActivity')} b={t('reports.reported')} v={t(`screening.questions.questions.pain_activity.options.${rec.answers['pain_activity']}.label`, { defaultValue: ans('pain_activity') })} />
+            <Finding icon={Sun} t={t('reports.morningStiff')} b={t('reports.reported')} v={t(`screening.questions.questions.stiffness.options.${rec.answers['stiffness']}.label`, { defaultValue: ans('stiffness') })} />
+            <Finding icon={Activity} t={t('reports.dailyTasks')} b={t('reports.reported')} v={t(`screening.questions.questions.function.options.${rec.answers['function']}.label`, { defaultValue: ans('function') })} />
           </div>
           {!rec.movement?.performed && <p className="text-[12px] text-secondary mt-2">{t('reports.notPerformed')}</p>}
           <details className="mt-3"><summary className="text-[13px] font-semibold text-primary cursor-pointer h-9 flex items-center">{t('reports.allSymptoms')}</summary>
-            <div className="mt-1">{QUESTIONS.map(q => <Line key={q.id} k={t(`screening.questions.questions.${q.id}.factor`) || q.factorLabel} v={t(`screening.questions.questions.${q.id}.options.${rec.answers[q.id]}.label`) || ans(q.id)} />)}</div></details>
+            <div className="mt-1">{QUESTIONS.map(q => <Line key={q.id} k={t(`screening.questions.questions.${q.id}.factor`, { defaultValue: q.factorLabel })} v={t(`screening.questions.questions.${q.id}.options.${rec.answers[q.id]}.label`, { defaultValue: ans(q.id) })} />)}</div></details>
         </Section>
 
         <Section title={t('reports.patientInfo')}>
