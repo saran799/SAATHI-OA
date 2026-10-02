@@ -46,12 +46,20 @@ export function translate(key: string, lang: LangCode, params?: Record<string, a
   if (value === undefined) {
     value = getNested(resources.en, key)
   }
-  if (value === undefined) return key
+  if (value === undefined) {
+    if (params && params.defaultValue !== undefined) {
+      return interpolate(String(params.defaultValue), params)
+    }
+    return key
+  }
   if (typeof value === 'string') {
     return interpolate(value, params)
   }
   // If it's an array or object, return as JSON string fallback (should not happen for t)
   if (Array.isArray(value)) return value as any
+  if (params && params.defaultValue !== undefined) {
+    return interpolate(String(params.defaultValue), params)
+  }
   return typeof value === 'string' ? value : key
 }
 

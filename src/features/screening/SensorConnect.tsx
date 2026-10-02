@@ -11,13 +11,13 @@ import { useT } from '../../i18n'
 
 const getUI = (state: SensorState, t: any): { label: string; help: string; tone: string } => {
   const map: Record<SensorState, { label: string; help: string; tone: string }> = {
-    disconnected: { label: t('screening.sensor.states.disconnected.label'), help: t('screening.sensor.states.disconnected.help'), tone: 'bg-tint text-secondary' },
-    connecting: { label: t('screening.sensor.states.connecting.label'), help: t('screening.sensor.states.connecting.help'), tone: 'bg-info-tint text-info' },
-    connected: { label: t('screening.sensor.states.connected.label'), help: t('screening.sensor.states.connected.help'), tone: 'bg-primary-light text-primary' },
-    ready: { label: t('screening.sensor.states.ready.label'), help: t('screening.sensor.states.ready.help'), tone: 'bg-mint text-primary-dark' },
-    calibrating: { label: t('screening.sensor.states.calibrating.label'), help: '', tone: '' },
-    calibrated: { label: t('screening.sensor.states.calibrated.label'), help: '', tone: '' },
-    error: { label: t('screening.sensor.states.error.label'), help: t('screening.sensor.states.error.help'), tone: 'bg-error-tint text-error-text' },
+    disconnected: { label: t('screening.sensor.states.disconnected'), help: t('screening.sensor.helps.disconnected'), tone: 'bg-tint text-secondary' },
+    connecting: { label: t('screening.sensor.states.connecting'), help: t('screening.sensor.helps.connecting'), tone: 'bg-info-tint text-info' },
+    connected: { label: t('screening.sensor.states.connected'), help: t('screening.sensor.helps.connected'), tone: 'bg-primary-light text-primary' },
+    ready: { label: t('screening.sensor.states.ready'), help: t('screening.sensor.helps.ready'), tone: 'bg-mint text-primary-dark' },
+    calibrating: { label: t('screening.sensor.states.calibrating'), help: '', tone: '' },
+    calibrated: { label: t('screening.sensor.states.calibrated'), help: '', tone: '' },
+    error: { label: t('screening.sensor.states.error'), help: t('screening.sensor.helps.error'), tone: 'bg-error-tint text-error-text' },
   }
   return map[state]
 }
@@ -62,8 +62,8 @@ export default function SensorConnect() {
       <div className="card mt-4 p-4">
         <div className="flex items-start gap-3">
           <span className="h-12 w-12 rounded-[12px] bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><Plus size={24} /></span>
-          <div className="flex-1 min-w-0"><p className="text-[18px] font-bold leading-tight truncate">{t('screening.sensor.sensorName', { joint: jointName(session.joint, session.side, t) })}</p><p className="text-[12px] text-secondary mt-0.5">{t('common.id')}: <span className="font-mono">SIM-8842</span> · {ready ? t('screening.sensor.found') : busy ? t('screening.sensor.searching') : state === 'error' ? t('screening.sensor.notFound') : t('screening.sensor.idle')}</p></div>
-          <span className="h-7 px-2.5 rounded-full bg-tint text-primary text-[11px] font-bold inline-flex items-center gap-1 shrink-0"><CheckCircle2 size={12} aria-hidden />{t('screening.sensor.demo')}</span>
+          <div className="flex-1 min-w-0"><p className="text-[18px] font-bold leading-tight truncate">{t('screening.sensor.sensorName', { defaultValue: 'SAATHI Sensor', joint: jointName(session.joint, session.side, t) })}</p><p className="text-[12px] text-secondary mt-0.5">{t('common.id')}: <span className="font-mono">SIM-8842</span> · {ready ? t('screening.sensor.found') : busy ? t('screening.sensor.searching') : state === 'error' ? t('screening.sensor.notFound', { defaultValue: 'Not found' }) : t('screening.sensor.idle')}</p></div>
+          <span className="h-7 px-2.5 rounded-full bg-tint text-primary text-[11px] font-bold inline-flex items-center gap-1 shrink-0"><CheckCircle2 size={12} aria-hidden />{t('screening.sensor.demo', { defaultValue: 'Demo' })}</span>
         </div>
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="rounded-[12px] bg-tint p-3"><div className="flex items-center justify-between text-[12px] font-semibold"><span>{t('screening.sensor.signalStrength')}</span><SignalHigh size={16} className="text-primary" aria-hidden /></div><p className="text-[18px] font-bold mt-1">{ready ? t('screening.sensor.strong') : busy ? t('screening.sensor.searching') : state === 'error' ? t('screening.sensor.none') : '—'}</p></div>

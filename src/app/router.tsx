@@ -17,6 +17,8 @@ import Analysis from '../features/screening/Analysis'
 import Result from '../features/screening/Result'
 import Guidance from '../features/screening/Guidance'
 import Exercises from '../features/screening/Exercises'
+import Lifestyle from '../features/screening/Lifestyle'
+import WeightActivity from '../features/screening/WeightActivity'
 import Report from '../features/reports/Report'
 import Records from '../features/records/Records'
 import Awareness from '../features/awareness/Awareness'
@@ -51,6 +53,8 @@ export const router = createBrowserRouter([
     { path: '/screening/result', element: <Result /> },
     { path: '/screening/guidance', element: <Guidance /> },
     { path: '/screening/exercises', element: <Exercises /> },
+    { path: '/screening/lifestyle', element: <Lifestyle /> },
+    { path: '/screening/weight', element: <WeightActivity /> },
     { path: '/records', element: <Records /> },
     { path: '/records/:id', element: <Report /> },
     { path: '/awareness', element: <Awareness /> },

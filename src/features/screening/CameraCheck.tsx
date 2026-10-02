@@ -560,7 +560,7 @@ export default function Assessment() {
         <div className="absolute inset-0 bg-mint/90 flex flex-col items-center justify-center z-30 animate-in fade-in duration-300">
           <CheckCircle size={48} className="text-primary-dark mb-4" />
           <p className="text-primary-dark text-xl font-bold">{t('screening.assessment.complete')} {currentTestIndex + 1}</p>
-          <h1 className="text-primary-dark text-lg font-semibold mt-2">{t('screening.common.next')} TEST {currentTestIndex + 2}</h1>
+          <h1 className="text-primary-dark text-lg font-semibold mt-2">{t('common.next')} TEST {currentTestIndex + 2}</h1>
         </div>
       )}
     </div>

@@ -23,8 +23,8 @@ export default function Guidance() {
 
   const rows = [
     { icon: Dumbbell, t: t('screening.guidance.recommendedExercises'), b: t('screening.guidance.exercisesDesc'), tag: t('screening.guidance.exercises.tag', { defaultValue: '15 mins daily' }), tagCls: 'bg-mint text-primary-dark', to: '/screening/exercises' },
-    { icon: Accessibility, t: t('screening.guidance.lifestyleCare'), b: g[0], tag: t('screening.guidance.essential'), tagCls: 'bg-info-tint text-info' },
-    { icon: Apple, t: t('screening.guidance.weightActivity'), b: g[1] ?? t('screening.guidance.weightActivityDesc'), tag: t('screening.guidance.weight.tag', { defaultValue: 'Guideline' }), tagCls: 'bg-tint text-ink' },
+    { icon: Accessibility, t: t('screening.guidance.lifestyleCare'), b: g[0], tag: t('screening.guidance.essential'), tagCls: 'bg-info-tint text-info', to: '/screening/lifestyle' },
+    { icon: Apple, t: t('screening.guidance.weightActivity'), b: g[1] ?? t('screening.guidance.weightActivityDesc'), tag: t('screening.guidance.weight.tag', { defaultValue: 'Guideline' }), tagCls: 'bg-tint text-ink', to: '/screening/weight' },
     { icon: AlertTriangle, t: t('screening.guidance.whenToVisitPHC'), b: g[g.length - 1], tag: t('screening.guidance.priority'), tagCls: 'bg-error-tint text-error-text' },
   ]
 

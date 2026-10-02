@@ -45,7 +45,7 @@ export default function Analysis() {
   if (!patient) return null
 
   const pct = error ? Math.round((done.length / ANALYSIS_STEPS.length) * 100) : finishing ? 100 : Math.min(96, Math.round(((done.length + 0.5) / ANALYSIS_STEPS.length) * 100))
-  const current = error ? t('screening.analysis.analysisStopped') : finishing ? t('screening.analysis.preparingResult') : t(`screening.analysis.steps.${ANALYSIS_STEPS.find(s => !done.includes(s.id))?.id}.label`) || (ANALYSIS_STEPS.find(s => !done.includes(s.id))?.label ?? t('screening.analysis.finalising'))
+  const current = error ? t('screening.analysis.analysisStopped') : finishing ? t('screening.analysis.preparingResult') : t(`screening.analysis.steps.${ANALYSIS_STEPS.find(s => !done.includes(s.id))?.id}.label`, { defaultValue: ANALYSIS_STEPS.find(s => !done.includes(s.id))?.label ?? 'Finalising' })
   
   return (
     <Frame>
@@ -83,7 +83,7 @@ export default function Analysis() {
                   <span className={cx('h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5', isDone ? 'bg-mint text-primary-dark' : active ? 'bg-primary text-white' : 'bg-tint text-muted')} aria-hidden>
                     {isDone ? (skipped ? <Minus size={15} strokeWidth={3} /> : <Check size={15} strokeWidth={3} />) : active ? <span className="spin inline-block h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent" /> : <span className="h-2 w-2 rounded-full bg-muted" />}
                   </span>
-                  <span className="flex-1 min-w-0"><span className={cx('block text-[15px] font-bold', !isDone && !active && 'text-secondary')}>{t(`screening.analysis.steps.${st.id}.label`) || st.label}</span><span className="block text-[12px] text-secondary">{t(`screening.analysis.steps.${st.id}.sub${skipped ? 'Skipped' : ''}`) || ''}</span></span>
+                  <span className="flex-1 min-w-0"><span className={cx('block text-[15px] font-bold', !isDone && !active && 'text-secondary')}>{t(`screening.analysis.steps.${st.id}.label`, { defaultValue: st.label })}</span><span className="block text-[12px] text-secondary">{t(`screening.analysis.steps.${st.id}.sub${skipped ? 'Skipped' : ''}`, { defaultValue: skipped ? 'Skipped' : (isDone ? 'Completed' : '') })}</span></span>
                   <span className={cx('text-[12px] font-semibold shrink-0', isDone ? 'text-primary' : active ? 'text-primary' : 'text-muted')}>{isDone ? (skipped ? t('screening.analysis.skipped') : t('screening.analysis.completed')) : active ? t('screening.analysis.activeStatus') : t('screening.analysis.pending')}</span>
                 </li>
               )
