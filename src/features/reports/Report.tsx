@@ -49,7 +49,7 @@ export default function Report() {
     s: p.sex,
     j: rec.joint,
     sd: rec.side,
-    d: rec.date,
+    d: rec.createdAt,
     rb: rec.result.band,
     w: workerName,
     phc: p.phc,

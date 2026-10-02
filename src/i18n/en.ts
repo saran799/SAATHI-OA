@@ -451,12 +451,12 @@ export default {
       seated: "Patient is seated",
       startCalib: "Start calibration",
       retryCalib: "Retry calibration",
-      continueWithout: "Continue without sensor",
+
       calibratingBtn: "Calibrating…",
-      startMovement: "Start movement assessment",
-      holdStill: "Hold still…",
+
+
       calibrated: "Sensor calibrated",
-      failedTitle: "Calibration failed",
+
       failedBody: "The sensor moved during setup. Ask the patient to keep the joint completely still, then retry.",
       demoFail: "Demo: simulate calibration failure",
     },
@@ -546,11 +546,11 @@ export default {
       processedOnDevice: "Processed on-device (demo) � Screening risk estimation only, not a diagnosis.",
       title: "Movement Assessment",
       engineLabel: "Screening engine · demo",
-      analysing: "Analysing Data…",
+
       notFinish: "Analysis could not finish",
       saved: "Your screening data is saved on this device.",
       wait: "Please wait while the screening model processes the results.",
-      currentRoutine: "Current routine",
+
       live: "Live",
       pipeline: "Screening pipeline",
       stepOf: "Step {{current}} of {{total}}",
@@ -579,10 +579,10 @@ export default {
         risk: "Combining factors into a screening risk band",
       },
       preparing: "Preparing screening result…",
-      finalising: "Finalising",
+
       failedTitle: "Analysis failed",
       retry: "Retry analysis",
-      backToPatient: "Back to patient",
+
       demoFail: "Demo: simulate analysis failure",
       onDevice: "Processed on-device (demo) · Screening risk estimation only, not a diagnosis.",
       completed: "Completed",
