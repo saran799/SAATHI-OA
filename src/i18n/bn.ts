@@ -154,8 +154,10 @@ export default {
   },
   screening: {
     common: { stepOf: "ধাপ {{current}} / {{total}}", triageProtocol: "ট্রায়াজ প্রোটোকল", screeningProgress: "স্ক্রিনিং অগ্রগতি", triageActive: "ট্রায়াজ সক্রিয়", pairReady: "যুক্ত হতে প্রস্তুত", saved: "সংরক্ষিত", movementTestAvailable: "মুভমেন্ট টেস্ট উপলব্ধ", mostCommon: "সবচেয়ে সাধারণ", groinPain: "কুঁচকি বা উরু ব্যথা", fingerNodes: "আঙুল বা বৃদ্ধাঙ্গুলিতে", lowerBack: "ঘাড় বা পিঠের নিচে" },
-    joint: {\n
-      noSelection: "কোনো নির্বাচন নেই",\n      title: "মূল্যায়নের জন্য জয়েন্ট নির্বাচন করুন",
+    joint: {
+
+      noSelection: "কোনো নির্বাচন নেই",
+      title: "মূল্যায়নের জন্য জয়েন্ট নির্বাচন করুন",
       subtitle: "{{name}} এর জন্য স্ক্রিনিং। সবচেয়ে বেশি সমস্যার জয়েন্ট নির্বাচন করুন।",
       next: "পরবর্তী: ক্লিনিকাল মূল্যায়ন",
       whichSide: "কোন পাশ?",
@@ -217,7 +219,8 @@ export default {
       startAssessment: "মূল্যায়ন শুরু করুন",
       skip: "রোগী মুভমেন্ট করতে পারছে না — এই ধাপ এড়িয়ে যান",
     },
-    sensor: {\n
+    sensor: {
+
       pairingProg: "পেয়ার করা হচ্ছে...",
       connectBtn: "কানেক্ট করুন",
       signalStrength: "সিগন্যালের শক্তি",
@@ -225,7 +228,8 @@ export default {
       errorTitle: "কানেকশন ত্রুটি",
       errorDesc: "সেন্সরের সাথে কানেক্ট করা যায়নি। আবার চেষ্টা করুন।",
       ledCheck: "সেন্সরের LED নীল জ্বলছে কিনা চেক করুন।",
-      refreshDevices: "ডিভাইস রিফ্রেশ করুন",\n      barTitle: "মুভমেন্ট মূল্যায়ন",
+      refreshDevices: "ডিভাইস রিফ্রেশ করুন",
+      barTitle: "মুভমেন্ট মূল্যায়ন",
       title: "সেন্সর পেয়ারিং",
       subtitle: "পরিধানযোগ্য সেন্সর চালু করুন এবং ফোন থেকে ২ মিটারের মধ্যে রাখুন।",
             states: {
@@ -288,7 +292,8 @@ export default {
       failedBody: "সেটআপের সময় সেন্সর নড়েছে। রোগীকে জয়েন্ট সম্পূর্ণ স্থির রাখতে বলুন, তারপর আবার চেষ্টা করুন।",
       demoFail: "ডেমো: ক্যালিব্রেশন ব্যর্থতা দেখান",
     },
-    assessment: {\n
+    assessment: {
+
       liveRecording: "লাইভ রেকর্ডিং",
       getReady: "প্রস্তুত হন",
       instructionText: "রোগীকে বলুন যখন আপনি 'গো' বলবেন তখন ধীরে ধীরে নড়াচড়া শুরু করতে।",
@@ -302,7 +307,8 @@ export default {
       discardRestart: "বাদ দিন এবং আবার পরীক্ষা করুন",
       demoNoMovement: "ডেমো: কোন নড়াচড়া নেই",
       exitScreening: "স্ক্রিনিং থেকে প্রস্থান করুন",
-      movementRecorded: "নড়াচড়া রেকর্ড করা হয়েছে। বিশ্লেষণ প্রস্তুত করা হচ্ছে…",\n      title: "মুভমেন্ট মূল্যায়ন",
+      movementRecorded: "নড়াচড়া রেকর্ড করা হয়েছে। বিশ্লেষণ প্রস্তুত করা হচ্ছে…",
+      title: "মুভমেন্ট মূল্যায়ন",
       live: "লাইভ রেকর্ডিং",
       ready: "প্রস্তুত হন",
       complete: "সম্পন্ন",
@@ -393,9 +399,11 @@ export default {
       active: "সক্রিয়",
       pending: "মুলতুবি",
     },
-    result: {\n
+    result: {
+
       viewDetailedReport: "বিস্তারিত রিপোর্ট দেখুন",
-      notRequired: "প্রয়োজন নেই",\n      barTitle: "স্ক্রিনিং ফলাফল সারাংশ",
+      notRequired: "প্রয়োজন নেই",
+      barTitle: "স্ক্রিনিং ফলাফল সারাংশ",
       finalised: "মূল্যায়ন চূড়ান্ত",
       complete: "{{joint}} স্ক্রিনিং সম্পন্ন",
       symptomsAndSensor: "উপসর্গ এবং সেন্সর মুভমেন্ট বিশ্লেষণ",
@@ -442,7 +450,8 @@ export default {
         noFactors: "কোনো প্রধান অবদানকারী কারণ নেই",
       },
     },
-    guidance: {\n
+    guidance: {
+
       recommendedExercises: "প্রস্তাবিত ব্যায়াম",
       exercisesDesc: "জয়েন্টের কার্যকারিতা বজায় রাখতে এবং ব্যথা কমাতে সহজ ব্যায়াম।",
       lifestyleCare: "জীবনধারা যত্ন",
@@ -455,7 +464,8 @@ export default {
       copiedAlert: "ক্লিপবোর্ডে কপি করা হয়েছে",
       shareBtn: "WhatsApp এর মাধ্যমে শেয়ার করুন",
       personalisedGuidelines: "ব্যক্তিগত নির্দেশিকা",
-      printBooklet: "বুকলেট প্রিন্ট করুন",\n      barTitle: "স্ক্রিনিং পরবর্তী নির্দেশনা",
+      printBooklet: "বুকলেট প্রিন্ট করুন",
+      barTitle: "স্ক্রিনিং পরবর্তী নির্দেশনা",
       ready: "প্রস্তুত",
       personalised: "ব্যক্তিগত নির্দেশিকা",
       actionable: "{{band}} এর জন্য উপযোগী যত্নের পদক্ষেপ",
@@ -477,8 +487,10 @@ export default {
         higher: ["তীব্র ব্যথা বাড়ায় এমন কার্যকলাপ সীমিত করুন।", "অস্থির হলে বিপরীত পাশে লাঠি ব্যবহার করুন।", "ক্লিনিকাল ভিজিটের আগে নতুন কঠিন ব্যায়াম শুরু করবেন না।", "জয়েন্ট গরম, লাল বা হঠাৎ ফুলে গেলে দ্রুত যত্ন নিন।"],
       },
     },
-    exercises: {\n
-      easy: "সহজ",\n      title: "প্রস্তাবিত ব্যায়াম",
+    exercises: {
+
+      easy: "সহজ",
+      title: "প্রস্তাবিত ব্যায়াম",
       subtitle: "প্রতিটি দেখান এবং ব্যাখ্যা করুন। দিনে ১–২টি দিয়ে শুরু করুন।",
       barTitle: "স্ক্রিনিং পরবর্তী নির্দেশনা",
       daily: "প্রতিদিন ১৫ মিনিট",

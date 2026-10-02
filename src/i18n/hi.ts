@@ -161,8 +161,10 @@ export default {
   },
   screening: {
     common: { stepOf: "चरण {{current}} / {{total}}", triageProtocol: "ट्रायज प्रोटोकॉल", screeningProgress: "स्क्रीनिंग प्रगति", triageActive: "ट्रायज सक्रिय", pairReady: "जोड़ने के लिए तैयार", saved: "सहेजा गया", movementTestAvailable: "मूवमेंट टेस्ट उपलब्ध", mostCommon: "सबसे आम", groinPain: "कमर या जांघ दर्द", fingerNodes: "उंगलियों या अंगूठे में", lowerBack: "गर्दन या पीठ के निचले हिस्से में" },
-    joint: {\n
-      noSelection: "कोई चयन नहीं",\n      title: "जाँच के लिए जोड़ चुनें",
+    joint: {
+
+      noSelection: "कोई चयन नहीं",
+      title: "जाँच के लिए जोड़ चुनें",
       subtitle: "{{name}} के लिए स्क्रीनिंग। सबसे अधिक परेशानी वाले जोड़ को चुनें।",
       next: "आगे: क्लिनिकल असेसमेंट",
       whichSide: "कौन सी साइड?",
@@ -224,7 +226,8 @@ export default {
       startAssessment: "असेसमेंट शुरू करें",
       skip: "मरीज़ मूवमेंट नहीं कर सकता — यह चरण छोड़ें",
     },
-    sensor: {\n
+    sensor: {
+
       pairingProg: "पेयर हो रहा है...",
       connectBtn: "कनेक्ट करें",
       signalStrength: "सिग्नल स्ट्रेंथ",
@@ -232,7 +235,8 @@ export default {
       errorTitle: "कनेक्शन त्रुटि",
       errorDesc: "सेंसर से कनेक्ट नहीं हो सका। कृपया पुनः प्रयास करें।",
       ledCheck: "जांचें कि सेंसर LED नीले रंग में झपक रही है।",
-      refreshDevices: "डिवाइस रिफ्रेश करें",\n      barTitle: "मूवमेंट असेसमेंट",
+      refreshDevices: "डिवाइस रिफ्रेश करें",
+      barTitle: "मूवमेंट असेसमेंट",
       title: "सेंसर पेयरिंग",
       subtitle: "वियरेबल सेंसर चालू करें और फोन से 2 मीटर के भीतर रखें।",
             states: {
@@ -295,7 +299,8 @@ export default {
       failedBody: "सेटअप के दौरान सेंसर हिला। मरीज़ को जोड़ पूरी तरह स्थिर रखने के लिए कहें, फिर पुनः प्रयास करें।",
       demoFail: "डेमो: कैलिब्रेशन विफलता दिखाएं",
     },
-    assessment: {\n
+    assessment: {
+
       liveRecording: "लाइव रिकॉर्डिंग",
       getReady: "तैयार हो जाएं",
       instructionText: "मरीज़ से कहें कि जब आप 'गो' कहें तो धीरे-धीरे हिलना शुरू करें।",
@@ -309,7 +314,8 @@ export default {
       discardRestart: "छोड़ें और फिर से टेस्ट करें",
       demoNoMovement: "डेमो: कोई मूवमेंट नहीं",
       exitScreening: "स्क्रीनिंग से बाहर निकलें",
-      movementRecorded: "मूवमेंट रिकॉर्ड किया गया। विश्लेषण तैयार कर रहा है…",\n      title: "मूवमेंट असेसमेंट",
+      movementRecorded: "मूवमेंट रिकॉर्ड किया गया। विश्लेषण तैयार कर रहा है…",
+      title: "मूवमेंट असेसमेंट",
       live: "लाइव रिकॉर्डिंग",
       ready: "तैयार हो जाएं",
       complete: "पूरा",
@@ -400,9 +406,11 @@ export default {
       active: "सक्रिय",
       pending: "लंबित",
     },
-    result: {\n
+    result: {
+
       viewDetailedReport: "विस्तृत रिपोर्ट देखें",
-      notRequired: "आवश्यक नहीं",\n      barTitle: "स्क्रीनिंग परिणाम सारांश",
+      notRequired: "आवश्यक नहीं",
+      barTitle: "स्क्रीनिंग परिणाम सारांश",
       finalised: "मूल्यांकन अंतिम",
       complete: "{{joint}} स्क्रीनिंग पूरी",
       symptomsAndSensor: "लक्षण और सेंसर मूवमेंट विश्लेषण",
@@ -449,7 +457,8 @@ export default {
         noFactors: "कोई प्रमुख योगदान कारक नहीं",
       },
     },
-    guidance: {\n
+    guidance: {
+
       recommendedExercises: "अनुशंसित व्यायाम",
       exercisesDesc: "जोड़ों की कार्यक्षमता बनाए रखने और दर्द कम करने के लिए सरल व्यायाम।",
       lifestyleCare: "जीवनशैली की देखभाल",
@@ -462,7 +471,8 @@ export default {
       copiedAlert: "क्लिपबोर्ड पर कॉपी किया गया",
       shareBtn: "WhatsApp के माध्यम से साझा करें",
       personalisedGuidelines: "व्यक्तिगत दिशानिर्देश",
-      printBooklet: "बुकलेट प्रिंट करें",\n      barTitle: "स्क्रीनिंग के बाद मार्गदर्शन",
+      printBooklet: "बुकलेट प्रिंट करें",
+      barTitle: "स्क्रीनिंग के बाद मार्गदर्शन",
       ready: "तैयार",
       personalised: "व्यक्तिगत दिशानिर्देश",
       actionable: "{{band}} के लिए अनुकूल देखभाल कदम",
@@ -484,8 +494,10 @@ export default {
         higher: ["तेज़ दर्द बढ़ाने वाली गतिविधियाँ सीमित करें।", "यदि अस्थिर हो तो विपरीत साइड पर छड़ी का उपयोग करें।", "क्लिनिकल विजिट से पहले नया कठिन व्यायाम शुरू न करें।", "यदि जोड़ गर्म, लाल या अचानक सूजा हो तो जल्दी देखभाल लें।"],
       },
     },
-    exercises: {\n
-      easy: "आसान",\n      title: "अनुशंसित व्यायाम",
+    exercises: {
+
+      easy: "आसान",
+      title: "अनुशंसित व्यायाम",
       subtitle: "प्रत्येक को दिखाएं और समझाएं। दिन में 1–2 से शुरू करें।",
       barTitle: "स्क्रीनिंग के बाद मार्गदर्शन",
       daily: "रोज़ 15 मिनट",
