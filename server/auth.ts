@@ -49,4 +49,26 @@ router.post('/login', async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+router.post('/change-password', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { username, newPassword } = req.body;
+    if (!username || !newPassword) {
+      return res.status(400).json({ error: 'Missing username or newPassword' });
+    }
+    const worker = await prisma.worker.findUnique({ where: { username } });
+    if (!worker) {
+      return res.status(404).json({ error: 'Worker not found' });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.worker.update({
+      where: { username },
+      data: { passwordHash: hashedPassword }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

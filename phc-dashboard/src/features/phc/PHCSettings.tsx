@@ -1,7 +1,8 @@
 import { WideShell } from '../../components/layout/WideShell'
 import { useAuth } from '../../store/authStore'
 import { useNavigate } from 'react-router-dom'
-import { UserCircle, LogOut } from 'lucide-react'
+import { UserCircle, LogOut, Lock } from 'lucide-react'
+import { phcApi } from '../../services/phcApi'
 
 export default function PHCSettings() {
   const { user, logout } = useAuth()
@@ -33,6 +34,25 @@ export default function PHCSettings() {
                  {user?.role || 'Unknown'}
                </div>
              </div>
+          </div>
+          
+          <div className="space-y-4 pt-4 border-t border-border mt-4">
+             <button onClick={async () => {
+               if (!user?.username) return;
+               const pwd = window.prompt('Enter new password:');
+               if (!pwd) return;
+               try {
+                 await phcApi.changePassword(user.username, pwd);
+                 alert('Password updated successfully.');
+               } catch (err) {
+                 alert('Failed to update password.');
+               }
+             }} className="w-full flex items-center justify-between p-3 rounded-[12px] border border-border hover:bg-gray-50 transition-colors">
+               <div className="flex items-center gap-3 text-ink">
+                 <div className="h-10 w-10 bg-tint rounded-[8px] flex items-center justify-center text-primary"><Lock size={18} /></div>
+                 <span className="font-semibold text-[14px]">Change Password</span>
+               </div>
+             </button>
           </div>
         </div>
 

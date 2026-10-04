@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
-import { User, Search, Filter } from 'lucide-react'
+import { User, Search, Filter, Lock } from 'lucide-react'
 import { EmptyState, LoadingState } from '../../components/ui'
+import { phcApi } from '../../services/phcApi'
 
 export default function PHCWorkers() {
   const { workers, loading, fetchWorkers } = usePHC()
@@ -57,7 +58,21 @@ export default function PHCWorkers() {
                     </td>
                     <td className="px-5 py-4 text-[14px] text-secondary font-medium">{w.username}</td>
                     <td className="px-5 py-4 text-[14px] text-secondary">{new Date(w.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-4 text-[14px] text-ink font-semibold text-right">{w._count?.records || 0}</td>
+                    <td className="px-5 py-4 text-[14px] text-ink font-semibold text-right flex items-center justify-end gap-4">
+                      <span>{w._count?.records || 0}</span>
+                      <button onClick={async () => {
+                        const pwd = window.prompt(`Enter new password for ${w.username}:`);
+                        if (!pwd) return;
+                        try {
+                          await phcApi.changePassword(w.username, pwd);
+                          alert('Password updated successfully.');
+                        } catch (err) {
+                          alert('Failed to update password.');
+                        }
+                      }} className="text-[13px] font-semibold text-primary hover:text-primary-dark transition-colors p-2 rounded-[8px] border border-primary/20 bg-mint/30 hover:bg-mint/60 opacity-0 group-hover:opacity-100 flex items-center gap-1" title="Change Password">
+                         <Lock size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

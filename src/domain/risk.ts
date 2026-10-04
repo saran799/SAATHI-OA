@@ -12,7 +12,7 @@
  * NOT medically validated — for demonstration/screening only.
  */
 import { QUESTIONS } from './questions'
-import type { Answers, MovementSummary, Patient, RiskBand, RiskResult } from './types'
+import type { Answers, CameraRom, MovementSummary, Patient, RiskBand, RiskResult } from './types'
 import modelWeights from './model_weights.json'
 
 export const RISK_META: Record<RiskBand, { label: string; short: string; summary: string; tone: 'success' | 'warning' | 'error'; followUpDays: number }> = {
@@ -73,7 +73,7 @@ const mlModel = new TrainedMLP(modelWeights as LayerWeights[])
 
 // ── Feature Extraction & Risk Estimation ──
 
-export function estimateRisk(patient: Patient, answers: Answers, movement: MovementSummary | null): RiskResult {
+export function estimateRisk(patient: Patient, answers: Answers, movement: MovementSummary | null, cameraRom: CameraRom | null = null): RiskResult {
   const factors: { label: string; weight: number }[] = []
 
   // Extract & normalize questionnaire features (0–1)
@@ -103,9 +103,24 @@ export function estimateRisk(patient: Patient, answers: Answers, movement: Movem
     factors.push({ label: 'Hardware Sensor Risk', weight: hwVal * 3 })
   }
 
-  // Extract movement features
-  const romNorm = movement ? Math.max(0, Math.min(1, (movement.rangeOfMotionDeg - 20) / 130)) : 0.5
-  const smoothness = movement ? movement.smoothness : 0.5
+  // Extract movement features — camera (MediaPipe pose) ROM is preferred, fused with sensor if both exist
+  const sensorOk = !!movement?.performed
+  const camOk = !!cameraRom && cameraRom.rangeOfMotionDeg > 0
+  let romDeg: number | null = null
+  let smoothness = 0.5
+  let romSource: 'camera' | 'sensor' | 'fused' | 'none' = 'none'
+  if (camOk && sensorOk) {
+    romDeg = 0.6 * cameraRom!.rangeOfMotionDeg + 0.4 * movement!.rangeOfMotionDeg
+    smoothness = 0.6 * cameraRom!.smoothness + 0.4 * movement!.smoothness
+    romSource = 'fused'
+  } else if (camOk) {
+    romDeg = cameraRom!.rangeOfMotionDeg; smoothness = cameraRom!.smoothness; romSource = 'camera'
+  } else if (sensorOk) {
+    romDeg = movement!.rangeOfMotionDeg; smoothness = movement!.smoothness; romSource = 'sensor'
+  }
+  const romNorm = romDeg !== null ? Math.max(0, Math.min(1, (romDeg - 20) / 130)) : 0.5
+  if (romDeg !== null && romDeg < 90) factors.push({ label: `Reduced range of motion (${Math.round(romDeg)}°)`, weight: (90 - romDeg) / 20 })
+  if (romDeg !== null && smoothness < 0.5) factors.push({ label: 'Uneven movement pattern', weight: (1 - smoothness) * 3 })
 
   // Build 13-feature vector (must match training order exactly)
   const features: number[] = [
@@ -140,5 +155,15 @@ export function estimateRisk(patient: Patient, answers: Answers, movement: Movem
     : band === 'moderate' ? 'Advise a PHC visit for clinical evaluation. Begin gentle joint exercises.'
     : 'Share joint-care advice and re-screen in 6 months or if symptoms change.'
 
-  return { band, score, factors: top.length ? top : ['No major contributing factors reported'], recommendedAction }
+  return {
+    band, score, factors: top.length ? top : ['No major contributing factors reported'], recommendedAction,
+    model: {
+      type: 'mlp',
+      architecture: '13 → 32 → 16 → 3 (ReLU, Softmax)',
+      probs: { low: probs[0], moderate: probs[1], higher: probs[2] },
+      confidence: probs[classIndex],
+      romSource,
+      romDeg: romDeg !== null ? Math.round(romDeg) : null,
+    },
+  }
 }

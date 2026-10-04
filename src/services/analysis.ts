@@ -2,7 +2,15 @@
  * Simulated AI analysis pipeline. Replace `runAnalysis` with a backend call later.
  */
 import { estimateRisk } from '../domain/risk'
-import type { Answers, MovementSummary, Patient, RiskResult } from '../domain/types'
+import type { Answers, CameraRom, MovementSummary, Patient, RiskResult, TestResult } from '../domain/types'
+
+/** Pull the MediaPipe ROM measurement out of the camera test results (if captured). */
+export function cameraRomFromTests(tests: TestResult[] | undefined): CameraRom | null {
+  const rom = tests?.find(t => t.testId === 'rom' && t.status === 'VALID')
+  const m = rom?.measurements
+  if (!m?.performed || !Number.isFinite(m.rangeOfMotionDeg)) return null
+  return { rangeOfMotionDeg: m.rangeOfMotionDeg, smoothness: Number.isFinite(m.smoothness) ? m.smoothness : 0.5 }
+}
 
 export type AnalysisStep = 'patient' | 'symptoms' | 'movement' | 'risk'
 export const ANALYSIS_STEPS: { id: AnalysisStep; label: string }[] = [
@@ -17,7 +25,7 @@ export function runAnalysis(
   onStep: (done: AnalysisStep[]) => void,
   onComplete: (r: RiskResult) => void,
   onError: (msg: string) => void,
-  opts?: { fail?: boolean },
+  opts?: { fail?: boolean; tests?: TestResult[] },
 ) {
   let cancelled = false
   const done: AnalysisStep[] = []
@@ -30,6 +38,6 @@ export function runAnalysis(
     if (opts?.fail) { onError('Analysis could not be completed. Your screening data is saved.'); return }
     done.push('risk'); onStep([...done])
   })
-  schedule(4200, () => onComplete(estimateRisk(patient, answers, movement)))
+  schedule(4200, () => onComplete(estimateRisk(patient, answers, movement, cameraRomFromTests(opts?.tests))))
   return () => { cancelled = true; timers.forEach(clearTimeout) }
 }

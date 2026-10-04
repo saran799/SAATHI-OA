@@ -63,6 +63,15 @@ export const api = {
     return res.json()
   },
 
+  async changePassword(username: string, newPassword: string): Promise<{ success: boolean }> {
+    const res = await fetchWithTimeout(`${API_URL}/api/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, newPassword })
+    })
+    return res.json()
+  },
+
   async syncPatients(patients: Patient[]): Promise<{ synced: string[], failed: string[] }> {
     const token = getAuthToken()
     if (!token) throw new ApiError(401, 'Unauthorized')

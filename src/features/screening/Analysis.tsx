@@ -36,10 +36,10 @@ export default function Analysis() {
         count = records.filter(x => x.followUpDate && x.followUpDate.split('T')[0] === followUpDateStr.split('T')[0]).length
       }
 
-      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, tests: [], result: r, createdAt: now, workerName, sync: 'unsynced' as const, followUpDate: followUpDateStr }
+      const rec = { id: uid('S'), patientId: patient.id, joint: session.joint!, side: session.side, answers: session.answers, movement: session.movement, tests: session.tests, result: r, createdAt: now, workerName, sync: 'unsynced' as const, followUpDate: followUpDateStr }
       addRecord(rec); session.setResult(r, rec.id)
       setTimeout(() => nav('/screening/result', { replace: true }), 900)
-    }, setError, { fail })
+    }, setError, { fail, tests: session.tests })
   }
   useEffect(() => { run(); return () => cancel.current?.() }, []) // eslint-disable-line
   if (!patient) return null

@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { Activity, ChevronRight, FileText, Phone, MapPin } from 'lucide-react'
+import { Activity, ChevronRight, FileText, Phone, MapPin, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { FlowShell } from '../../components/layout/Shells'
 import { Avatar, Button, Card, Chip, Row, SectionTitle } from '../../components/ui'
 import { useApp } from '../../store/appStore'
@@ -21,6 +21,44 @@ export default function PatientProfile() {
   const occIdx = OCCUPATIONS.indexOf(p.occupation)
   const occTranslated = occIdx >= 0 ? tArray('patients.form.occupations')[occIdx] : p.occupation
 
+  const getPhcColors = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    const hue = Math.abs(hash % 40) + 150; // Emerald/teal range
+    return { bg: `hsl(${hue}, 70%, 94%)`, text: `hsl(${hue}, 90%, 25%)` };
+  };
+  const phcColors = getPhcColors(p.phc);
+
+  const groupedHist: Record<string, typeof hist> = {};
+  hist.forEach(r => {
+    const key = `${r.joint}-${r.side}`;
+    if (!groupedHist[key]) groupedHist[key] = [];
+    groupedHist[key].push(r);
+  });
+
+  const getProgress = (records: typeof hist) => {
+    if (records.length < 2) return null;
+    const latest = records[0];
+    const previous = records[1];
+    
+    const latestScore = latest.movement?.performed ? latest.movement.rangeOfMotionDeg : null;
+    const prevScore = previous.movement?.performed ? previous.movement.rangeOfMotionDeg : null;
+    
+    if (latestScore && prevScore) {
+      const diff = latestScore - prevScore;
+      if (diff >= 5) return { text: `Improved ROM by ${diff}°`, positive: true, icon: TrendingUp };
+      if (diff <= -5) return { text: `Decreased ROM by ${Math.abs(diff)}°`, positive: false, icon: TrendingDown };
+      return { text: 'Stable range of motion', positive: true, icon: Minus };
+    }
+    
+    const riskScores = { low: 1, moderate: 2, higher: 3 };
+    const latestRisk = riskScores[latest.result.band];
+    const prevRisk = riskScores[previous.result.band];
+    if (latestRisk < prevRisk) return { text: 'Risk level decreased', positive: true, icon: TrendingUp };
+    if (latestRisk > prevRisk) return { text: 'Risk level increased', positive: false, icon: TrendingDown };
+    return { text: 'Stable condition', positive: true, icon: Minus };
+  };
+
   return (
     <FlowShell title={t('patients.profile.title')} barTitle={t('patients.search.title')} back="/patients"
       footer={<Button full icon={Activity} onClick={() => { start(p.id); nav('/screening/joint') }}>{t('patients.profile.startScreening')}</Button>}>
@@ -38,13 +76,40 @@ export default function PatientProfile() {
 
       <div className="mt-6"><SectionTitle>{t('patients.profile.healthBg')}</SectionTitle>
         <Card className="px-4 py-1.5">
-          <Row label={t('patients.profile.phc')} value={p.phc} />
+          <Row label={t('patients.profile.phc')} value={<span className="px-2.5 py-0.5 rounded-md font-bold text-[13px]" style={{ backgroundColor: phcColors.bg, color: phcColors.text }}>{p.phc}</span>} />
           {bmi && <Row label={t('patients.profile.heightWeight')} value={`${p.heightCm} cm · ${p.weightKg} kg (${t('patients.profile.bmi', { bmi })})`} />}
           <Row label={t('patients.profile.occupation')} value={occTranslated || p.occupation} />
-          <Row label={t('patients.profile.prevInjury')} value={p.priorInjury ? t('common.yes') : t('common.no')} />
-          <Row label={t('patients.profile.familyHistory')} value={p.familyHistory ? t('common.yes') : t('common.no')} />
+          <Row label={t('patients.profile.prevInjury')} value={p.priorInjury ? <Check size={20} className="text-primary" /> : <span className="text-secondary">—</span>} />
+          <Row label={t('patients.profile.familyHistory')} value={p.familyHistory ? <Check size={20} className="text-primary" /> : <span className="text-secondary">—</span>} />
           {p.healthId && <Row label={t('patients.profile.healthId')} value={p.healthId} />}
         </Card>
+      </div>
+
+      <div className="mt-6"><SectionTitle>Progress & Improvements</SectionTitle>
+        {Object.entries(groupedHist).filter(([_, records]) => records.length >= 2).length === 0 ? (
+          <Card className="p-4 text-sm text-secondary">Not enough data to show progress. Complete more screenings.</Card>
+        ) : (
+          <div className="space-y-2.5">
+            {Object.entries(groupedHist)
+              .filter(([_, records]) => records.length >= 2)
+              .map(([key, records]) => {
+                const prog = getProgress(records);
+                if (!prog) return null;
+                const Icon = prog.icon;
+                return (
+                  <Card key={key} className="p-3.5 flex items-center gap-3">
+                    <span className={cx("h-10 w-10 rounded-[10px] flex items-center justify-center", prog.positive ? "bg-mint text-primary-dark" : "bg-error-tint text-error-text")}>
+                      <Icon size={20} aria-hidden />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-[15px]">{jointName(records[0].joint, records[0].side, t)}</p>
+                      <p className={cx("text-[13px] font-medium", prog.positive ? "text-primary" : "text-error-text")}>{prog.text}</p>
+                    </div>
+                  </Card>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       <div className="mt-6"><SectionTitle>{t('patients.profile.screeningHistory')}</SectionTitle>

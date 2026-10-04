@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, ArrowRight, ChevronRight, Users, FileText, ShieldPlus, RefreshCw } from 'lucide-react'
+import { UserPlus, ArrowRight, ChevronRight, Users, FileText, ShieldPlus, RefreshCw, BarChart3 } from 'lucide-react'
 import { AppShell, useSyncModel } from '../../components/layout/Shells'
 import { IconTile, cx } from '../../components/ui'
 import { useApp } from '../../store/appStore'
@@ -21,6 +21,7 @@ export default function Dashboard() {
     { icon: Users, label: t('dashboard.menu.patients'), to: '/patients' },
     { icon: FileText, label: t('dashboard.menu.viewReports'), to: '/records' },
     { icon: ShieldPlus, label: t('dashboard.menu.awareness'), to: '/awareness' },
+    { icon: BarChart3, label: t('dashboard.menu.analytics') || 'Analytics', to: '/dashboard/analytics' },
   ]
 
   return (
@@ -54,7 +55,7 @@ export default function Dashboard() {
           </button>
         ))}
         <button type="button" onClick={() => clickable ? start() : nav('/settings')} className="w-full card p-3 pr-4 flex items-center gap-4 text-left hover:bg-tint/40 transition-colors min-h-[72px]">
-          <IconTile icon={RefreshCw} size={44} iconSize={22} className={cx(syncStatus === 'syncing' && '[&>svg]:spin')} />
+          <IconTile icon={RefreshCw} size={44} iconSize={22} className={cx(syncStatus === 'syncing' && '[&>svg]:animate-spin')} />
           <span className="flex-1 text-[17px] font-semibold">{t('dashboard.menu.sync')}</span>
           {syncStatus === 'offline' ? <span className="h-7 px-2.5 rounded-full bg-warning-tint text-warning-text text-[12px] font-semibold inline-flex items-center">{t('dashboard.sync.offline')}</span>
             : syncStatus === 'failed' ? <span className="h-7 px-2.5 rounded-full bg-error-tint text-error-text text-[12px] font-semibold inline-flex items-center">{t('dashboard.sync.failedRetry')}</span>

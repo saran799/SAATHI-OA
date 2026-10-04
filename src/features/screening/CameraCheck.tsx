@@ -86,6 +86,8 @@ export default function Assessment() {
   const [elapsed, setElapsed] = useState(0)
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false)
   const [testResult, setTestResult] = useState<TestResult | null>(null)
+  const [liveAngle, setLiveAngle] = useState<{ angle: number; min: number; max: number } | null>(null)
+  const lastAngleUiRef = useRef<number>(0)
 
   // Refs for tracking loop execution without re-renders
   const poseModuleRef = useRef<PoseModule | null>(null)
@@ -262,6 +264,15 @@ export default function Assessment() {
               valid: true,
               landmarks: smoothedLms
             })
+
+            if (Number.isFinite(angle) && now - lastAngleUiRef.current > 150) {
+              lastAngleUiRef.current = now
+              setLiveAngle(prev => ({
+                angle,
+                min: prev ? Math.min(prev.min, angle) : angle,
+                max: prev ? Math.max(prev.max, angle) : angle,
+              }))
+            }
           }
           
           // Render tracking points on canvas
@@ -471,6 +482,7 @@ export default function Assessment() {
     if (phase === 'instruction' && !voice.isSpeaking) {
       startTimeRef.current = Date.now()
       realSamples.current = []
+      setLiveAngle(null)
       setPhase('recording')
     }
   }, [phase, voice.isSpeaking])
@@ -478,6 +490,7 @@ export default function Assessment() {
   const handleRetry = () => {
     setPhase('setup')
     setTestResult(null)
+    setLiveAngle(null)
     setElapsed(0)
     realSamples.current = []
     startTimeRef.current = 0
@@ -546,6 +559,23 @@ export default function Assessment() {
         width={720} height={1280} 
         className={cx("absolute inset-0 w-full h-full object-cover z-10 pointer-events-none", facingMode === 'user' ? 'scale-x-[-1]' : '')} 
       />
+
+      {/* Live ROM HUD (MediaPipe joint-angle measurement) */}
+      {phase === 'recording' && currentTest?.id === 'rom' && liveAngle && (
+        <div className="absolute top-3 left-3 right-3 z-20 flex gap-2 pointer-events-none">
+          <div className="flex-1 rounded-[14px] bg-ink/75 backdrop-blur px-3 py-2 text-white">
+            <p className="text-[10px] font-bold tracking-wider uppercase opacity-70">Joint angle</p>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none">{Math.round(liveAngle.angle)}°</p>
+          </div>
+          <div className="flex-1 rounded-[14px] bg-primary/85 backdrop-blur px-3 py-2 text-white">
+            <p className="text-[10px] font-bold tracking-wider uppercase opacity-80">Range of motion</p>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none">{Math.round(liveAngle.max - liveAngle.min)}°</p>
+            <div className="mt-1 h-1.5 rounded-full bg-white/25 overflow-hidden">
+              <div className="h-full bg-mint transition-all duration-200" style={{ width: `${Math.min(100, ((liveAngle.max - liveAngle.min) / 140) * 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Intro Overlay */}
       {phase === 'intro' && (

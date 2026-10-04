@@ -1,11 +1,12 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
-import { Calendar, Search, Filter } from 'lucide-react'
+import { Calendar, Search, Filter, Check } from 'lucide-react'
 import { EmptyState, LoadingState } from '../../components/ui'
 
 export default function PHCFollowUps() {
   const { followUps, loading, fetchFollowUps } = usePHC()
+  const [contacted, setContacted] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchFollowUps()
@@ -63,9 +64,13 @@ export default function PHCFollowUps() {
                       <td className="px-5 py-4 text-[14px] text-secondary font-medium">{r.patient?.phone || 'No phone'}</td>
                       <td className="px-5 py-4 text-[14px] text-ink">{r.worker?.name || 'Unknown'}</td>
                       <td className="px-5 py-4 text-right">
-                        <button className="text-[13px] font-semibold text-primary hover:text-primary-dark transition-colors px-3 py-1.5 rounded-[8px] border border-primary/20 bg-mint/30 hover:bg-mint/60 opacity-0 group-hover:opacity-100">
-                          Mark Contacted
-                        </button>
+                        {contacted[r.id] ? (
+                          <span className="text-[13px] font-semibold text-success flex items-center justify-end gap-1"><Check size={16} /> Contacted</span>
+                        ) : (
+                          <button onClick={() => setContacted(prev => ({ ...prev, [r.id]: true }))} className="text-[13px] font-semibold text-primary hover:text-primary-dark transition-colors px-3 py-1.5 rounded-[8px] border border-primary/20 bg-mint/30 hover:bg-mint/60 opacity-0 group-hover:opacity-100">
+                            Mark Contacted
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )

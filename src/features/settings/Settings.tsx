@@ -5,6 +5,7 @@ import { Avatar, Button, IconTile, Toggle, cx } from '../../components/ui'
 import { useApp } from '../../store/appStore'
 import { LANGUAGES } from '../../domain/copy'
 import { useT } from '../../i18n'
+import { api } from '../../services/api'
 
 function RowLink({ icon: Icon, label, value, onClick }: { icon: typeof User; label: string; value?: string; onClick: () => void }) {
   return <button type="button" onClick={onClick} className="w-full min-h-[60px] px-3 flex items-center gap-3 text-left border-b border-tint last:border-0"><IconTile icon={Icon} size={40} iconSize={20} /><span className="flex-1 text-[15px] font-semibold">{label}</span>{value && <span className="text-[13px] text-secondary">{value}</span>}<ChevronRight size={18} className="text-secondary" aria-hidden /></button>
@@ -77,6 +78,16 @@ export default function Settings() {
         <h2 className="text-[13px] font-bold tracking-wider uppercase text-secondary mb-2 px-1">{t('settings.account')}</h2>
         <div className="card p-3 flex items-center gap-3 mb-2"><Avatar name={workerName} size={44} /><div><p className="font-bold">{workerName}</p><p className="text-[13px] text-secondary">{t('settings.workerRole')}</p></div></div>
         <div className="card">
+          <RowLink icon={Lock} label="Change Password" onClick={async () => {
+            const pwd = window.prompt('Enter new password (4-digit PIN for demo):');
+            if (!pwd) return;
+            try {
+              await api.changePassword(workerName, pwd);
+              alert('Password updated successfully.');
+            } catch (err) {
+              alert('Failed to update password.');
+            }
+          }} />
           <RowLink icon={Languages} label={t('settings.language')} value={lang?.native} onClick={() => nav('/settings/language')} />
           <RowLink icon={Bluetooth} label={t('settings.sensor')} value={t('settings.sensorValue')} onClick={() => alert(t('settings.sensorAlert'))} />
           <RowLink icon={Info} label={t('settings.about')} value={t('settings.aboutValue')} onClick={() => alert(t('settings.aboutAlert'))} />

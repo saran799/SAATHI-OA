@@ -12,6 +12,7 @@ import PHCSync from './features/phc/PHCSync'
 import PHCCommunity from './features/phc/PHCCommunity'
 import PHCSettings from './features/phc/PHCSettings'
 import PHCAnalytics from './features/phc/PHCAnalytics'
+import PHCPatientProfile from './features/phc/PHCPatientProfile'
 import Login from './features/auth/Login'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
   { path: '/dashboard', element: <ProtectedRoute><PHCDashboard /></ProtectedRoute> },
   { path: '/analytics', element: <ProtectedRoute><PHCAnalytics /></ProtectedRoute> },
   { path: '/patients', element: <ProtectedRoute><PHCPatients /></ProtectedRoute> },
+  { path: '/patients/:id', element: <ProtectedRoute><PHCPatientProfile /></ProtectedRoute> },
   { path: '/screenings', element: <ProtectedRoute><PHCScreenings /></ProtectedRoute> },
   { path: '/follow-ups', element: <ProtectedRoute><PHCFollowUps /></ProtectedRoute> },
   { path: '/workers', element: <ProtectedRoute><PHCWorkers /></ProtectedRoute> },

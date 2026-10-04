@@ -82,4 +82,19 @@ export interface RiskResult {
   score: number // internal only
   factors: string[]
   recommendedAction: string
+  /** Output of the on-device MLP (present for all new screenings) */
+  model?: {
+    type: 'mlp'
+    architecture: string
+    probs: { low: number; moderate: number; higher: number }
+    confidence: number // 0-1, probability of predicted class
+    romSource: 'camera' | 'sensor' | 'fused' | 'none'
+    romDeg: number | null
+  }
+}
+
+/** Camera-derived joint ROM (MediaPipe pose) fed into the ML model */
+export interface CameraRom {
+  rangeOfMotionDeg: number
+  smoothness: number // 0-1
 }

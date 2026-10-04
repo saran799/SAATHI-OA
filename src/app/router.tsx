@@ -3,6 +3,7 @@ import { useApp } from '../store/appStore'
 import Login from '../features/auth/Login'
 import Language from '../features/auth/Language'
 import Dashboard from '../features/dashboard/Dashboard'
+import AnalyticsDashboard from '../features/dashboard/Analytics'
 import PatientSearch from '../features/patients/PatientSearch'
 import PatientForm from '../features/patients/PatientForm'
 import PatientProfile from '../features/patients/PatientProfile'
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
   { element: <Protected />, children: [
     { path: '/', element: <Navigate to="/dashboard" replace /> },
     { path: '/dashboard', element: <Dashboard /> },
+    { path: '/dashboard/analytics', element: <AnalyticsDashboard /> },
     { path: '/patients', element: <PatientSearch /> },
     { path: '/patients/new', element: <PatientForm /> },
     { path: '/patients/:id', element: <PatientProfile /> },

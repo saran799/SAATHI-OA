@@ -20,7 +20,7 @@ export function Button({ variant = 'primary', size = 'lg', full, icon: Icon, loa
   }
   return (
     <button className={cx(base, sizes[size], variants[variant], full && 'w-full', className)} disabled={disabled || loading} {...rest}>
-      {loading ? <span className="spin inline-block h-5 w-5 rounded-full border-2 border-current border-t-transparent" aria-hidden /> : Icon && <Icon size={20} strokeWidth={2} aria-hidden />}
+      {loading ? <span className="animate-spin inline-block h-5 w-5 rounded-full border-2 border-current border-t-transparent" aria-hidden /> : Icon && <Icon size={20} strokeWidth={2} aria-hidden />}
       {children}
     </button>
   )
@@ -201,7 +201,7 @@ export function EmptyState({ icon: Icon, title, body, action, compact }: { icon:
 export function LoadingState({ message = 'Loading data...', compact }: { message?: string, compact?: boolean }) {
   return (
     <div className={cx("flex flex-col items-center justify-center text-center w-full", compact ? "py-8 px-4" : "py-16 px-6")}>
-      <div className="spin inline-block h-8 w-8 rounded-full border-[3px] border-border border-t-primary mb-4" aria-hidden />
+      <div className="animate-spin inline-block h-8 w-8 rounded-full border-[3px] border-border border-t-primary mb-4" aria-hidden />
       <p className="text-[14px] font-medium text-secondary">{message}</p>
     </div>
   )

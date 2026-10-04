@@ -3,9 +3,11 @@ import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
 import { Activity, Search, Filter } from 'lucide-react'
 import { EmptyState, LoadingState, cx } from '../../components/ui'
+import { useNavigate } from 'react-router-dom'
 
 export default function PHCScreenings() {
   const { screenings, loading, fetchScreenings } = usePHC()
+  const nav = useNavigate()
 
   useEffect(() => {
     fetchScreenings()
@@ -67,7 +69,7 @@ export default function PHCScreenings() {
                     </td>
                     <td className="px-5 py-4 text-[14px] text-ink">{r.worker?.name || 'Unknown'}</td>
                     <td className="px-5 py-4 text-right">
-                       <button className="text-[13px] font-semibold text-primary hover:text-primary-dark opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button onClick={() => nav(`/reports/${r.id}`)} className="text-[13px] font-semibold text-primary hover:text-primary-dark opacity-0 group-hover:opacity-100 transition-opacity">
                          View Report
                        </button>
                     </td>

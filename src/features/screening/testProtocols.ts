@@ -31,8 +31,16 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
       const minAngle = valid.length > 0 ? Math.min(...valid.map(s => s.angle)) : 0
       const firstT = valid[0]?.t || 0
       const lastT = valid[valid.length - 1]?.t || 0
+      // Smoothness: 1 - normalised mean absolute 2nd derivative (jerk proxy) of the joint angle
+      const a = valid.map(s => s.angle as number).filter(Number.isFinite)
+      let jerk = 0
+      for (let i = 2; i < a.length; i++) jerk += Math.abs(a[i] - 2 * a[i - 1] + a[i - 2])
+      const smoothness = a.length > 2 ? Math.max(0, Math.min(1, 1 - (jerk / (a.length - 2)) / 6)) : 0
       return { 
-        rangeOfMotionDeg: maxAngle - minAngle, 
+        rangeOfMotionDeg: Math.round(maxAngle - minAngle), 
+        maxExtensionDeg: Math.round(maxAngle),
+        maxFlexionDeg: Math.round(minAngle),
+        smoothness: Number(smoothness.toFixed(2)),
         durationSec: (lastT - firstT) / 1000, 
         performed: valid.length >= 30 
       }
@@ -46,6 +54,9 @@ export const TEST_PROTOCOLS: TestDefinition[] = [
     workerResultFormatter: (result: any) => {
       return {
         movement: result.measurements?.performed ? 'Detected' : 'Not detected',
+        'range of motion': result.measurements?.performed ? `${result.measurements.rangeOfMotionDeg}°` : '—',
+        'joint angle range': result.measurements?.performed ? `${result.measurements.maxFlexionDeg}° – ${result.measurements.maxExtensionDeg}°` : '—',
+        smoothness: result.measurements?.performed ? `${Math.round((result.measurements.smoothness ?? 0) * 100)}%` : '—',
         quality: result.quality
       }
     },

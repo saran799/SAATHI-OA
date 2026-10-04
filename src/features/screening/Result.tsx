@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, FileText, CheckCircle2, IdCard, ShieldAlert, Info, Ruler, Footprints, Activity, Frown } from 'lucide-react'
+import { ArrowRight, FileText, CheckCircle2, IdCard, ShieldAlert, Info, Ruler, Footprints, Activity, Frown, Brain, Camera } from 'lucide-react'
 import { FlowShell } from '../../components/layout/Shells'
 import { Button, cx } from '../../components/ui'
 import { useScreeningPatient } from './useGuard'
@@ -73,6 +73,35 @@ export default function Result() {
         {session.movement?.performed && <p className="text-[12px] text-secondary mt-3">{t('screening.result.sensorEstimate', { rom: session.movement.rangeOfMotionDeg, pattern: session.movement.smoothness >= 0.6 ? t('reports.even') : t('reports.uneven') })}</p>}
       </div>
 
+      {r.model && (
+        <div className="card mt-4 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[18px] font-bold inline-flex items-center gap-2"><Brain size={18} className="text-primary" aria-hidden />AI model output</h3>
+            <span className="h-7 px-2.5 rounded-full bg-mint text-primary-dark text-[11px] font-bold inline-flex items-center">{Math.round(r.model.confidence * 100)}% confidence</span>
+          </div>
+          <div className="space-y-2">
+            {([['low', 'Low', 'bg-success'], ['moderate', 'Moderate', 'bg-warning'], ['higher', 'Higher', 'bg-error']] as const).map(([k, label, bar]) => {
+              const p = r.model!.probs[k]
+              return (
+                <div key={k}>
+                  <div className="flex justify-between text-[12px] font-semibold"><span className={cx(r.band === k ? 'text-ink' : 'text-secondary')}>{label} risk</span><span className="tabular-nums">{(p * 100).toFixed(1)}%</span></div>
+                  <div className="h-2 rounded-full bg-tint overflow-hidden mt-1"><div className={cx('h-full rounded-full transition-all duration-700', bar, r.band !== k && 'opacity-50')} style={{ width: `${Math.max(2, p * 100)}%` }} /></div>
+                </div>
+              )
+            })}
+          </div>
+          {r.model.romDeg !== null && (
+            <div className="mt-3 rounded-[12px] bg-tint p-3 flex items-center gap-3">
+              <span className="h-9 w-9 rounded-full bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><Camera size={17} /></span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold">Measured range of motion: {r.model.romDeg}°</p>
+                <p className="text-[12px] text-secondary">Source: {r.model.romSource === 'camera' ? 'Camera pose analysis (MediaPipe)' : r.model.romSource === 'fused' ? 'Camera + wearable sensor (fused)' : 'Wearable sensor'}</p>
+              </div>
+            </div>
+          )}
+          <p className="text-[11px] text-secondary mt-3">On-device neural network ({r.model.architecture}) trained via backpropagation. Screening aid only — not a diagnosis.</p>
+        </div>
+      )}
       <div className="card mt-4 p-4 border-2 border-mint">
         <p className="text-[11px] font-bold tracking-wider text-secondary uppercase">{t('screening.result.recommendedAction')}</p>
         <p className="text-[16px] font-bold text-primary-dark mt-1 leading-snug">{t(`screening.result.riskMeta.${r.band}.action`) || r.recommendedAction}</p>

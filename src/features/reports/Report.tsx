@@ -59,35 +59,64 @@ export default function Report() {
   return (
     <AppShell title={t('reports.title')} subtitle={t('reports.subtitle')} back={fromFlow ? '/screening/result' : `/patients/${p.id}`}>
       <article className="pt-4">
-        <div className="card p-4 flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold tracking-wider text-secondary uppercase inline-flex items-center gap-1.5"><IdCard size={13} className="text-primary" aria-hidden />{t('reports.screeningId', { id: rec.id })}</p>
-            <p className="text-[20px] font-bold leading-tight mt-1 break-words">{p.name}</p>
-            <p className="text-[13px] mt-0.5"><span className="text-secondary">{p.age} {(t(`patients.form.gender${p.sex}`) || p.sex)[0]}</span> • <span className="text-primary font-semibold">{jointName(rec.joint, rec.side, t)}</span> • <span className="text-secondary">{fmtDate(rec.createdAt)}</span></p>
+        <div className="card p-4 flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold tracking-wider text-secondary uppercase inline-flex items-center gap-1.5"><IdCard size={13} className="text-primary" aria-hidden />{t('reports.screeningId', { id: rec.id })}</p>
+              <p className="text-[20px] font-bold leading-tight mt-1 break-words">{p.name}</p>
+              <p className="text-[13px] mt-0.5"><span className="text-secondary">{p.age} {(t(`patients.form.gender${p.sex}`) || p.sex)[0]}</span> • <span className="text-primary font-semibold">{jointName(rec.joint, rec.side, t)}</span> • <span className="text-secondary">{p.village} • {new Date(rec.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
+            </div>
+            <div className="flex flex-col items-end gap-2 shrink-0"><span className="h-6 px-2 rounded-full bg-tint text-[11px] font-semibold text-secondary inline-flex items-center">{rec.workerName.split(' ')[0]}</span><span className="h-11 w-11 rounded-[12px] bg-tint text-primary flex items-center justify-center" aria-hidden><IdCard size={20} /></span></div>
           </div>
-          <div className="flex flex-col items-end gap-2 shrink-0"><span className="h-6 px-2 rounded-full bg-tint text-[11px] font-semibold text-secondary inline-flex items-center">{rec.workerName.split(' ')[0]}</span><span className="h-11 w-11 rounded-[12px] bg-tint text-primary flex items-center justify-center" aria-hidden><IdCard size={20} /></span></div>
+          <div className="mt-2 p-3 rounded-[12px] bg-tint flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span className={cx('h-[68px] w-[68px] rounded-full border-[6px] flex items-center justify-center text-[13px] font-bold shrink-0', { success: 'border-mint text-primary-dark', warning: 'border-primary text-primary', error: 'border-error text-error-text' }[m.tone])}>{t(`screening.result.riskMeta.${rec.result.band}.short`)}</span>
+              <div className="min-w-0"><p className="text-[15px] font-bold leading-tight">{t('reports.riskBand')}</p><p className="text-[12px] text-secondary mt-0.5 leading-snug">{t(`screening.result.riskMeta.${rec.result.band}.summary`)}</p></div>
+            </div>
+            <RiskBandIndicator band={rec.result.band} />
+          </div>
         </div>
 
         <Section title={t('reports.outcome')} right={<span className={cx('h-7 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center', chip)}>{t(`screening.result.riskMeta.${rec.result.band}.label`)}</span>}>
-          <div className="rounded-[12px] bg-tint p-3 flex items-center gap-3">
-            <span className={cx('h-[68px] w-[68px] rounded-full border-[6px] flex items-center justify-center text-[13px] font-bold shrink-0', { success: 'border-mint text-primary-dark', warning: 'border-primary text-primary', error: 'border-error text-error-text' }[m.tone])}>{t(`screening.result.riskMeta.${rec.result.band}.short`)}</span>
-            <div className="min-w-0"><p className="text-[15px] font-bold leading-tight">{t('reports.riskBand')}</p><p className="text-[12px] text-secondary mt-0.5 leading-snug">{t(`screening.result.riskMeta.${rec.result.band}.summary`)}</p></div>
-          </div>
-          <div className="mt-3"><RiskBandIndicator band={rec.result.band} /></div>
-          <div className="mt-3 rounded-[12px] bg-info-tint p-3 text-[13px] leading-snug flex gap-2"><Info size={16} className="text-info shrink-0 mt-0.5" aria-hidden /><span>{t('reports.recordOnly')}</span></div>
+          <div className="mt-1 rounded-[12px] bg-info-tint p-3 text-[13px] leading-snug flex gap-2"><Info size={16} className="text-info shrink-0 mt-0.5" aria-hidden /><span>{t('reports.recordOnly')}</span></div>
         </Section>
 
         <Section title={t('reports.findings')} right={<span className="text-[12px] font-semibold text-primary">{t('reports.checks', { count: rec.movement?.performed ? 5 : 3 })}</span>}>
           <div className="space-y-2">
             {rec.movement?.performed && <Finding icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${rec.movement.rangeOfMotionDeg}°`} />}
             {rec.movement?.performed && <Finding icon={Footprints} t={t('reports.pattern')} b={t('reports.patternDesc', { reps: rec.movement.repetitions, sec: rec.movement.durationSec })} v={rec.movement.smoothness >= 0.6 ? t('reports.even') : <span className="h-6 px-2 rounded-full bg-info-tint text-info text-[11px] inline-flex items-center">{t('reports.uneven')}</span>} />}
+            {rec.movement?.performed && (
+              <div className="rounded-[12px] bg-tint p-3 mt-2">
+                <p className="text-[13px] font-bold mb-1">Movement Analysis</p>
+                <div className="grid grid-cols-2 gap-2 text-[12px]">
+                  <div><span className="text-secondary">ROM:</span> <span className="font-semibold">{rec.movement.rangeOfMotionDeg}°</span></div>
+                  <div><span className="text-secondary">Smoothness:</span> <span className="font-semibold">{(rec.movement.smoothness * 100).toFixed(0)}%</span></div>
+                  <div><span className="text-secondary">Reps:</span> <span className="font-semibold">{rec.movement.repetitions}</span></div>
+                  <div><span className="text-secondary">Duration:</span> <span className="font-semibold">{rec.movement.durationSec}s</span></div>
+                </div>
+                <p className="text-[11px] text-secondary mt-2 bg-surface p-2 rounded-lg border border-border">Note: {rec.movement.rangeOfMotionDeg < 90 ? 'Severe restriction in range of motion' : rec.movement.rangeOfMotionDeg < 110 ? 'Moderate restriction in range of motion' : 'Normal range of motion'}. {rec.movement.smoothness < 0.6 ? 'Uneven movement pattern detected.' : 'Movement pattern is smooth and consistent.'}</p>
+              </div>
+            )}
             <Finding icon={Frown} t={t('reports.painActivity')} b={t('reports.reported')} v={t(`screening.questions.questions.pain_activity.options.${rec.answers['pain_activity']}.label`, { defaultValue: ans('pain_activity') })} />
             <Finding icon={Sun} t={t('reports.morningStiff')} b={t('reports.reported')} v={t(`screening.questions.questions.stiffness.options.${rec.answers['stiffness']}.label`, { defaultValue: ans('stiffness') })} />
             <Finding icon={Activity} t={t('reports.dailyTasks')} b={t('reports.reported')} v={t(`screening.questions.questions.function.options.${rec.answers['function']}.label`, { defaultValue: ans('function') })} />
           </div>
           {!rec.movement?.performed && <p className="text-[12px] text-secondary mt-2">{t('reports.notPerformed')}</p>}
           <details className="mt-3"><summary className="text-[13px] font-semibold text-primary cursor-pointer h-9 flex items-center">{t('reports.allSymptoms')}</summary>
-            <div className="mt-1">{QUESTIONS.map(q => <Line key={q.id} k={t(`screening.questions.questions.${q.id}.factor`, { defaultValue: q.factorLabel })} v={t(`screening.questions.questions.${q.id}.options.${rec.answers[q.id]}.label`, { defaultValue: ans(q.id) })} />)}</div></details>
+            <div className="mt-1">{QUESTIONS.map(q => {
+              const val = rec.answers[q.id] as number;
+              const opt = q.options.find(o => o.value === val);
+              const riskTone = val === 0 ? 'bg-mint text-primary-dark' : val === 1 ? 'bg-warning-tint text-warning-text' : val === 2 ? 'bg-warning text-white' : 'bg-error text-white';
+              return (
+                <div key={q.id} className="flex justify-between gap-3 py-2 text-[13px] border-b border-tint last:border-0">
+                  <span className="text-secondary flex-1">{t(`screening.questions.questions.${q.id}.factor`, { defaultValue: q.factorLabel })}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-right break-words">{t(`screening.questions.questions.${q.id}.options.${val}.label`, { defaultValue: opt?.label ?? '—' })}</span>
+                    <span className={cx("h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center", riskTone)}>R{val}</span>
+                  </div>
+                </div>
+              )
+            })}</div></details>
         </Section>
 
         <Section title={t('reports.patientInfo')}>
@@ -111,7 +140,10 @@ export default function Report() {
         <Section title={t('reports.followUp')} right={<span className="h-6 px-2 rounded-full bg-tint text-[11px] font-semibold text-secondary inline-flex items-center gap-1"><Cloud size={11} aria-hidden />{rec.sync === 'synced' ? t('reports.synced') : t('reports.onDevice')}</span>}>
           <Line k={t('reports.nextFollowUp')} v={fmtDate(rec.followUpDate)} />
           <Line k={t('reports.purpose')} v={rec.result.band === 'higher' ? t('reports.purposeHigh') : rec.result.band === 'moderate' ? t('reports.purposeModerate') : t('reports.purposeLow')} />
-          <div className="mt-5 grid grid-cols-2 gap-6 text-[11px] text-secondary"><div className="border-t border-tint-2 pt-2">{t('reports.healthWorker', { name: workerName })}</div><div className="border-t border-tint-2 pt-2">{t('reports.medicalOfficer')}</div></div>
+          {(() => {
+            const workerHash = Math.abs(workerName.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)%1000).toString().padStart(4, '0')
+            return <div className="mt-5 grid grid-cols-2 gap-6 text-[11px] text-secondary"><div className="border-t border-tint-2 pt-2">{t('reports.healthWorker', { name: workerName })} (ID: W-{workerHash})</div><div className="border-t border-tint-2 pt-2">{t('reports.medicalOfficer')}</div></div>
+          })()}
         </Section>
 
         <div className="mt-5 card p-4 flex flex-col items-center justify-center text-center no-print">

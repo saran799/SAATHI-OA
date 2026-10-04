@@ -3,9 +3,11 @@ import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
 import { Users, Search, Filter } from 'lucide-react'
 import { EmptyState, LoadingState, cx } from '../../components/ui'
+import { useNavigate } from 'react-router-dom'
 
 export default function PHCPatients() {
   const { patients, loading, fetchPatients } = usePHC()
+  const nav = useNavigate()
 
   useEffect(() => {
     fetchPatients()
@@ -63,7 +65,7 @@ export default function PHCPatients() {
                        </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                       <button className="text-[13px] font-semibold text-primary hover:text-primary-dark opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button onClick={() => nav(`/patients/${p.id}`)} className="text-[13px] font-semibold text-primary hover:text-primary-dark opacity-0 group-hover:opacity-100 transition-opacity">
                          View Profile
                        </button>
                     </td>

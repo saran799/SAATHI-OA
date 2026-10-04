@@ -109,6 +109,7 @@ export default {
       patients: "Patients",
       viewReports: "View Reports",
       awareness: "Health Awareness",
+      analytics: "Analytics Dashboard",
       sync: "Sync Data",
     },
     sync: {
