@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
-import { Printer, ArrowLeft, ClipboardList, Activity, AlertCircle, Calendar } from 'lucide-react'
+import { Printer, ArrowLeft, ClipboardList, AlertCircle, Calendar } from 'lucide-react'
 import { LoadingState, EmptyState, cx, Logo } from '../../components/ui'
 
 export default function PHCReportDetail() {
@@ -255,7 +255,7 @@ export default function PHCReportDetail() {
 
         {(() => {
           const workerNameStr = r.worker?.name || 'Unknown Worker';
-          const workerHash = Math.abs(workerNameStr.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)%1000).toString().padStart(4, '0')
+          const workerHash = Math.abs(workerNameStr.split('').reduce((a: number, b: string)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)%1000).toString().padStart(4, '0')
           return (
             <div className="mt-12 pt-8 border-t border-border grid grid-cols-2 gap-8 text-[12px] text-secondary">
               <div>

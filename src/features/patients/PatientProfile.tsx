@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { Activity, ChevronRight, FileText, Phone, MapPin, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { FlowShell } from '../../components/layout/Shells'
-import { Avatar, Button, Card, Chip, Row, SectionTitle } from '../../components/ui'
+import { Avatar, Button, Card, Chip, Row, SectionTitle, cx } from '../../components/ui'
 import { useApp } from '../../store/appStore'
 import { useSession } from '../../store/sessionStore'
 import { RISK_META } from '../../domain/risk'

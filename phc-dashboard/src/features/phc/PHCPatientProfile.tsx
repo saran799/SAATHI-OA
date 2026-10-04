@@ -2,9 +2,8 @@ import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { WideShell } from '../../components/layout/WideShell'
 import { usePHC } from '../../store/phcStore'
-import { Activity, ArrowLeft, Check, FileText, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Activity, ArrowLeft, Check, FileText, TrendingUp, TrendingDown, Minus, UserX } from 'lucide-react'
 import { LoadingState, EmptyState, cx } from '../../components/ui'
-import { JOINT_LABEL } from '../../domain/copy'
 
 export default function PHCPatientProfile() {
   const { id } = useParams()
@@ -22,7 +21,7 @@ export default function PHCPatientProfile() {
     return <WideShell><div className="flex h-64 items-center justify-center"><LoadingState /></div></WideShell>
   }
   if (!p) {
-    return <WideShell><EmptyState title="Patient Not Found" body="This patient does not exist or has been removed." /></WideShell>
+    return <WideShell><EmptyState icon={UserX} title="Patient Not Found" body="This patient does not exist or has been removed." /></WideShell>
   }
 
   const hist = screenings.filter(r => r.patientId === p.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -59,8 +58,8 @@ export default function PHCPatientProfile() {
     }
     
     const riskScores = { low: 1, moderate: 2, higher: 3 };
-    const latestRisk = riskScores[latest.result?.band || 'low'] || 1;
-    const prevRisk = riskScores[previous.result?.band || 'low'] || 1;
+    const latestRisk = riskScores[(latest.result?.band as keyof typeof riskScores) || 'low'] || 1;
+    const prevRisk = riskScores[(previous.result?.band as keyof typeof riskScores) || 'low'] || 1;
     if (latestRisk < prevRisk) return { text: 'Risk level decreased', positive: true, icon: TrendingUp };
     if (latestRisk > prevRisk) return { text: 'Risk level increased', positive: false, icon: TrendingDown };
     return { text: 'Stable condition', positive: true, icon: Minus };
