@@ -207,3 +207,39 @@ export function placeOnSeat(r: Rig) {
   r.elbowL.rotation.x = -0.35; r.elbowR.rotation.x = -0.35
   r.torso.rotation.x = 0.15
 }
+
+/** kneeling on the ground in front of the patient (strapping the pod) */
+export function kneelPose(r: Rig, lean = 0.45) {
+  r.hips.position.y = 0.5
+  r.legL.rotation.x = -0.15; r.legR.rotation.x = -0.15
+  r.kneeL.rotation.x = Math.PI / 2 + 0.15; r.kneeR.rotation.x = Math.PI / 2 + 0.15
+  r.torso.rotation.x = lean
+  r.shoulderL.rotation.x = -1.0; r.shoulderR.rotation.x = -1.0
+  r.elbowL.rotation.x = -0.6; r.elbowR.rotation.x = -0.6
+  r.shoulderL.rotation.z = 0.25; r.shoulderR.rotation.z = -0.25
+  r.head.rotation.x = 0.35
+}
+
+/** ASHA kit bag worn across the shoulder */
+export function ashaBag() {
+  const g = new THREE.Group()
+  g.add(mesh(new RoundedBoxGeometry(0.3, 0.24, 0.1, 2, 0.03), mat('#00685F', { flat: false }), 0, 0, 0))
+  g.add(mesh(new RoundedBoxGeometry(0.2, 0.08, 0.02, 2, 0.01), mat('#99EFE5', { flat: false }), 0, 0.03, 0.055, false))
+  const strap = mesh(new THREE.BoxGeometry(0.035, 0.75, 0.02), mat('#004F48'), 0.12, 0.33, 0.0, false)
+  strap.rotation.z = 0.55; g.add(strap)
+  return g
+}
+
+/** phone stand: the patient faces the phone camera for the ROM + posture tests */
+export function tripod() {
+  const g = new THREE.Group()
+  const m = mat('#2B2F36', { metal: 0.5, rough: 0.4, flat: false })
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2
+    const leg = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.95, 6), m, Math.sin(a) * 0.16, 0.45, Math.cos(a) * 0.16)
+    leg.rotation.set(Math.cos(a) * 0.33, 0, -Math.sin(a) * 0.33); g.add(leg)
+  }
+  g.add(mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.3, 6), m, 0, 1.0, 0))
+  g.add(mesh(new THREE.BoxGeometry(0.1, 0.03, 0.05), m, 0, 1.15, 0))
+  return g
+}

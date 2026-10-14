@@ -3,6 +3,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import logoUrl from '../../src/assets/saathi-logo.png'
 import markUrl from '../../src/assets/saathi-mark.png'
 import { FONT, clamp, easeOut, roundRect, seg, smooth } from './util'
+import { T, STEPS_T } from './timeline'
+import { jointAngle, kneeAngle, romSoFar, shockAt, stepsDone, sway } from './signals'
 
 /* ---------- palette (from the SAATHI Figma exports) ---------- */
 const C = {
@@ -14,16 +16,10 @@ const C = {
 export const logoImg = new Image(); logoImg.src = logoUrl
 export const markImg = new Image(); markImg.src = markUrl
 
-/** Simulated knee extension angle from the wearable (degrees). Starts at t=47 */
-export function kneeAngle(t: number) {
-  if (t < 47) return 2
-  const ph = ((t - 47) % 4) / 4
-  return 3 + 75 * (0.5 - 0.5 * Math.cos(ph * Math.PI * 2)) * (0.96 + 0.04 * Math.sin(t * 0.7)) + Math.sin(t * 23) * 0.6
-}
-
 export const SCREENS: [string, number, number][] = [
-  ['login', 24, 27], ['language', 27, 29.5], ['dashboard', 29.5, 32.5], ['register', 32.5, 35.5], ['joint', 35.5, 38], ['questions', 38, 41],
-  ['connect', 41, 44], ['calibrate', 44, 47], ['assess', 47, 53], ['analysis', 53, 56], ['result', 56, 59.5], ['exercises', 59.5, 61.8], ['sync', 61.8, 70],
+  ['login', T.app, 27.6], ['language', 27.6, 29], ['dashboard', 29, 31], ['intake', 31, 33.5], ['joint', 33.5, 35.5], ['questions', 35.5, T.camera],
+  ['camRom', T.camera, T.posture], ['camPosture', T.posture, T.strap], ['placement', T.strap, 61.6], ['pairing', 61.6, 64.4], ['calibrate', 64.4, T.shock],
+  ['assess', T.shock, T.result], ['analysis', T.result, 95.6], ['result', 95.6, T.nutrition], ['guidance', T.nutrition, 104], ['nutrition', 104, T.sync], ['report', T.sync, T.arch + 4],
 ]
 
 const W = 360, H = 780, S = 1.5
@@ -105,14 +101,6 @@ function field(ctx: Ctx, label: string, value: string, x: number, y: number, w: 
     ctx.fillStyle = C.primary; ctx.fillRect(cx, y + 22, 2, 22)
   }
 }
-function header(ctx: Ctx, title: string, step?: string, p?: number) {
-  // back arrow
-  ctx.strokeStyle = C.ink; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-  ctx.beginPath(); ctx.moveTo(36, 60); ctx.lineTo(28, 68); ctx.lineTo(36, 76); ctx.moveTo(28, 68); ctx.lineTo(44, 68); ctx.stroke()
-  txt(ctx, title, 180, 74, 17, 700, C.ink, 'center')
-  if (step) txt(ctx, step, 336, 74, 13, 600, C.secondary, 'right')
-  if (p !== undefined) progress(ctx, 24, 94, 312, p)
-}
 function statusBar(ctx: Ctx, dark = false) {
   const col = dark ? '#FFFFFF' : C.ink
   txt(ctx, '9:41', 28, 26, 14, 700, col)
@@ -141,453 +129,696 @@ function speaker(ctx: Ctx, x: number, y: number, col: string) {
   ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x + 4, y - 3); ctx.lineTo(x + 9, y - 7); ctx.lineTo(x + 9, y + 7); ctx.lineTo(x + 4, y + 3); ctx.lineTo(x, y + 3); ctx.fill()
   ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x + 10, y, 5, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(x + 10, y, 9, -0.9, 0.9); ctx.stroke()
 }
-function stickFigure(ctx: Ctx, kind: number, x: number, y: number, t: number) {
-  ctx.strokeStyle = C.primaryDark; ctx.fillStyle = C.primaryDark; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-  const a = (Math.sin(t * 3) + 1) / 2
-  if (kind === 0) { // seated knee extension
-    ctx.beginPath(); ctx.arc(x - 8, y - 22, 5, 0, Math.PI * 2); ctx.fill()
-    ctx.beginPath(); ctx.moveTo(x - 8, y - 16); ctx.lineTo(x - 8, y + 2); ctx.lineTo(x + 8, y + 2)
-    ctx.lineTo(x + 8 + Math.sin(a * 1.3) * 16, y + 2 + Math.cos(a * 1.3) * 16); ctx.stroke()
-    ctx.strokeStyle = C.primaryMid; ctx.beginPath(); ctx.moveTo(x - 16, y + 4); ctx.lineTo(x + 6, y + 4); ctx.moveTo(x - 14, y + 4); ctx.lineTo(x - 14, y + 20); ctx.stroke()
-  } else if (kind === 1) { // heel slides (lying)
-    ctx.beginPath(); ctx.arc(x - 20, y + 8, 5, 0, Math.PI * 2); ctx.fill()
-    const kx = x + 2 + a * 4, ky = y + 10 - a * 12
-    ctx.beginPath(); ctx.moveTo(x - 14, y + 10); ctx.lineTo(x - 2, y + 10); ctx.lineTo(kx, ky); ctx.lineTo(x + 22 - a * 10, y + 12); ctx.stroke()
-  } else { // walking
-    const s = Math.sin(t * 5) * 0.5
-    ctx.beginPath(); ctx.arc(x, y - 20, 5, 0, Math.PI * 2); ctx.fill()
-    ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x, y + 4)
-    ctx.moveTo(x, y + 4); ctx.lineTo(x + Math.sin(s) * 14, y + 4 + Math.cos(s) * 14)
-    ctx.moveTo(x, y + 4); ctx.lineTo(x - Math.sin(s) * 14, y + 4 + Math.cos(s) * 14)
-    ctx.moveTo(x, y - 10); ctx.lineTo(x - Math.sin(s) * 10, y)
-    ctx.moveTo(x, y - 10); ctx.lineTo(x + Math.sin(s) * 10, y); ctx.stroke()
-  }
-}
 
-/* ---------- screens ---------- */
+/* ---------- screens (modelled on the deployed SAATHI app, v2.4) ---------- */
 type Draw = (ctx: Ctx, p: number, t: number, d: number) => void
 
-const login: Draw = (ctx, p, t) => {
-  const g = ctx.createLinearGradient(0, 0, 0, 420); g.addColorStop(0, C.primaryLight); g.addColorStop(1, C.bg)
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-  card(ctx, 90, 58, 180, 180, 32)
-  if (logoImg.complete) ctx.drawImage(logoImg, 98, 66, 164, 164)
-  txt(ctx, 'Health worker sign in', 180, 292, 21, 700, C.ink, 'center')
-  txt(ctx, 'Offline-first · data stays on device', 180, 316, 13, 500, C.secondary, 'center')
-  const id = 'ASHA-2041'.slice(0, Math.floor(seg(p, 0.05, 0.38) * 9))
-  field(ctx, 'Worker ID', id, 24, 352, 312, p < 0.4, t)
-  txt(ctx, 'PIN', 24, 438, 13, 600, C.secondary)
-  const n = Math.floor(seg(p, 0.42, 0.72) * 4.01)
-  for (let i = 0; i < 4; i++) {
-    rr(ctx, 24 + i * 82, 448, 66, 58, 14, C.surface, i === n && p < 0.75 ? C.primary : C.tint2, i === n ? 2 : 1.5)
-    if (i < n) { ctx.beginPath(); ctx.arc(57 + i * 82, 477, 7, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill() }
+/** app top bar: back arrow, SAATHI mark, title, status pill, avatar */
+function topBar(ctx: Ctx, title: string, pillText?: string, pillBg: string = C.mint, pillFg: string = C.primaryDark, back = true) {
+  ctx.fillStyle = C.surface; ctx.fillRect(0, 0, W, 104)
+  let x = 22
+  if (back) {
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+    ctx.beginPath(); ctx.moveTo(32, 64); ctx.lineTo(24, 72); ctx.lineTo(32, 80); ctx.moveTo(24, 72); ctx.lineTo(40, 72); ctx.stroke()
+    x = 50
   }
-  button(ctx, 'Sign in', 548, seg(p, 0.8, 0.95))
-  rr(ctx, 24, 690, 312, 50, 14, C.mintSoft)
-  check(ctx, 50, 715, 10)
-  txt(ctx, 'Screening support · not a diagnostic tool', 70, 720, 12.5, 600, C.primaryDark)
+  if (markImg.complete) ctx.drawImage(markImg, x, 58, 30, 24)
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pillText ? 220 : 300, 104); ctx.clip()
+  txt(ctx, title, x + 38, 78, 16.5, 800, C.ink)
+  ctx.restore()
+  if (pillText) chip(ctx, pillText, 300, 59, pillBg, pillFg, 11, 'right')
+  ctx.beginPath(); ctx.arc(326, 72, 15, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
+  ctx.beginPath(); ctx.arc(326, 68, 4.5, 0, Math.PI * 2); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke()
+  ctx.beginPath(); ctx.arc(326, 81, 7, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke()
+  ctx.fillStyle = C.tint2; ctx.fillRect(0, 104, W, 1)
+}
+function stepHead(ctx: Ctx, step: number, total: number, label: string, y = 130) {
+  txt(ctx, `STEP ${step} OF ${total}`, 24, y, 12, 800, C.primary)
+  txt(ctx, label, 336, y, 11.5, 500, C.secondary, 'right')
+  progress(ctx, 24, y + 10, 312, step / total, 5, C.tint2, C.primary)
+}
+function bottomNav(ctx: Ctx, active: number) {
+  ctx.save(); ctx.shadowColor = 'rgba(16,30,54,0.08)'; ctx.shadowBlur = 12; ctx.fillStyle = '#fff'; ctx.fillRect(0, 712, W, 68); ctx.restore()
+  ;['Home', 'Patients', 'Reports', 'Awareness', 'More'].forEach((l, i) => {
+    const x = 36 + i * 72
+    if (i === active) rr(ctx, x - 30, 718, 60, 52, 12, C.mintSoft)
+    rr(ctx, x - 8, 726, 16, 15, 4, i === active ? C.primaryDark : C.muted)
+    txt(ctx, l, x, 760, 10.5, 700, i === active ? C.primaryDark : C.secondary, 'center')
+  })
+}
+function rowItem(ctx: Ctx, y: number, title: string, iconCol: string, right?: string) {
+  card(ctx, 16, y, 328, 62, 14)
+  rr(ctx, 30, y + 13, 36, 36, 10, C.tint)
+  rr(ctx, 41, y + 24, 14, 14, 3, iconCol)
+  txt(ctx, title, 80, y + 37, 15.5, 800)
+  if (right) chip(ctx, right, 312, y + 18, C.tint, C.secondary, 10.5, 'right')
+  ctx.strokeStyle = C.secondary; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(322, y + 26); ctx.lineTo(328, y + 31); ctx.lineTo(322, y + 36); ctx.stroke()
 }
 
-const LANGS = [['English', 'English'], ['हिन्दी', 'Hindi'], ['தமிழ்', 'Tamil'], ['తెలుగు', 'Telugu'], ['मराठी', 'Marathi'], ['বাংলা', 'Bengali']]
+const login: Draw = (ctx, p, t) => {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  const g = ctx.createRadialGradient(180, 170, 10, 180, 170, 220); g.addColorStop(0, 'rgba(153,239,229,0.45)'); g.addColorStop(1, 'rgba(153,239,229,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 420)
+  rr(ctx, 22, 50, 146, 28, 14, C.surface)
+  ctx.beginPath(); ctx.arc(38, 64, 4, 0, Math.PI * 2); ctx.fillStyle = C.success; ctx.fill()
+  txt(ctx, 'Field mode active', 48, 69, 11.5, 700, C.ink)
+  rr(ctx, 236, 50, 102, 28, 14, C.mintSoft); txt(ctx, 'Offline ready', 287, 69, 11.5, 700, C.primaryDark, 'center')
+  card(ctx, 100, 96, 160, 160, 30)
+  if (logoImg.complete) ctx.drawImage(logoImg, 106, 102, 148, 148)
+  card(ctx, 20, 282, 320, 352, 22)
+  txt(ctx, 'Field Worker Sign In', 40, 318, 18, 800)
+  txt(ctx, 'Enter credentials to access screening intake', 40, 340, 12, 500, C.secondary)
+  chip(ctx, 'OFFLINE AUTH', 322, 300, C.mint, C.primaryDark, 9.5, 'right')
+  const id = 'ASHA-2041'.slice(0, Math.floor(seg(p, 0.05, 0.35) * 9))
+  field(ctx, 'Worker ID / Username', id, 40, 370, 280, p < 0.38, t)
+  txt(ctx, '4-Digit Security PIN', 40, 452, 13, 600, C.secondary)
+  const n = Math.floor(seg(p, 0.4, 0.68) * 4.01)
+  rr(ctx, 40, 460, 280, 48, 12, C.tint, p >= 0.38 && p < 0.72 ? C.primary : undefined, 2)
+  for (let i = 0; i < n; i++) { ctx.beginPath(); ctx.arc(62 + i * 20, 484, 5, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill() }
+  rr(ctx, 40, 524, 18, 18, 5, C.primary); check(ctx, 49, 533, 7, C.primary)
+  txt(ctx, 'Remember device', 66, 538, 12.5, 600, C.ink)
+  txt(ctx, 'Offline Recovery', 320, 538, 12.5, 700, C.primary, 'right')
+  button(ctx, 'Sign In & Enter Field Intake  →', 562, seg(p, 0.78, 0.95), { x: 40, w: 280, h: 50 })
+  txt(ctx, 'v2.4 Preview · Screening support only · Offline secure', 180, 668, 11, 500, C.secondary, 'center')
+  txt(ctx, 'SAATHI does not diagnose osteoarthritis.', 180, 690, 11, 600, C.muted, 'center')
+}
+
+const LANGS = [['English', 'English'], ['हिन्दी', 'Hindi'], ['தமிழ்', 'Tamil'], ['বাংলা', 'Bengali'], ['অসমীয়া', 'Assamese'], ['ꯃꯩꯇꯩꯂꯣꯟ', 'Manipuri']]
 const language: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  txt(ctx, 'Choose your language', 24, 92, 23, 800)
-  txt(ctx, 'भाषा चुनें  ·  மொழியைத் தேர்வுசெய்க', 24, 118, 14, 500, C.secondary)
-  const sel = p > 0.42 ? 1 : -1
+  if (markImg.complete) ctx.drawImage(markImg, 22, 52, 36, 29)
+  txt(ctx, 'SAATHI', 66, 66, 17, 800, C.primaryDark)
+  txt(ctx, 'CARE COMPANION', 66, 82, 9.5, 800, C.secondary)
+  chip(ctx, '● Step 1 of 2', 338, 56, C.tint, C.ink, 11, 'right')
+  txt(ctx, 'Select Language', 20, 132, 24, 800)
+  txt(ctx, 'Choose your preferred language to continue', 20, 156, 13, 500, C.secondary)
+  const sel = p > 0.45 ? 1 : 0
   LANGS.forEach(([n, e], i) => {
-    const c = i % 2, r = Math.floor(i / 2)
-    const x = 24 + c * 162, y = 146 + r * 124
+    const y = 176 + i * 74
     const on = i === sel
-    card(ctx, x, y, 150, 110, 18, on ? C.primaryLight : C.surface)
-    if (on) { roundRect(ctx, x, y, 150, 110, 18); ctx.strokeStyle = C.primary; ctx.lineWidth = 2.5; ctx.stroke(); check(ctx, x + 128, y + 22, 10) }
-    txt(ctx, n, x + 18, y + 58, 26, 700, on ? C.primaryDark : C.ink)
-    txt(ctx, e, x + 18, y + 86, 13, 500, C.secondary)
+    card(ctx, 20, y, 320, 64, 14, on ? C.mintSoft : C.surface)
+    if (on) { roundRect(ctx, 20, y, 320, 64, 14); ctx.strokeStyle = C.primary; ctx.lineWidth = 2; ctx.stroke() }
+    rr(ctx, 36, y + 14, 36, 36, 10, on ? C.mint : C.tint)
+    txt(ctx, n, 86, y + 30, 16, 800, C.ink)
+    txt(ctx, e, 86, y + 49, 11.5, 500, C.secondary)
+    if (on) check(ctx, 314, y + 32, 12)
+    else { ctx.beginPath(); ctx.arc(314, y + 32, 11, 0, Math.PI * 2); ctx.strokeStyle = C.mint; ctx.lineWidth = 2; ctx.stroke() }
   })
-  tap(ctx, 260, 205, seg(p, 0.38, 0.6))
-  rr(ctx, 24, 540, 312, 64, 14, C.tint)
-  speaker(ctx, 44, 572, C.primary)
-  txt(ctx, 'Voice prompts for every question', 70, 568, 13.5, 700, C.ink)
-  txt(ctx, 'Designed for low-literacy settings', 70, 588, 12, 500, C.secondary)
-  button(ctx, 'जारी रखें · Continue', 690, seg(p, 0.82, 0.97))
+  tap(ctx, 250, 282, seg(p, 0.38, 0.6))
+  rr(ctx, 20, 630, 320, 40, 12, C.tint)
+  speaker(ctx, 36, 650, C.primary)
+  txt(ctx, 'Voice guidance in every language', 62, 655, 12, 600, C.ink)
+  button(ctx, 'Continue  →', 690, seg(p, 0.82, 0.97), { x: 20, w: 320 })
 }
 
-const dashboard: Draw = (ctx, p, t) => {
+const dashboard: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  if (markImg.complete) ctx.drawImage(markImg, 22, 46, 40, 32)
-  txt(ctx, 'SAATHI', 68, 70, 19, 800, C.primary)
-  ctx.beginPath(); ctx.arc(318, 62, 18, 0, Math.PI * 2); ctx.fillStyle = '#E85D9A'; ctx.fill()
-  txt(ctx, 'S', 318, 68, 16, 700, '#fff', 'center')
-  txt(ctx, 'नमस्ते, Sunita', 24, 124, 25, 800)
-  txt(ctx, 'Rampur Sub-centre · Tue, 14 Oct', 24, 147, 13, 500, C.secondary)
-  rr(ctx, 24, 164, 312, 34, 17, C.warningTint)
-  ctx.beginPath(); ctx.arc(42, 181, 4, 0, Math.PI * 2); ctx.fillStyle = C.warning; ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); ctx.fill(); ctx.globalAlpha = 1
-  txt(ctx, 'Offline · 2 records will sync later', 54, 186, 12.5, 600, C.warningText)
-  const k = easeOut(seg(p, 0, 0.5))
-  const stats: [number, string, string][] = [[6, 'Screened today', C.primary], [3, 'Follow-ups', C.info], [1, 'Referred', C.error]]
-  stats.forEach(([v, l, col], i) => {
-    const x = 24 + i * 106
-    card(ctx, x, 212, 98, 88, 16)
-    txt(ctx, String(Math.round(v * k)), x + 14, 252, 28, 800, col)
-    txt(ctx, l, x + 14, 280, 11.5, 600, C.secondary)
-  })
-  // CTA
-  const press = seg(p, 0.75, 0.92)
+  if (markImg.complete) ctx.drawImage(markImg, 20, 54, 32, 26)
+  txt(ctx, 'SAATHI', 60, 74, 18, 800, C.ink)
+  rr(ctx, 210, 56, 82, 30, 15, C.surface)
+  ctx.beginPath(); ctx.arc(226, 71, 4, 0, Math.PI * 2); ctx.fillStyle = C.success; ctx.fill()
+  txt(ctx, 'Synced', 236, 76, 13, 600, C.ink)
+  ctx.beginPath(); ctx.arc(320, 71, 16, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
+  txt(ctx, 'S', 320, 77, 15, 800, '#fff', 'center')
+  txt(ctx, 'Good morning, Sunita', 16, 128, 24, 800)
+  txt(ctx, "Here's what's waiting for you today.", 16, 152, 13.5, 500, C.secondary)
+  const press = seg(p, 0.72, 0.9)
   ctx.save()
   const sc = 1 - 0.03 * Math.sin(press * Math.PI)
-  ctx.translate(180, 362); ctx.scale(sc, sc); ctx.translate(-180, -362)
-  const g = ctx.createLinearGradient(24, 318, 336, 410); g.addColorStop(0, C.primary); g.addColorStop(1, C.primaryMid)
+  ctx.translate(180, 216); ctx.scale(sc, sc); ctx.translate(-180, -216)
   ctx.shadowColor = 'rgba(0,104,95,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8
-  roundRect(ctx, 24, 318, 312, 92, 20); ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = 'transparent'
-  ctx.beginPath(); ctx.arc(66, 364, 22, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fill()
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5; ctx.beginPath(); ctx.moveTo(66, 353); ctx.lineTo(66, 375); ctx.moveTo(55, 364); ctx.lineTo(77, 364); ctx.stroke()
-  txt(ctx, 'New screening', 102, 360, 20, 800, '#fff')
-  txt(ctx, 'Register patient & start', 102, 382, 12.5, 500, C.mint)
+  rr(ctx, 16, 172, 328, 92, 18, C.primary); ctx.shadowColor = 'transparent'
+  rr(ctx, 32, 192, 50, 50, 12, 'rgba(255,255,255,0.16)')
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(54, 211, 7, 0, Math.PI * 2); ctx.moveTo(42, 232); ctx.quadraticCurveTo(54, 218, 66, 232); ctx.moveTo(68, 212); ctx.lineTo(76, 212); ctx.moveTo(72, 208); ctx.lineTo(72, 216); ctx.stroke()
+  txt(ctx, 'New Patient', 98, 210, 20, 800, '#fff')
+  txt(ctx, 'Start rapid osteoarthritis screening', 98, 232, 12, 500, C.mint)
+  ctx.beginPath(); ctx.arc(318, 218, 14, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fill()
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(311, 218); ctx.lineTo(325, 218); ctx.moveTo(320, 213); ctx.lineTo(325, 218); ctx.lineTo(320, 223); ctx.stroke()
   ctx.restore()
-  tap(ctx, 200, 364, press)
-  txt(ctx, 'Recent screenings', 24, 446, 16, 800)
-  txt(ctx, 'See all', 336, 446, 13, 700, C.primary, 'right')
-  const rows: [string, string, string, string, string][] = [['Ramesh Yadav', 'Knee · 2 days ago', 'Low', C.mint, C.primaryDark], ['Lakshmi Bai', 'Hip · 3 days ago', 'Moderate', C.warningTint, C.warningText], ['Gopal Singh', 'Knee · 5 days ago', 'Higher', C.errorTint, C.error]]
-  rows.forEach(([n, s, b, bg, fg], i) => {
-    const y = 460 + i * 70
-    card(ctx, 24, y, 312, 60, 14)
-    ctx.beginPath(); ctx.arc(52, y + 30, 17, 0, Math.PI * 2); ctx.fillStyle = C.tint; ctx.fill()
-    txt(ctx, n.split(' ').map(w => w[0]).join(''), 52, y + 35, 12, 700, C.primary, 'center')
-    txt(ctx, n, 78, y + 27, 14.5, 700)
-    txt(ctx, s, 78, y + 45, 12, 500, C.secondary)
-    chip(ctx, b, 324, y + 17, bg, fg, 11, 'right')
+  tap(ctx, 200, 218, press)
+  const k = easeOut(seg(p, 0, 0.5))
+  ;([['Patients', C.primary], ['View Reports', C.info], ['Health Awareness', C.success], ['Analytics Dashboard', C.primaryMid], ['Sync Data', C.primary]] as [string, string][]).forEach(([l, c], i) => {
+    ctx.globalAlpha = smooth(seg(k, i * 0.12, i * 0.12 + 0.5))
+    rowItem(ctx, 280 + i * 76, l, c, i === 4 ? 'Up to date' : undefined)
   })
-  // tab bar
-  ctx.save(); ctx.shadowColor = 'rgba(16,30,54,0.08)'; ctx.shadowBlur = 12; ctx.fillStyle = '#fff'; ctx.fillRect(0, 712, W, 68); ctx.restore()
-  ;['Home', 'Patients', 'Records', 'Settings'].forEach((l, i) => {
-    const x = 45 + i * 90
-    if (i === 0) rr(ctx, x - 28, 720, 56, 28, 14, C.mint)
-    rr(ctx, x - 8, 726, 16, 16, 4, i === 0 ? C.primaryDark : C.muted)
-    txt(ctx, l, x, 764, 11, 700, i === 0 ? C.primaryDark : C.muted, 'center')
-  })
+  ctx.globalAlpha = 1
+  txt(ctx, 'Works fully offline · syncs when network returns', 180, 680, 11, 500, C.muted, 'center')
+  bottomNav(ctx, 0)
 }
 
-const register: Draw = (ctx, p, t) => {
+const intake: Draw = (ctx, p, t) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'New patient', '1 / 3', 0.33)
-  txt(ctx, 'Patient details', 24, 140, 23, 800)
-  txt(ctx, 'Step 1 · Basic information', 24, 163, 13, 500, C.secondary)
-  const name = 'Kamala Devi'.slice(0, Math.floor(seg(p, 0.05, 0.32) * 11))
-  field(ctx, 'Full name', name, 24, 192, 312, p < 0.35, t)
-  field(ctx, 'Age', '64'.slice(0, Math.floor(seg(p, 0.36, 0.46) * 2)), 24, 272, 100, p >= 0.35 && p < 0.48, t)
-  txt(ctx, 'Sex', 140, 272, 13, 600, C.secondary)
-  ;['Female', 'Male', 'Other'].forEach((s, i) => {
-    const on = i === 0 && p > 0.5
-    const x = 140 + i * 66
-    rr(ctx, x, 280, 60, 48, 12, on ? C.primary : C.surface, on ? C.primary : C.tint2)
-    txt(ctx, s, x + 30, 309, 12.5, 700, on ? '#fff' : C.ink, 'center')
-  })
-  tap(ctx, 170, 304, seg(p, 0.48, 0.62))
-  field(ctx, 'Village', 'Rampur'.slice(0, Math.floor(seg(p, 0.56, 0.7) * 6)), 24, 352, 312, p >= 0.52 && p < 0.72, t)
-  field(ctx, 'Mobile number', '98765 43210'.slice(0, Math.floor(seg(p, 0.72, 0.86) * 11)), 24, 432, 312, p >= 0.72 && p < 0.88, t)
-  rr(ctx, 24, 520, 312, 70, 14, C.tint)
-  txt(ctx, 'Linked to', 44, 548, 12, 600, C.secondary)
-  txt(ctx, 'PHC Rampur · ABHA ID optional', 44, 570, 14.5, 700, C.ink)
-  button(ctx, 'Continue', 700, seg(p, 0.88, 0.99))
+  topBar(ctx, 'Screening Intake', 'Saved', C.surface, C.ink)
+  const s3 = p > 0.52
+  stepHead(ctx, s3 ? 3 : 1, 3, s3 ? 'Health background' : 'Demographics & Intake')
+  txt(ctx, 'Frontline Triage Intake', 24, 182, 21, 800)
+  txt(ctx, 'New patient · will get an ID on save', 24, 202, 12.5, 500, C.secondary)
+  chip(ctx, 'Ready', 336, 168, C.mint, C.primaryDark, 10.5, 'right')
+  if (!s3) {
+    const name = 'Kamala Devi'.slice(0, Math.floor(seg(p, 0.03, 0.25) * 11))
+    field(ctx, 'Full Name *', name, 24, 230, 312, p < 0.27, t)
+    field(ctx, 'Age (Yrs) *', '64'.slice(0, Math.floor(seg(p, 0.28, 0.36) * 2)), 24, 310, 146, p >= 0.27 && p < 0.38, t)
+    field(ctx, 'Mobile (optional)', '', 190, 310, 146, false, t)
+    txt(ctx, 'Gender *', 24, 392, 13, 600, C.secondary)
+    rr(ctx, 24, 400, 312, 48, 14, C.tint)
+    ;['Male', 'Female', 'Other'].forEach((s, i) => {
+      const on = i === 1 && p > 0.42
+      if (on) rr(ctx, 28 + i * 103, 404, 100, 40, 11, C.surface)
+      txt(ctx, s, 78 + i * 103, 430, 13.5, on ? 800 : 600, on ? C.primaryDark : C.secondary, 'center')
+    })
+    tap(ctx, 180, 424, seg(p, 0.38, 0.5))
+    rr(ctx, 24, 466, 312, 48, 12, C.mintSoft)
+    txt(ctx, 'Village: Devkhal · PHC Devkhal', 40, 495, 13, 700, C.primaryDark)
+    button(ctx, 'Next: Location  →', 700, seg(p, 0.44, 0.52))
+  } else {
+    field(ctx, 'Height (cm) *', '150', 24, 230, 146, false, t)
+    field(ctx, 'Weight (kg) *', '62', 190, 230, 146, false, t)
+    txt(ctx, 'Occupation & Physical Load *', 24, 316, 13, 600, C.secondary)
+    const occ = ['Farm work', 'Household work', 'Carrying loads', 'Weaving / craft', 'Retired']
+    let x = 24, y = 326
+    occ.forEach((o, i) => {
+      ctx.font = `700 12px ${FONT}`; const w = ctx.measureText(o).width + 26
+      if (x + w > 336) { x = 24; y += 40 }
+      const on = i === 0 && p > 0.62
+      rr(ctx, x, y, w, 32, 16, on ? C.primary : C.surface, on ? undefined : C.tint2)
+      txt(ctx, o, x + w / 2, y + 21, 12, 700, on ? '#fff' : C.ink, 'center')
+      x += w + 8
+    })
+    ;[['Previous Joint Issues', 0], ['Family history of joint problems', 1]].forEach(([l, i]) => {
+      const yy = 430 + (i as number) * 74
+      card(ctx, 24, yy, 312, 62, 14)
+      txt(ctx, l as string, 38, yy + 36, 13, 700)
+      ;['Yes', 'No'].forEach((o, j) => { const on = (i === 0 ? j === 0 : j === 1) && p > 0.72; rr(ctx, 236 + j * 48, yy + 16, 42, 30, 10, on ? C.primary : C.tint); txt(ctx, o, 257 + j * 48, yy + 36, 12, 700, on ? '#fff' : C.secondary, 'center') })
+    })
+    button(ctx, 'Save patient', 700, seg(p, 0.86, 0.98))
+  }
+  txt(ctx, 'Stored locally on this device', 180, 772, 10.5, 500, C.muted, 'center')
 }
 
-const JOINTS: [string, string, string][] = [['knee', 'Knee', 'Most common'], ['hip', 'Hip', 'Groin or thigh'], ['hand', 'Hand', 'Fingers, thumb'], ['spine', 'Spine', 'Neck, lower back']]
+const JOINTS: [string, string, string][] = [['knee', 'Knee', 'Knee pain, grinding or morning stiffness'], ['hip', 'Hip', 'Groin or thigh pain, difficulty squatting'], ['hand', 'Hand', 'Finger nodes, thumb base pain'], ['spine', 'Spine', 'Lower back pain on bending']]
 const joint: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Select joint', '2 / 3', 0.66)
-  txt(ctx, 'Where does it hurt?', 24, 140, 23, 800)
+  topBar(ctx, 'Screening Intake', 'Saved', C.surface, C.ink)
+  stepHead(ctx, 1, 7, 'Joint selection')
+  txt(ctx, 'Select Joint to Assess', 24, 182, 21, 800)
+  txt(ctx, 'Screening for Kamala Devi. Choose the joint with the most trouble.', 24, 202, 11.5, 500, C.secondary)
   JOINTS.forEach(([id, l, h], i) => {
-    const c = i % 2, r = Math.floor(i / 2)
-    const x = 24 + c * 162, y = 166 + r * 150
-    const on = i === 0 && p > 0.28
-    card(ctx, x, y, 150, 136, 18, on ? C.primaryLight : C.surface)
-    if (on) { roundRect(ctx, x, y, 150, 136, 18); ctx.strokeStyle = C.primary; ctx.lineWidth = 2.5; ctx.stroke(); check(ctx, x + 128, y + 22, 10) }
-    ctx.beginPath(); ctx.arc(x + 40, y + 44, 26, 0, Math.PI * 2); ctx.fillStyle = on ? C.mint : C.tint; ctx.fill()
-    jointIcon(ctx, id, x + 40, y + 44, on ? C.primaryDark : C.primary)
-    txt(ctx, l, x + 16, y + 100, 17, 800, on ? C.primaryDark : C.ink)
-    txt(ctx, h, x + 16, y + 120, 12, 500, C.secondary)
+    const y = 220 + i * 88
+    const on = i === 0 && p > 0.25
+    card(ctx, 24, y, 312, 78, 16, on ? C.mintSoft : C.surface)
+    if (on) { roundRect(ctx, 24, y, 312, 78, 16); ctx.strokeStyle = C.primary; ctx.lineWidth = 2.2; ctx.stroke() }
+    rr(ctx, 38, y + 15, 48, 48, 12, on ? C.mint : C.tint)
+    jointIcon(ctx, id, 62, y + 39, on ? C.primaryDark : C.primary)
+    txt(ctx, l, 100, y + 32, 16, 800)
+    if (i === 0) chip(ctx, on ? 'SELECTED' : 'Most common', 322, y + 12, on ? C.primary : C.mint, on ? '#fff' : C.primaryDark, 9.5, 'right')
+    txt(ctx, h, 100, y + 52, 11, 500, C.secondary)
+    txt(ctx, '✓ Movement test available', 100, y + 68, 10, 700, C.success)
   })
-  tap(ctx, 100, 230, seg(p, 0.22, 0.42))
-  txt(ctx, 'Which side?', 24, 492, 16, 800)
-  rr(ctx, 24, 506, 312, 52, 14, C.tint)
-  ;['Left', 'Right', 'Both'].forEach((s, i) => {
-    const on = i === 1 && p > 0.6
-    if (on) card(ctx, 28 + i * 103, 510, 98, 44, 11)
-    txt(ctx, s, 77 + i * 103, 538, 14, 700, on ? C.primary : C.secondary, 'center')
-  })
-  tap(ctx, 180, 532, seg(p, 0.55, 0.72))
-  button(ctx, 'Continue', 700, seg(p, 0.86, 0.99))
+  tap(ctx, 180, 258, seg(p, 0.18, 0.38))
+  txt(ctx, 'Which side?', 24, 590, 13, 700, C.secondary)
+  rr(ctx, 24, 600, 312, 46, 14, C.tint)
+  ;['Left', 'Right', 'Both'].forEach((s, i) => { const on = i === 1 && p > 0.55; if (on) rr(ctx, 28 + i * 103, 604, 100, 38, 11, C.primary); txt(ctx, s, 78 + i * 103, 629, 13.5, 700, on ? '#fff' : C.secondary, 'center') })
+  tap(ctx, 180, 623, seg(p, 0.48, 0.66))
+  rr(ctx, 24, 656, 312, 34, 10, C.mintSoft)
+  txt(ctx, p > 0.55 ? 'Selected: Right knee' : 'No selection', 40, 678, 12, 700, C.primaryDark)
+  button(ctx, 'Next: Clinical Assessment', 702, seg(p, 0.85, 0.98), { h: 50 })
 }
 
-const OPTS = ['No stiffness', 'Less than 30 minutes', 'More than 30 minutes']
+const QOPTS = ['No stiffness', 'Less than 30 minutes', 'More than 30 minutes']
 const questions: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Symptoms', '3 of 8', 0.25 + 0.125 * smooth(seg(p, 0.75, 0.9)))
-  chip(ctx, 'QUESTION 3', 24, 116, C.mint, C.primaryDark, 11)
-  rr(ctx, 248, 112, 88, 32, 16, C.surface, C.tint2)
-  speaker(ctx, 262, 128, C.primary)
-  txt(ctx, 'Listen', 284, 133, 12.5, 700, C.primary)
-  if (seg(p, 0.05, 0.3) > 0 && p < 0.35) { // speaking waves
-    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(292, 128, 18 + i * 6 + (p * 60 % 6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(0,104,95,${0.2 - i * 0.06})`; ctx.lineWidth = 2; ctx.stroke() }
+  topBar(ctx, 'Symptom Assessment', 'Saved', C.surface, C.ink)
+  const q = p < 0.3 ? 1 : p < 0.55 ? 2 : 3
+  stepHead(ctx, 2, 7, `${Math.round(((q - 1) / 8) * 100)}% done`)
+  chip(ctx, 'Triage protocol · Right knee', 24, 160, C.tint, C.ink, 10.5)
+  txt(ctx, `Q ${q} / 8`, 336, 178, 12, 800, C.primary, 'right')
+  rr(ctx, 276, 196, 60, 30, 15, C.surface, C.tint2); speaker(ctx, 290, 211, C.primary)
+  const texts = ['Does the joint hurt during walking, climbing or daily activity?', 'Does the joint hurt at rest or at night?', 'Is the joint stiff in the morning or after sitting for a while?']
+  wrap(ctx, `${q}. ${texts[q - 1]}`, 24, 250, 312, 19, 800, C.ink, 1.3)
+  if (q === 3) {
+    rr(ctx, 24, 318, 312, 50, 12, C.infoTint)
+    wrap(ctx, 'Stiffness that eases within 30 minutes of moving is common.', 40, 338, 280, 11.5, 600, C.info, 1.35)
   }
-  wrap(ctx, 'Is the joint stiff in the morning or after sitting for a while?', 24, 186, 312, 22, 800, C.ink, 1.3)
-  rr(ctx, 24, 252, 312, 58, 14, C.infoTint)
-  wrap(ctx, 'Stiffness that eases within 30 minutes of moving is common.', 44, 276, 280, 12.5, 500, C.info, 1.35)
-  const sel = p > 0.45 ? 2 : -1
-  OPTS.forEach((o, i) => {
-    const y = 332 + i * 70
+  const opts = q === 3 ? QOPTS : ['Never', 'Sometimes', 'Often', 'Almost every day']
+  const sel = q === 3 ? (p > 0.75 ? 1 : -1) : q === 1 ? (p > 0.15 ? 1 : -1) : (p > 0.42 ? 0 : -1)
+  opts.forEach((o, i) => {
+    const y = 384 + i * 64
     const on = i === sel
-    card(ctx, 24, y, 312, 58, 14, on ? C.primaryLight : C.surface)
-    if (on) { roundRect(ctx, 24, y, 312, 58, 14); ctx.strokeStyle = C.primary; ctx.lineWidth = 2; ctx.stroke() }
-    ctx.beginPath(); ctx.arc(50, y + 29, 10, 0, Math.PI * 2); ctx.strokeStyle = on ? C.primary : C.muted; ctx.lineWidth = 2; ctx.stroke()
-    if (on) { ctx.beginPath(); ctx.arc(50, y + 29, 5.5, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill() }
-    txt(ctx, o, 72, y + 34, 15, 600, on ? C.primaryDark : C.ink)
+    card(ctx, 24, y, 312, 54, 14, on ? C.mintSoft : C.surface)
+    if (on) { roundRect(ctx, 24, y, 312, 54, 14); ctx.strokeStyle = C.primary; ctx.lineWidth = 2; ctx.stroke() }
+    ctx.beginPath(); ctx.arc(48, y + 27, 9, 0, Math.PI * 2); ctx.strokeStyle = on ? C.primary : C.muted; ctx.lineWidth = 2; ctx.stroke()
+    if (on) { ctx.beginPath(); ctx.arc(48, y + 27, 5, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill() }
+    txt(ctx, o, 68, y + 32, 14, 700, on ? C.primaryDark : C.ink)
   })
-  tap(ctx, 200, 501, seg(p, 0.4, 0.6))
-  button(ctx, 'Next', 700, seg(p, 0.82, 0.97))
+  card(ctx, 24, 640, 312, 44, 12, C.tint)
+  txt(ctx, `${q - 1 + (sel >= 0 ? 1 : 0)} of 8 answered · risk is estimated after the movement tests`, 180, 667, 10.5, 600, C.secondary, 'center')
+  button(ctx, 'Back', 704, 0, { x: 24, w: 100, h: 48, variant: 'secondary' })
+  button(ctx, q === 3 && p > 0.85 ? 'Next: Movement' : 'Next Question', 704, seg(p, 0.88, 0.98), { x: 134, w: 202, h: 48 })
 }
 
-const connect: Draw = (ctx, p, t) => {
-  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Connect sensor', '3 / 3', 1)
-  const cx = 180, cy = 270
-  const found = p > 0.42
-  for (let i = 0; i < 4; i++) {
-    const k = ((t * 0.6 + i / 4) % 1)
-    ctx.beginPath(); ctx.arc(cx, cy, 50 + k * 110, 0, Math.PI * 2)
-    ctx.strokeStyle = `rgba(0,104,95,${(1 - k) * (found ? 0.15 : 0.35)})`; ctx.lineWidth = 2; ctx.stroke()
-  }
-  ctx.beginPath(); ctx.arc(cx, cy, 120, 0, Math.PI * 2); ctx.fillStyle = 'rgba(153,239,229,0.25)'; ctx.fill()
-  ctx.beginPath(); ctx.arc(cx, cy, 56, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
-  bluetooth(ctx, cx, cy, 46)
-  if (!found) {
-    txt(ctx, 'Searching for SAATHI sensor…', 180, 440, 17, 700, C.ink, 'center')
-    txt(ctx, 'Keep the sensor within 1 metre', 180, 464, 13, 500, C.secondary, 'center')
+/* ---- camera tests (OpenCV / MediaPipe Pose) ---- */
+function camFeed(ctx: Ctx, x: number, y: number, w: number, h: number, t: number, standing: boolean) {
+  ctx.save(); roundRect(ctx, x, y, w, h, 18); ctx.clip()
+  // camera image: courtyard wall + slate floor
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#9C8A74'); g.addColorStop(0.62, '#B9A88F'); g.addColorStop(0.63, '#8E8D88'); g.addColorStop(1, '#6E6D69')
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h)
+  ctx.fillStyle = 'rgba(80,50,30,0.35)'; for (let i = 0; i < 5; i++) ctx.fillRect(x, y + 40 + i * 50, w, 6)
+  rr(ctx, x + w * 0.66, y + 40, 60, 110, 4, '#2E86DE'); rr(ctx, x + w * 0.66 + 6, y + 46, 48, 98, 3, '#5A341B')
+  // patient (front view, mirrored like the selfie preview)
+  const cx = x + w * 0.45, base = y + h * 0.9
+  const sw = standing ? sway(t) * 900 : 0
+  const P = (px: number, py: number) => [cx + px + sw * (1 - (base - (base + py)) / 400), base + py] as const
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+  let hip: readonly [number, number], kneeR: readonly [number, number], ankR: readonly [number, number], kneeL: readonly [number, number], ankL: readonly [number, number]
+  const sh = standing ? -270 : -205
+  if (standing) {
+    hip = P(0, -150); kneeR = P(-18, -80); ankR = P(-20, -8); kneeL = P(18, -80); ankL = P(20, -8)
   } else {
-    const k = easeOut(seg(p, 0.42, 0.55))
-    const y = 420 + (1 - k) * 40
-    ctx.globalAlpha = k
-    card(ctx, 24, y, 312, 86, 18)
-    rr(ctx, 40, y + 18, 50, 50, 12, C.primary)
-    rr(ctx, 50, y + 30, 30, 20, 5, C.mint)
-    ctx.beginPath(); ctx.arc(76, y + 34, 3, 0, Math.PI * 2); ctx.fillStyle = '#16C784'; ctx.fill()
-    txt(ctx, 'SAATHI Sensor', 104, y + 38, 15.5, 800)
-    txt(ctx, 'S-01 · Battery 92%', 104, y + 60, 12.5, 500, C.secondary)
-    if (p > 0.68) chip(ctx, 'Connected', 324, y + 28, C.mint, C.primaryDark, 11, 'right')
-    else chip(ctx, 'Pairing…', 324, y + 28, C.tint, C.secondary, 11, 'right')
-    ctx.globalAlpha = 1
-    rr(ctx, 24, 528, 312, 110, 16, C.tint)
-    txt(ctx, 'Placement', 44, 558, 12, 700, C.secondary)
-    wrap(ctx, 'Strap just below the knee, LED facing forward.', 44, 584, 270, 15, 700, C.ink)
+    // seated: thighs come toward the camera (foreshortened), right shin swings up
+    const a = kneeAngle(t) * Math.PI / 180
+    hip = P(0, -118); kneeR = P(-22, -92); kneeL = P(22, -92); ankL = P(22, -20)
+    ankR = P(-22, -92 + 72 * Math.cos(a))
+    // chair
+    rr(ctx, cx - 50, base - 120, 100, 14, 4, '#8B5A2B'); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(cx - 46, base - 108, 8, 100); ctx.fillRect(cx + 38, base - 108, 8, 100)
+    rr(ctx, cx - 44, base - 210, 88, 30, 5, '#2EC4B6')
   }
-  button(ctx, 'Continue to calibration', 700, seg(p, 0.86, 0.99))
+  const shL = P(32, sh), shR = P(-32, sh), head = P(0, sh - 38)
+  // body silhouette
+  ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 46; ctx.beginPath(); ctx.moveTo(head[0], head[1] + 40); ctx.lineTo(hip[0], hip[1]); ctx.stroke()
+  ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 22
+  for (const [k, a] of [[kneeR, ankR], [kneeL, ankL]] as const) { ctx.beginPath(); ctx.moveTo(hip[0] + (k[0] - cx) * 0.4, hip[1]); ctx.lineTo(k[0], k[1]); ctx.stroke(); ctx.strokeStyle = '#8D5A3B'; ctx.lineWidth = 15; ctx.beginPath(); ctx.moveTo(k[0], k[1]); ctx.lineTo(a[0], a[1]); ctx.stroke(); ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 22 }
+  ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 13
+  const elL = P(44, sh + 70), elR = P(-44, sh + 70), haL = P(36, sh + 130), haR = P(-36, sh + 130)
+  for (const [s, e, hnd] of [[shL, elL, haL], [shR, elR, haR]] as const) { ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(hnd[0], hnd[1]); ctx.stroke() }
+  ctx.beginPath(); ctx.arc(head[0], head[1], 20, 0, Math.PI * 2); ctx.fillStyle = '#8D5A3B'; ctx.fill()
+  ctx.beginPath(); ctx.arc(head[0], head[1] - 6, 20, Math.PI, 0); ctx.fillStyle = '#D8D8D8'; ctx.fill()
+  // landmarks + skeleton (MediaPipe style)
+  const bones: [readonly [number, number], readonly [number, number]][] = [[shL, shR], [shL, elL], [elL, haL], [shR, elR], [elR, haR], [shL, P(16, hip[1] - base)], [shR, P(-16, hip[1] - base)], [P(16, hip[1] - base), P(-16, hip[1] - base)], [P(16, hip[1] - base), kneeL], [kneeL, ankL]]
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5
+  for (const [a, b] of bones) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke() }
+  const hipR = P(-16, hip[1] - base)
+  ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 4
+  ctx.beginPath(); ctx.moveTo(hipR[0], hipR[1]); ctx.lineTo(kneeR[0], kneeR[1]); ctx.lineTo(ankR[0], ankR[1]); ctx.stroke()
+  for (const pt of [shL, shR, elL, elR, haL, haR, P(16, hip[1] - base), kneeL, ankL, head]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#7CFFE9'; ctx.fill() }
+  for (const pt of [hipR, kneeR, ankR]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 6, 0, Math.PI * 2); ctx.fillStyle = '#FFD166'; ctx.fill(); ctx.strokeStyle = '#7A5A17'; ctx.lineWidth = 1.5; ctx.stroke() }
+  if (standing) { // plumb line
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(124,255,233,0.9)'; ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(cx, head[1] - 30); ctx.lineTo(cx, base + 4); ctx.stroke(); ctx.setLineDash([])
+  }
+  ctx.restore()
+}
+function cameraScreen(ctx: Ctx, p: number, t: number, test: 1 | 2) {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  const title = test === 1 ? 'Joint Movement' : 'Posture'
+  topBar(ctx, title, 'Triage active')
+  ctx.fillStyle = C.surface; ctx.fillRect(0, 105, W, 50)
+  txt(ctx, title, 16, 136, 15, 800, C.primary)
+  txt(ctx, `TEST ${test} OF 2`, 344, 128, 10.5, 600, C.secondary, 'right')
+  const tracking = p > 0.06
+  txt(ctx, tracking ? 'TRACKING PATIENT' : 'WAITING...', 344, 144, 9.5, 800, tracking ? C.success : C.warning, 'right')
+  const fx = 16, fy = 166, fw = 328, fh = 420
+  camFeed(ctx, fx, fy, fw, fh, t, test === 2)
+  const rec = p > 0.16 && p < 0.86
+  if (test === 1 && rec) {
+    rr(ctx, fx + 10, fy + 10, 150, 64, 14, 'rgba(14,26,26,0.75)')
+    txt(ctx, 'JOINT ANGLE', fx + 22, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
+    txt(ctx, `${Math.round(jointAngle(t))}°`, fx + 22, fy + 62, 26, 800, '#fff')
+    rr(ctx, fx + 168, fy + 10, 150, 64, 14, 'rgba(0,104,95,0.88)')
+    txt(ctx, 'RANGE OF MOTION', fx + 180, fy + 30, 9.5, 800, 'rgba(255,255,255,0.8)')
+    const rom = romSoFar(t)
+    txt(ctx, `${Math.round(rom)}°`, fx + 180, fy + 58, 24, 800, '#fff')
+    progress(ctx, fx + 180, fy + 64, 126, rom / 140, 5, 'rgba(255,255,255,0.25)', C.mint)
+  }
+  if (test === 2 && rec) {
+    const k = seg(p, 0.16, 0.86)
+    rr(ctx, fx + 10, fy + 10, 140, 64, 14, 'rgba(14,26,26,0.75)')
+    txt(ctx, 'STABILITY', fx + 22, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
+    txt(ctx, `${Math.round(88 + 4 * Math.sin(t))}%`, fx + 22, fy + 62, 26, 800, '#fff')
+    rr(ctx, fx + 228, fy + 10, 90, 64, 14, 'rgba(0,104,95,0.88)')
+    txt(ctx, 'HOLD', fx + 240, fy + 30, 9.5, 800, 'rgba(255,255,255,0.8)')
+    txt(ctx, `${Math.max(0, 5 - Math.floor(k * 5))}s`, fx + 240, fy + 62, 24, 800, '#fff')
+  }
+  if (p > 0.08 && p < 0.17) {
+    const a = win01(p, 0.08, 0.17)
+    ctx.globalAlpha = a
+    rr(ctx, fx, fy, fw, fh, 18, 'rgba(0,104,95,0.9)')
+    txt(ctx, `TEST ${test}`, 180, fy + fh / 2 - 14, 18, 800, '#fff', 'center')
+    txt(ctx, title, 180, fy + fh / 2 + 22, 28, 800, '#fff', 'center')
+    ctx.globalAlpha = 1
+  }
+  if (p <= 0.08) wrap(ctx, test === 1 ? 'Please ask the patient to sit on the chair and face the camera.' : 'Ask the patient to stand still, arms relaxed, for 5 seconds.', 30, 618, 300, 16, 800, C.ink, 1.35)
+  else if (rec) {
+    ctx.beginPath(); ctx.arc(150, 614, 6, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 2) % 2 ? C.error : '#F28B82'; ctx.fill()
+    txt(ctx, 'LIVE', 164, 619, 14, 800, C.error)
+    const sec = seg(p, 0.16, 0.86) * (test === 1 ? 8 : 5)
+    txt(ctx, `Test progress: ${sec.toFixed(1)}s / ${test === 1 ? 30 : 10}s`, 180, 648, 13, 600, C.secondary, 'center')
+    rr(ctx, 24, 668, 312, 44, 14, 'rgba(14,26,26,0.9)')
+    txt(ctx, test === 1 ? 'Slowly straighten and bend the knee' : 'Stand still… looking straight ahead', 180, 696, 13.5, 700, '#fff', 'center')
+  } else {
+    card(ctx, 16, 596, 328, 112, 16)
+    txt(ctx, `TEST ${test} — ${title}`, 30, 622, 13.5, 800)
+    check(ctx, 38, 644, 8, C.success); txt(ctx, 'Completed', 52, 649, 12.5, 800, C.success)
+    if (test === 1) { txt(ctx, 'ROM: 74°  ·  Max flexion: 88°', 30, 676, 12.5, 700, C.secondary); txt(ctx, 'Smoothness: uneven at end-range', 30, 696, 12.5, 700, C.secondary) }
+    else { txt(ctx, 'Sway: low  ·  Stability: 90%', 30, 676, 12.5, 700, C.secondary); txt(ctx, 'Weight shifted slightly to the left', 30, 696, 12.5, 700, C.secondary) }
+    button(ctx, test === 1 ? 'NEXT' : 'CONTINUE', 718, seg(p, 0.93, 0.99), { h: 48 })
+  }
+}
+function win01(p: number, a: number, b: number) { return Math.min(smooth((p - a) / 0.02), smooth((b - p) / 0.02)) }
+const camRom: Draw = (ctx, p, t) => cameraScreen(ctx, p, t, 1)
+const camPosture: Draw = (ctx, p, t) => cameraScreen(ctx, p, t, 2)
+
+/* ---- sensor pod ---- */
+function legArt(ctx: Ctx, x: number, y: number, t: number, s = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s)
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
+  // seated leg, side view: thigh horizontal, shin vertical
+  ctx.strokeStyle = '#C9B7A6'; ctx.lineWidth = 34
+  ctx.beginPath(); ctx.moveTo(-90, -40); ctx.lineTo(10, -40); ctx.lineTo(16, 70); ctx.stroke()
+  ctx.strokeStyle = '#B9A696'; ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(16, 74); ctx.lineTo(46, 80); ctx.stroke()
+  // tibia (shin bone) hint
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(24, -12); ctx.lineTo(28, 66); ctx.stroke(); ctx.setLineDash([])
+  // strap + pod just below the knee
+  rr(ctx, -6, -6, 44, 14, 5, '#2B2F36')
+  rr(ctx, 22, -10, 22, 22, 6, C.primary)
+  ctx.beginPath(); ctx.arc(37, -3, 2.5, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 3) % 2 ? '#7CFFB2' : '#2BD47A'; ctx.fill()
+  ctx.restore()
+}
+const placement: Draw = (ctx, p, t) => {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  topBar(ctx, 'Movement Assessment', 'Triage active')
+  stepHead(ctx, 3, 7, 'Placement guide')
+  txt(ctx, 'Knee Assessment —', 24, 186, 20, 800); txt(ctx, 'Instructions', 24, 210, 20, 800)
+  chip(ctx, '● Pair ready', 336, 180, C.mint, C.primaryDark, 10.5, 'right')
+  ;[['1. Wear', 'Strap'], ['2. Calib', 'Stand'], ['3. Test', 'Walk'], ['4. Done', 'Report']].forEach(([a, b], i) => {
+    const on = i === 0
+    rr(ctx, 24 + i * 79, 228, 72, 48, 10, on ? C.primary : C.tint)
+    txt(ctx, a, 60 + i * 79, 248, 11.5, 800, on ? '#fff' : C.secondary, 'center'); txt(ctx, b, 60 + i * 79, 265, 10, 600, on ? C.mint : C.muted, 'center')
+  })
+  card(ctx, 24, 288, 312, 268, 18)
+  chip(ctx, 'Placement guide', 38, 300, C.mintSoft, C.primaryDark, 10)
+  chip(ctx, 'Sensor: Right', 150, 300, C.mint, C.primaryDark, 10)
+  rr(ctx, 38, 336, 284, 140, 14, C.tint)
+  legArt(ctx, 178, 412, t, 1)
+  const pk = 0.5 + 0.5 * Math.sin(t * 5)
+  ctx.beginPath(); ctx.arc(215, 409, 16 + pk * 6, 0, Math.PI * 2); ctx.strokeStyle = `rgba(0,104,95,${0.6 - pk * 0.4})`; ctx.lineWidth = 2.5; ctx.stroke()
+  txt(ctx, 'below knee · on the tibia', 238, 372, 10.5, 800, C.primary)
+  txt(ctx, 'Attach the strap as shown', 180, 502, 14, 800, C.ink, 'center')
+  wrap(ctx, 'Strap the small sensor just below the knee on the Right side, light facing forward.', 50, 524, 270, 11.5, 500, C.secondary, 1.35)
+  card(ctx, 24, 568, 312, 104, 16)
+  ;['Seat the patient on a firm chair', 'Then walk 5 steps at a normal pace'].forEach((s, i) => {
+    ctx.beginPath(); ctx.arc(46, 596 + i * 44, 12, 0, Math.PI * 2); ctx.fillStyle = C.mintSoft; ctx.fill()
+    txt(ctx, String(i + 2), 46, 601 + i * 44, 12, 800, C.primary, 'center')
+    txt(ctx, s, 68, 601 + i * 44, 13, 700)
+  })
+  button(ctx, 'Start Assessment  →', 690, seg(p, 0.86, 0.98), { h: 50 })
+  txt(ctx, 'Patient cannot do the movement — skip this step', 180, 762, 11, 600, C.secondary, 'center')
+}
+
+const pairing: Draw = (ctx, p, t) => {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  topBar(ctx, 'Screening Intake', 'Saved', C.surface, C.ink)
+  const found = p > 0.35
+  stepHead(ctx, 4, 7, found ? 'Paired' : 'Pairing…')
+  txt(ctx, 'Sensor Pairing', 24, 186, 21, 800)
+  chip(ctx, 'Bluetooth LE', 336, 168, C.mint, C.primaryDark, 10.5, 'right')
+  card(ctx, 24, 204, 312, 220, 18)
+  const cx = 180, cy = 300
+  for (let i = 0; i < 3; i++) { const k = ((t * 0.7 + i / 3) % 1); ctx.beginPath(); ctx.arc(cx, cy, 40 + k * 70, 0, Math.PI * 2); ctx.strokeStyle = `rgba(0,104,95,${(1 - k) * 0.3})`; ctx.lineWidth = 2; ctx.stroke() }
+  ctx.beginPath(); ctx.arc(cx, cy, 78, 0, Math.PI * 2); ctx.fillStyle = 'rgba(153,239,229,0.3)'; ctx.fill()
+  ctx.beginPath(); ctx.arc(cx, cy, 44, 0, Math.PI * 2); ctx.fillStyle = C.primaryDark; ctx.fill()
+  bluetooth(ctx, cx, cy, 38)
+  txt(ctx, found ? 'Sensor is ready. Continue to setup.' : 'Searching for SAATHI sensor…', 180, 404, 12.5, 600, C.secondary, 'center')
+  const k = easeOut(seg(p, 0.35, 0.5))
+  ctx.globalAlpha = k
+  card(ctx, 24, 436, 312, 188, 18)
+  rr(ctx, 40, 452, 44, 44, 12, C.mint); rr(ctx, 52, 466, 20, 16, 4, C.primary)
+  txt(ctx, 'SAATHI Sensor', 96, 472, 16, 800); txt(ctx, 'ID: SP-8842 · Found', 96, 490, 11.5, 500, C.secondary)
+  rr(ctx, 40, 508, 136, 52, 12, C.tint); txt(ctx, 'Signal Strength', 52, 528, 11, 700, C.ink); txt(ctx, 'Strong', 52, 550, 16, 800)
+  rr(ctx, 184, 508, 136, 52, 12, C.tint); txt(ctx, 'Battery', 196, 528, 11, 700, C.ink); txt(ctx, '88%', 196, 550, 16, 800)
+  ;['Sensor found', 'Ready to use'].forEach((s, i) => { const on = p > 0.5 + i * 0.12; rr(ctx, 40, 570 + i * 26, 280, 22, 8, on ? C.mintSoft : C.tint); if (on) check(ctx, 54, 581 + i * 26, 7); txt(ctx, s, 68, 586 + i * 26, 11.5, 700, on ? C.primaryDark : C.muted) })
+  ctx.globalAlpha = 1
+  button(ctx, 'Next: Sensor Setup  →', 700, seg(p, 0.86, 0.98))
 }
 
 const calibrate: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Calibration')
+  topBar(ctx, 'Movement Assessment', 'Triage active')
+  stepHead(ctx, 5, 7, 'Sensor Setup')
+  txt(ctx, 'Sensor Setup', 24, 186, 21, 800)
+  txt(ctx, 'A short 4-step setup before recording.', 24, 206, 12.5, 500, C.secondary)
   const steps = ['Prepare', 'Position', 'Calibrate', 'Ready']
-  const active = p < 0.12 ? 1 : p < 0.86 ? 2 : 3
+  const active = p < 0.15 ? 0 : p < 0.3 ? 1 : p < 0.82 ? 2 : 3
   steps.forEach((s, i) => {
-    const x = 50 + i * 87
-    if (i < 3) { ctx.fillStyle = i < active ? C.primary : C.tint2; ctx.fillRect(x + 14, 127, 59, 3) }
-    if (i < active) check(ctx, x, 128, 13)
-    else { ctx.beginPath(); ctx.arc(x, 128, 13, 0, Math.PI * 2); ctx.fillStyle = i === active ? C.mint : C.tint2; ctx.fill(); txt(ctx, String(i + 1), x, 133, 12, 800, i === active ? C.primaryDark : C.muted, 'center') }
-    txt(ctx, s, x, 160, 11.5, 700, i <= active ? C.ink : C.muted, 'center')
+    rr(ctx, 24 + i * 79, 222, 72, 36, 10, i < active ? C.mint : i === active ? C.primary : C.tint)
+    txt(ctx, `${i + 1}. ${s}`, 60 + i * 79, 245, 10.5, 800, i === active ? '#fff' : i < active ? C.primaryDark : C.muted, 'center')
   })
-  const k = smooth(seg(p, 0.12, 0.86))
-  const cx = 180, cy = 330
-  ctx.beginPath(); ctx.arc(cx, cy, 104, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 16; ctx.stroke()
-  ctx.beginPath(); ctx.arc(cx, cy, 104, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
-  if (k < 1) { txt(ctx, `${Math.round(k * 100)}%`, cx, cy + 14, 44, 800, C.ink, 'center'); txt(ctx, 'calibrating', cx, cy + 40, 13, 600, C.secondary, 'center') }
-  else check(ctx, cx, cy, 46, C.success)
-  txt(ctx, k < 1 ? 'Keep the leg still' : 'Sensor calibrated', 180, 488, 20, 800, k < 1 ? C.ink : C.success, 'center')
-  txt(ctx, 'Learning resting angle & orientation', 180, 512, 13, 500, C.secondary, 'center')
-  button(ctx, 'Start movement test', 700, seg(p, 0.9, 0.99))
+  const k = smooth(seg(p, 0.3, 0.82))
+  const cx = 180, cy = 390
+  card(ctx, 24, 272, 312, 250, 18)
+  ctx.beginPath(); ctx.arc(cx, cy, 86, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 14; ctx.stroke()
+  ctx.beginPath(); ctx.arc(cx, cy, 86, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
+  if (k < 1) { txt(ctx, `${Math.round(k * 100)}%`, cx, cy + 12, 38, 800, C.ink, 'center'); txt(ctx, 'hold still', cx, cy + 36, 12, 600, C.secondary, 'center') }
+  else check(ctx, cx, cy, 40, C.success)
+  txt(ctx, k < 1 ? 'Learning resting orientation' : 'Sensor calibrated', 180, 556, 17, 800, k < 1 ? C.ink : C.success, 'center')
+  txt(ctx, 'Gravity reference = 1 g · tibia axis aligned', 180, 580, 12, 600, C.secondary, 'center')
+  button(ctx, 'Start movement assessment', 700, seg(p, 0.9, 0.99))
 }
 
-const assess: Draw = (ctx, p, t) => {
+const assess: Draw = (ctx, _p, t) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Movement test')
-  rr(ctx, 24, 98, 312, 36, 18, C.surface)
-  ctx.beginPath(); ctx.arc(44, 116, 5, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 2) % 2 ? C.error : '#F28B82'; ctx.fill()
-  txt(ctx, 'Recording · Right knee', 58, 121, 13, 700, C.ink)
-  const sec = Math.min(30, Math.floor(p * 30))
-  txt(ctx, `00:${String(sec).padStart(2, '0')} / 00:30`, 322, 121, 13, 700, C.secondary, 'right')
-  // gauge
-  const a = kneeAngle(t)
-  const cx = 180, cy = 300, R = 112
-  ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.stroke()
-  const g = ctx.createLinearGradient(cx - R, 0, cx + R, 0); g.addColorStop(0, C.mint); g.addColorStop(1, C.primary)
-  ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, Math.PI + (a / 90) * Math.PI); ctx.strokeStyle = g; ctx.stroke()
-  for (let i = 0; i <= 6; i++) { const an = Math.PI + (i / 6) * Math.PI; ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * (R - 20), cy + Math.sin(an) * (R - 20)); ctx.lineTo(cx + Math.cos(an) * (R - 28), cy + Math.sin(an) * (R - 28)); ctx.strokeStyle = C.muted; ctx.lineWidth = 2; ctx.stroke() }
-  txt(ctx, `${Math.round(a)}°`, cx, cy - 18, 54, 800, C.ink, 'center')
-  txt(ctx, 'knee extension', cx, cy + 6, 13, 600, C.secondary, 'center')
-  // live waveform
-  card(ctx, 24, 330, 312, 150, 16)
-  txt(ctx, 'Live motion', 40, 356, 13, 700, C.secondary)
-  ctx.save(); roundRect(ctx, 24, 330, 312, 150, 16); ctx.clip()
+  topBar(ctx, 'Movement Assessment', 'Triage active')
+  card(ctx, 16, 116, 328, 40, 12)
+  ctx.beginPath(); ctx.arc(34, 136, 5, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 2) % 2 ? C.error : '#F28B82'; ctx.fill()
+  txt(ctx, 'LIVE RECORDING', 46, 141, 12, 800, C.ink)
+  chip(ctx, 'Kamala · Right knee', 334, 123, C.mint, C.primaryDark, 10, 'right')
+  const n = stepsDone(t)
+  // timer ring
+  card(ctx, 16, 166, 328, 176, 18)
+  const el = Math.max(0, t - T.shock)
+  const rem = Math.max(0, 30 - Math.floor(el * 1.6))
+  ctx.beginPath(); ctx.arc(110, 254, 58, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 10; ctx.stroke()
+  ctx.beginPath(); ctx.arc(110, 254, 58, -Math.PI / 2, -Math.PI / 2 + (1 - rem / 30) * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
+  txt(ctx, 'REMAINING', 110, 236, 9.5, 800, C.secondary, 'center')
+  txt(ctx, `00:${String(rem).padStart(2, '0')}`, 110, 266, 26, 800, C.ink, 'center')
+  txt(ctx, 'STEPS', 196, 214, 10, 800, C.secondary)
+  txt(ctx, `${n} of 5`, 196, 244, 26, 800, C.primary)
+  txt(ctx, 'PEAK TIBIAL SHOCK', 196, 278, 10, 800, C.secondary)
+  let peak = 1
+  for (let i = 0; i < 60; i++) peak = Math.max(peak, shockAt(t - i * 0.02))
+  const best = n > 0 ? Math.max(...[3.1, 3.4, 3.3, 3.6, 3.4].slice(0, n)) : 0
+  txt(ctx, n > 0 ? `${best.toFixed(1)} g` : '— g', 196, 308, 26, 800, C.warningText)
+  rr(ctx, 32, 318, 0, 0, 0, C.tint)
+  // movement trace (accelerometer)
+  card(ctx, 16, 352, 328, 222, 18)
+  txt(ctx, 'Movement Trace', 32, 380, 15, 800)
+  chip(ctx, 'Calibrated', 330, 364, C.tint, C.ink, 10, 'right')
+  txt(ctx, 'Tibial acceleration (g)', 32, 402, 11, 700, C.secondary)
+  const gx = 32, gy = 412, gw = 296, gh = 146
+  rr(ctx, gx, gy, gw, gh, 10, C.tint)
   ctx.strokeStyle = C.tint2; ctx.lineWidth = 1
-  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(40, 380 + i * 25); ctx.lineTo(320, 380 + i * 25); ctx.stroke() }
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(gx, gy + (i * gh) / 4); ctx.lineTo(gx + gw, gy + (i * gh) / 4); ctx.stroke() }
+  txt(ctx, '4g', gx + 4, gy + 12, 9, 700, C.muted); txt(ctx, '1g', gx + 4, gy + gh - 34, 9, 700, C.muted)
   ctx.beginPath()
-  const span = 8
-  for (let i = 0; i <= 140; i++) {
-    const tt = t - span + (i / 140) * span
-    if (tt < 47) continue
-    const v = kneeAngle(tt)
-    const x = 40 + (i / 140) * 280, y = 460 - (v / 90) * 85
-    if (i === 0 || tt - span / 140 < 47) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+  const span = 4
+  for (let i = 0; i <= 220; i++) {
+    const tt = t - span + (i / 220) * span
+    const v = tt < T.shock ? 1 : shockAt(tt)
+    const x = gx + (i / 220) * gw, y = gy + gh - 10 - ((v - 0.4) / 3.8) * (gh - 20)
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
   }
-  ctx.strokeStyle = C.primary; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.stroke()
-  ctx.lineTo(320, 470); ctx.lineTo(40, 470); ctx.closePath()
-  ctx.restore()
-  ctx.beginPath(); ctx.arc(320, 460 - (a / 90) * 85, 5, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
-  // stats
-  const reps = Math.max(0, Math.floor((t - 47 + 2) / 4))
-  const st: [string, string][] = [[String(reps), 'Reps'], [`${Math.round(Math.min(78, 30 + (t - 47) * 25))}°`, 'Max range'], [p > 0.3 ? 'Even' : '—', 'Pattern']]
-  st.forEach(([v, l], i) => { const x = 24 + i * 106; card(ctx, x, 496, 98, 76, 14); txt(ctx, v, x + 49, 532, 22, 800, C.primary, 'center'); txt(ctx, l, x + 49, 556, 11.5, 600, C.secondary, 'center') })
-  progress(ctx, 24, 594, 312, p, 8)
-  rr(ctx, 24, 620, 312, 56, 14, C.mintSoft)
-  wrap(ctx, 'Slowly straighten, then bend the knee', 44, 653, 280, 14, 700, C.primaryDark)
-  button(ctx, 'Stop test', 700, 0, { variant: 'secondary' })
+  ctx.strokeStyle = C.primary; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.stroke()
+  STEPS_T.forEach((s, i) => {
+    const x = gx + gw - ((t - s) / span) * gw
+    if (x < gx || x > gx + gw || t < s) return
+    const y = gy + gh - 10 - ((([3.1, 3.4, 3.3, 3.6, 3.4][i]) - 0.4) / 3.8) * (gh - 20)
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = C.warning; ctx.fill()
+  })
+  rr(ctx, 16, 584, 328, 44, 12, n >= 5 ? C.mintSoft : C.tint)
+  txt(ctx, n >= 5 ? '✓ Test completed · 5 steps captured' : 'Movement detected — keep walking steadily', 180, 611, 12.5, 700, n >= 5 ? C.primaryDark : C.ink, 'center')
+  button(ctx, n >= 5 ? 'Analyse results' : 'Stop Recording', 700, 0, { h: 50 })
+  void peak
 }
 
 const analysis: Draw = (ctx, p, t) => {
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#E1FBF8'); g.addColorStop(1, C.bg)
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
-  const cx = 180, cy = 230
-  for (let ring = 0; ring < 3; ring++) {
-    ctx.beginPath(); ctx.arc(cx, cy, 50 + ring * 28, 0, Math.PI * 2); ctx.strokeStyle = `rgba(0,104,95,${0.18 - ring * 0.04})`; ctx.lineWidth = 2; ctx.stroke()
-    for (let i = 0; i < 5 + ring * 2; i++) {
-      const a = t * (1.2 - ring * 0.3) * (ring % 2 ? -1 : 1) + (i / (5 + ring * 2)) * Math.PI * 2
-      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * (50 + ring * 28), cy + Math.sin(a) * (50 + ring * 28), 5 - ring, 0, Math.PI * 2)
-      ctx.fillStyle = [C.primary, C.primaryMid, '#6ED9CC'][ring]; ctx.fill()
-    }
-  }
-  ctx.beginPath(); ctx.arc(cx, cy, 36, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
-  txt(ctx, 'AI', cx, cy + 8, 22, 800, '#fff', 'center')
-  txt(ctx, 'Analysing screening data', 180, 378, 20, 800, C.ink, 'center')
-  txt(ctx, 'Runs on the phone · no internet needed', 180, 402, 13, 500, C.secondary, 'center')
-  const items: [string, string][] = [['Symptom answers', '8 / 8'], ['Range of movement', '78°'], ['Movement smoothness', '0.72'], ['Age & risk factors', '3 found']]
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  topBar(ctx, 'Movement Assessment', 'Triage active')
+  chip(ctx, 'SCREENING ENGINE · ON-DEVICE', 24, 120, C.tint, C.primaryDark, 10)
+  txt(ctx, 'Analysing Data…', 24, 182, 22, 800)
+  txt(ctx, 'The screening model processes the results.', 24, 204, 12.5, 500, C.secondary)
+  const cx = 180, cy = 290
+  ctx.beginPath(); ctx.arc(cx, cy, 58, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 10; ctx.stroke()
+  ctx.beginPath(); ctx.arc(cx, cy, 58, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
+  txt(ctx, `${Math.round(p * 100)}%`, cx, cy + 10, 28, 800, C.ink, 'center')
+  txt(ctx, 'SCREENING PIPELINE', 24, 384, 11, 800, C.secondary)
+  const items: [string, string][] = [['Patient information', '64 F'], ['Symptoms', '8 / 8'], ['Camera · ROM & posture', '74°'], ['Wearable · tibial shock', '3.6 g'], ['Estimating screening risk', 'NN']]
   items.forEach(([l, v], i) => {
-    const y = 430 + i * 62
-    const k = seg(p, 0.1 + i * 0.2, 0.25 + i * 0.2)
-    card(ctx, 24, y, 312, 52, 14)
-    if (k >= 1) check(ctx, 50, y + 26, 11)
-    else { ctx.beginPath(); ctx.arc(50, y + 26, 10, t * 6, t * 6 + 4.2); ctx.strokeStyle = C.primary; ctx.lineWidth = 3; ctx.stroke() }
-    txt(ctx, l, 72, y + 31, 14.5, 700, k > 0 ? C.ink : C.muted)
-    if (k >= 1) txt(ctx, v, 320, y + 31, 14, 800, C.primary, 'right')
+    const y = 396 + i * 58
+    const k = seg(p, 0.05 + i * 0.18, 0.2 + i * 0.18)
+    card(ctx, 24, y, 312, 48, 12)
+    if (k >= 1) check(ctx, 48, y + 24, 10)
+    else { ctx.beginPath(); ctx.arc(48, y + 24, 9, t * 6, t * 6 + 4.2); ctx.strokeStyle = C.primary; ctx.lineWidth = 3; ctx.stroke() }
+    txt(ctx, l, 68, y + 29, 13.5, 700, k > 0 ? C.ink : C.muted)
+    if (k >= 1) txt(ctx, v, 322, y + 29, 13, 800, C.primary, 'right')
   })
-  progress(ctx, 24, 700, 312, p, 8)
+  txt(ctx, 'Processed on-device · screening risk estimation only, not a diagnosis', 180, 700, 10, 600, C.muted, 'center')
 }
 
 const result: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Screening result')
-  chip(ctx, '✓ Assessment finalised', 24, 98, C.mint, C.primaryDark, 11.5)
-  txt(ctx, 'Right knee screening complete', 24, 150, 19.5, 800)
-  rr(ctx, 24, 166, 312, 52, 14, C.tint)
-  rr(ctx, 36, 176, 32, 32, 9, C.surface)
-  txt(ctx, 'KD', 52, 197, 12, 800, C.primary, 'center')
-  txt(ctx, 'Kamala Devi (64F)', 80, 197, 14.5, 800)
-  chip(ctx, 'PHC Rampur', 326, 179, C.surface, C.ink, 10.5, 'right')
-  // result card
-  const k = easeOut(seg(p, 0.05, 0.3))
+  topBar(ctx, 'Screening Result', 'Triage active')
+  chip(ctx, '✓ Assessment finalised', 16, 116, C.mint, C.primaryDark, 10.5)
+  txt(ctx, 'Right knee screening complete', 16, 170, 18.5, 800)
+  txt(ctx, 'Symptoms · camera movement · tibial shock', 16, 190, 12, 500, C.secondary)
+  rr(ctx, 16, 202, 328, 46, 12, C.tint)
+  txt(ctx, 'Kamala Devi (64F)', 30, 230, 14, 800)
+  chip(ctx, 'PHC Devkhal', 334, 212, C.surface, C.ink, 10, 'right')
+  const k = easeOut(seg(p, 0.03, 0.25))
   ctx.globalAlpha = k
-  card(ctx, 24, 232, 312, 220, 18)
-  ctx.save(); roundRect(ctx, 24, 232, 312, 220, 18); ctx.clip()
-  const gb = ctx.createLinearGradient(24, 0, 336, 0); gb.addColorStop(0, C.mint); gb.addColorStop(0.5, '#6ED9CC'); gb.addColorStop(1, C.errorTint)
-  ctx.fillStyle = gb; ctx.fillRect(24, 232, 312, 7); ctx.restore()
-  txt(ctx, 'SCREENING RESULT', 42, 268, 11, 800, C.secondary)
-  txt(ctx, 'Moderate', 42, 302, 26, 800, C.warningText)
-  txt(ctx, 'screening risk', 42, 326, 18, 700, C.ink)
-  chip(ctx, 'Refer to PHC', 320, 254, C.warningTint, C.warningText, 11, 'right')
-  const bx = 42, bw = 276, by = 352
-  const bg = ctx.createLinearGradient(bx, 0, bx + bw, 0); bg.addColorStop(0, '#5ED3B8'); bg.addColorStop(0.5, '#F5C04A'); bg.addColorStop(1, '#E5534B')
-  rr(ctx, bx, by, bw, 12, 6, '#fff'); roundRect(ctx, bx, by, bw, 12, 6); ctx.fillStyle = bg; ctx.fill()
-  const mx = bx + bw * 0.52 * easeOut(seg(p, 0.15, 0.45))
-  ctx.beginPath(); ctx.arc(mx, by + 6, 11, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.stroke()
-  txt(ctx, 'Low', bx, by + 36, 11.5, 700, C.secondary)
-  txt(ctx, 'Moderate', bx + bw / 2, by + 36, 11.5, 800, C.ink, 'center')
-  txt(ctx, 'Higher', bx + bw, by + 36, 11.5, 700, C.secondary, 'right')
-  txt(ctx, 'Further clinical evaluation may help.', 42, 428, 13, 600, C.secondary)
+  card(ctx, 16, 258, 328, 196, 18)
+  ctx.save(); roundRect(ctx, 16, 258, 328, 196, 18); ctx.clip()
+  const gb = ctx.createLinearGradient(16, 0, 344, 0); gb.addColorStop(0, C.mint); gb.addColorStop(1, C.errorTint)
+  ctx.fillStyle = gb; ctx.fillRect(16, 258, 328, 6); ctx.restore()
+  txt(ctx, 'SCREENING BAND', 32, 290, 10, 800, C.secondary)
+  txt(ctx, 'Moderate', 32, 322, 25, 800, C.info)
+  txt(ctx, 'screening risk', 32, 344, 16, 700, C.ink)
+  rr(ctx, 196, 276, 132, 70, 12, C.infoTint)
+  txt(ctx, 'NEXT ACTION', 206, 294, 9, 800, C.info)
+  wrap(ctx, 'Advise PHC visit for evaluation', 206, 314, 116, 12.5, 800, C.error, 1.25)
+  const bx = 32, bw = 296, by = 364
+  ;[[C.mint, 0], ['#7FD3E6', 1], [C.errorTint, 2]].forEach(([c, i]) => rr(ctx, bx + (i as number) * (bw / 3), by, bw / 3 - 3, 12, 5, c as string))
+  roundRect(ctx, bx + bw / 3, by - 2, bw / 3 - 3, 16, 6); ctx.strokeStyle = C.primaryDark; ctx.lineWidth = 2; ctx.stroke()
+  const mx = bx + bw * 0.5 * easeOut(seg(p, 0.12, 0.35))
+  ctx.beginPath(); ctx.moveTo(mx - 6, by - 12); ctx.lineTo(mx + 6, by - 12); ctx.lineTo(mx, by - 4); ctx.fillStyle = C.primaryDark; ctx.fill()
+  txt(ctx, 'Low', bx, by + 32, 10.5, 600, C.secondary); txt(ctx, 'Moderate', bx + bw / 2, by + 32, 10.5, 800, C.primaryDark, 'center'); txt(ctx, 'Higher', bx + bw, by + 32, 10.5, 600, C.secondary, 'right')
+  txt(ctx, 'Clinical confirmation required', 32, 438, 11.5, 700, C.secondary)
   ctx.globalAlpha = 1
-  // factors
-  card(ctx, 24, 466, 312, 168, 18)
-  txt(ctx, 'Key contributing factors', 42, 496, 15.5, 800)
-  ;['Morning joint stiffness', 'Reduced range of movement', 'Age 60 or above'].forEach((f, i) => {
-    const kk = easeOut(seg(p, 0.35 + i * 0.12, 0.5 + i * 0.12))
+  card(ctx, 16, 464, 328, 166, 18)
+  txt(ctx, 'KEY MEASURED FINDINGS', 32, 490, 10.5, 800, C.secondary)
+  ;([['Range of movement', 'Camera · MediaPipe', '74°'], ['Posture & balance', 'Camera', 'Stable'], ['Peak tibial shock', 'Wearable pod', '3.6 g ↑']] as [string, string, string][]).forEach(([a, b, v], i) => {
+    const kk = easeOut(seg(p, 0.3 + i * 0.1, 0.45 + i * 0.1))
     ctx.globalAlpha = kk
-    const y = 512 + i * 38 + (1 - kk) * 10
-    rr(ctx, 40, y, 280, 32, 10, C.tint)
-    ctx.beginPath(); ctx.arc(58, y + 16, 9, 0, Math.PI * 2); ctx.fillStyle = C.mint; ctx.fill()
-    txt(ctx, f, 76, y + 21, 13, 700)
-    ctx.globalAlpha = 1
+    const y = 502 + i * 42
+    rr(ctx, 30, y, 300, 36, 10, C.tint)
+    txt(ctx, a, 42, y + 16, 12.5, 800); txt(ctx, b, 42, y + 30, 9.5, 600, C.secondary)
+    txt(ctx, v, 318, y + 24, 14, 800, i === 2 ? C.warningText : C.primary, 'right')
   })
-  rr(ctx, 24, 646, 312, 40, 12, C.infoTint)
-  txt(ctx, 'Screening result — not a diagnosis', 180, 671, 12.5, 700, C.info, 'center')
-  button(ctx, 'Next steps', 704, seg(p, 0.9, 0.99), { h: 50 })
+  ctx.globalAlpha = 1
+  card(ctx, 16, 640, 328, 50, 14, C.mintSoft)
+  txt(ctx, 'AI model output · Moderate', 30, 662, 12, 800, C.primaryDark)
+  txt(ctx, 'On-device neural network 13 → 32 → 16 → 3', 30, 680, 10.5, 600, C.secondary)
+  button(ctx, 'Next Steps  →', 702, seg(p, 0.9, 0.99), { h: 50 })
 }
 
-const exercises: Draw = (ctx, p, t) => {
+const guidance: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Guidance')
-  card(ctx, 24, 104, 312, 104, 18)
-  roundRect(ctx, 24, 104, 312, 104, 18); ctx.strokeStyle = C.mint; ctx.lineWidth = 2.5; ctx.stroke()
-  txt(ctx, 'RECOMMENDED NEXT ACTION', 42, 132, 11, 800, C.secondary)
-  wrap(ctx, 'PHC visit for clinical evaluation. Begin gentle joint exercises.', 42, 160, 280, 15.5, 800, C.primaryDark, 1.3)
-  txt(ctx, 'Gentle exercises', 24, 246, 17, 800)
-  const ex: [string, string][] = [['Seated knee extension', '10 × 2 sets daily'], ['Heel slides', '10 × each leg'], ['Daily walk', '15 minutes, flat ground']]
-  ex.forEach(([n, d], i) => {
-    const kk = easeOut(seg(p, 0.05 + i * 0.12, 0.25 + i * 0.12))
-    ctx.globalAlpha = kk
-    const y = 262 + i * 96 + (1 - kk) * 16
-    card(ctx, 24, y, 312, 84, 16)
-    rr(ctx, 36, y + 10, 64, 64, 14, C.mintSoft)
-    stickFigure(ctx, i, 68, y + 42, t + i)
-    txt(ctx, n, 114, y + 38, 15, 800)
-    txt(ctx, d, 114, y + 60, 12.5, 500, C.secondary)
-    ctx.globalAlpha = 1
+  topBar(ctx, 'Post Screening Guidance', '✓ Ready')
+  rr(ctx, 16, 116, 328, 52, 12, C.tint)
+  ctx.beginPath(); ctx.arc(42, 142, 16, 0, Math.PI * 2); ctx.fillStyle = C.mint; ctx.fill(); txt(ctx, 'KD', 42, 147, 11, 800, C.primaryDark, 'center')
+  txt(ctx, 'Kamala Devi 64F', 66, 140, 13.5, 800); txt(ctx, 'Right knee', 66, 157, 11, 500, C.secondary)
+  chip(ctx, '● Moderate risk', 334, 128, C.infoTint, C.info, 10, 'right')
+  txt(ctx, 'Personalised Guidelines', 16, 206, 21, 800)
+  txt(ctx, 'Care steps tailored to moderate screening risk', 16, 226, 12, 500, C.secondary)
+  const rows: [string, string, string, string, string][] = [
+    ['Recommended Exercises', 'Gentle strengthening, 15 min daily', 'Daily 15 min', C.mint, C.primaryDark],
+    ['Lifestyle Care', 'Avoid deep squatting & floor sitting', 'Essential', C.infoTint, C.info],
+    ['Nutrition Plan', 'Diet matched to the risk band', 'By risk band', C.warningTint, C.warningText],
+    ['When to Visit PHC', 'Within 60 days · sooner if swollen', 'Priority', C.errorTint, C.error],
+  ]
+  rows.forEach(([a, b, tag, bg, fg], i) => {
+    const y = 242 + i * 80
+    const hl = i === 2 && p > 0.6
+    card(ctx, 16, y, 328, 70, 14, hl ? C.warningTint : C.surface)
+    if (hl) { roundRect(ctx, 16, y, 328, 70, 14); ctx.strokeStyle = C.warning; ctx.lineWidth = 2; ctx.stroke() }
+    rr(ctx, 28, y + 12, 46, 46, 12, C.tint)
+    if (i === 2) { ctx.beginPath(); ctx.arc(51, y + 37, 12, 0, Math.PI * 2); ctx.fillStyle = '#E8752A'; ctx.fill(); ctx.fillStyle = '#3F9A3A'; ctx.fillRect(50, y + 20, 3, 8) }
+    else rr(ctx, 43, y + 27, 16, 16, 4, C.primary)
+    txt(ctx, a, 86, y + 30, 14.5, 800)
+    txt(ctx, b, 86, y + 50, 11, 500, C.secondary)
+    chip(ctx, tag, 334, y + 10, bg, fg, 9.5, 'right')
   })
-  rr(ctx, 24, 560, 312, 60, 14, C.warningTint)
-  wrap(ctx, 'Follow-up screening in 60 days', 44, 596, 280, 14, 700, C.warningText)
-  button(ctx, 'View patient report', 700, seg(p, 0.88, 0.99))
+  tap(ctx, 200, 440, seg(p, 0.6, 0.85))
+  rr(ctx, 16, 566, 328, 84, 16, C.primary)
+  txt(ctx, 'COMMUNITY HEALTH WORKER NOTE', 30, 590, 9.5, 800, 'rgba(255,255,255,0.9)')
+  wrap(ctx, 'Explain to Kamala that this is a screening result, not a diagnosis.', 30, 612, 300, 12.5, 600, '#fff', 1.3)
+  button(ctx, 'Share via WhatsApp', 664, 0, { h: 46 })
+  button(ctx, 'Back to Home Dashboard', 718, 0, { h: 44, variant: 'secondary' })
 }
 
-const sync: Draw = (ctx, p, t) => {
+type Food = [string, string, string]
+const PLANS: { band: string; title: string; fg: string; bg: string; foods: Food[]; tip: string }[] = [
+  { band: 'Low', title: 'Maintain & prevent', fg: C.primaryDark, bg: C.mint, tip: 'Stay active · re-screen in 6 months',
+    foods: [['Mandua (ragi) roti, millets', 'Energy + calcium', '#7A4A2E'], ['Rajma, dal, chana', 'Protein for muscles', '#B5482A'], ['Seasonal greens & fruit', 'Vitamins, fibre', '#3F9A3A'], ['Milk / curd daily', 'Calcium for bones', '#F2EEE3']] },
+  { band: 'Moderate', title: 'Anti-inflammatory plate', fg: C.info, bg: C.infoTint, tip: 'Every kilo lost = 4 kilos less load on the knee',
+    foods: [['Haldi + black pepper, ginger, garlic', 'Natural anti-inflammatory', '#F2B134'], ['Ragi, curd, milk, moringa', 'Calcium-rich', '#F2EEE3'], ['Walnuts, alsi (flaxseed)', 'Omega-3 fats', '#9A6338'], ['Less sugar, fried & packaged food', 'Reduces swelling', '#E5534B']] },
+  { band: 'Higher', title: 'Joint-protective + weight care', fg: C.error, bg: C.errorTint, tip: 'Follow PHC advice · visit within 2 weeks',
+    foods: [['Protein every meal: dal, egg, paneer', 'Protects muscle', '#E8C07A'], ['Morning sun + calcium foods', 'Vitamin D & bone', '#FFC300'], ['Smaller portions, more vegetables', 'Healthy weight', '#55A043'], ['No sugary drinks · less salt', 'Less inflammation', '#4FB3D9']] },
+]
+export function nutritionBand(p: number) { return p < 0.52 ? 1 : p < 0.76 ? 0 : 2 }
+const nutrition: Draw = (ctx, p) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
-  header(ctx, 'Patient report')
-  card(ctx, 24, 100, 312, 270, 18)
-  ctx.beginPath(); ctx.arc(64, 146, 24, 0, Math.PI * 2); ctx.fillStyle = C.tint; ctx.fill()
-  txt(ctx, 'KD', 64, 151, 14, 800, C.primary, 'center')
-  txt(ctx, 'Kamala Devi', 100, 142, 17, 800)
-  txt(ctx, '64 · Female · Rampur', 100, 163, 12.5, 500, C.secondary)
-  const rows: [string, string][] = [['Joint', 'Right knee'], ['Screening band', 'Moderate'], ['Screened', '14 Oct 2026'], ['Follow-up', '13 Dec 2026'], ['Referred to', 'PHC Rampur']]
-  rows.forEach(([a, b], i) => {
-    const y = 196 + i * 34
-    ctx.fillStyle = C.tint2; ctx.fillRect(42, y - 4, 276, 1)
-    txt(ctx, a, 42, y + 20, 13, 600, C.secondary)
-    txt(ctx, b, 318, y + 20, 13.5, 800, i === 1 ? C.warningText : C.ink, 'right')
+  topBar(ctx, 'Nutrition Plan', 'By risk band', C.warningTint, C.warningText)
+  txt(ctx, 'Diet for healthy joints', 16, 150, 21, 800)
+  txt(ctx, 'Local, affordable foods · matched to the screening band', 16, 170, 11.5, 500, C.secondary)
+  const b = nutritionBand(p)
+  rr(ctx, 16, 184, 328, 46, 14, C.tint)
+  PLANS.forEach((pl, i) => {
+    const on = i === b
+    if (on) rr(ctx, 20 + i * 108, 188, 104, 38, 11, pl.fg)
+    txt(ctx, pl.band, 72 + i * 108, 213, 13.5, 800, on ? '#fff' : C.secondary, 'center')
   })
-  // share
-  ;['Print', 'Share', 'SMS'].forEach((l, i) => { rr(ctx, 24 + i * 106, 386, 98, 46, 14, C.surface, C.tint2); txt(ctx, l, 73 + i * 106, 415, 13.5, 700, C.primary, 'center') })
-  // sync
-  const online = p > 0.18, done = p > 0.62
-  card(ctx, 24, 452, 312, 150, 18, done ? C.primaryLight : C.surface)
-  // cloud icon
-  const cx = 66, cy = 500
+  if (b === 1) { chip(ctx, "Kamala's band", 344, 236, C.infoTint, C.info, 9.5, 'right') }
+  tap(ctx, 72 + b * 108, 207, b === 1 ? 0 : seg(p, b === 0 ? 0.5 : 0.74, b === 0 ? 0.6 : 0.84))
+  const pl = PLANS[b]
+  const start = b === 1 ? 0 : b === 0 ? 0.52 : 0.76
+  txt(ctx, pl.title, 16, 278, 17, 800, pl.fg)
+  pl.foods.forEach(([a, s, col], i) => {
+    const kk = easeOut(seg(p, start + 0.02 + i * 0.03, start + 0.08 + i * 0.03))
+    ctx.globalAlpha = kk
+    const y = 294 + i * 78 + (1 - kk) * 10
+    card(ctx, 16, y, 328, 68, 14)
+    ctx.beginPath(); ctx.arc(52, y + 34, 22, 0, Math.PI * 2); ctx.fillStyle = C.tint; ctx.fill()
+    ctx.beginPath(); ctx.arc(52, y + 34, 14, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill()
+    ctx.beginPath(); ctx.arc(47, y + 30, 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill()
+    ctx.save(); ctx.beginPath(); ctx.rect(84, y, 252, 68); ctx.clip()
+    wrap(ctx, a, 86, y + 30, 244, 13.5, 800, C.ink, 1.2)
+    ctx.restore()
+    txt(ctx, s, 86, y + 56, 11, 600, C.secondary)
+    ctx.globalAlpha = 1
+  })
+  rr(ctx, 16, 612, 328, 52, 14, pl.bg)
+  wrap(ctx, pl.tip, 30, 642, 300, 12.5, 800, pl.fg)
+  button(ctx, 'Share diet card (print / WhatsApp)', 700, 0, { h: 50 })
+}
+
+const report: Draw = (ctx, p, t) => {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
+  const done = p > 0.55, online = p > 0.15
+  if (markImg.complete) ctx.drawImage(markImg, 20, 54, 32, 26)
+  txt(ctx, 'SAATHI', 60, 70, 17, 800, C.primaryDark); txt(ctx, 'CLINICAL REPORTS', 60, 86, 9.5, 800, C.secondary)
+  chip(ctx, done ? '● Synced' : '● 1 pending', 300, 58, done ? C.mint : C.tint, done ? C.primaryDark : C.secondary, 11, 'right')
+  card(ctx, 16, 116, 328, 238, 18)
+  txt(ctx, 'SCREENING ID: S-GOZBVQ', 32, 144, 10.5, 800, C.secondary)
+  txt(ctx, 'Kamala Devi', 32, 174, 20, 800)
+  txt(ctx, '64 F · Right knee · Devkhal · 14 Oct 2026', 32, 196, 11.5, 600, C.secondary)
+  rr(ctx, 32, 212, 296, 60, 14, C.tint)
+  ctx.beginPath(); ctx.arc(64, 242, 20, 0, Math.PI * 2); ctx.strokeStyle = C.primaryDark; ctx.lineWidth = 5; ctx.stroke()
+  txt(ctx, 'Screening Risk Band', 96, 238, 13, 800); txt(ctx, 'Moderate · follow-up in 60 days', 96, 257, 11, 600, C.secondary)
+  ;[['ROM (camera)', '74°'], ['Peak tibial shock', '3.6 g'], ['Nutrition plan', 'Moderate']].forEach(([a, b], i) => { txt(ctx, a, 32, 298 + i * 20, 11.5, 600, C.secondary); txt(ctx, b, 328, 298 + i * 20, 11.5, 800, C.ink, 'right') })
+  ;['Download PDF', 'WhatsApp', 'Print'].forEach((l, i) => { rr(ctx, 16 + i * 112, 366, 104, 42, 12, C.surface, C.tint2); txt(ctx, l, 68 + i * 112, 392, 12, 700, C.primary, 'center') })
+  card(ctx, 16, 422, 328, 150, 18, done ? C.mintSoft : C.surface)
+  const cx = 56, cy = 470
   ctx.fillStyle = done ? C.primary : online ? C.info : C.muted
   ctx.beginPath(); ctx.arc(cx - 8, cy + 4, 11, 0, Math.PI * 2); ctx.arc(cx + 4, cy - 3, 14, 0, Math.PI * 2); ctx.arc(cx + 16, cy + 5, 10, 0, Math.PI * 2); ctx.fill()
   ctx.fillRect(cx - 8, cy + 4, 24, 11)
-  if (done) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 2, cy + 5); ctx.lineTo(cx + 3, cy + 10); ctx.lineTo(cx + 11, cy); ctx.stroke() }
-  txt(ctx, done ? 'Synced to PHC Rampur' : online ? 'Syncing securely…' : 'Waiting for network', 100, 498, 16, 800, done ? C.primaryDark : C.ink)
-  txt(ctx, done ? 'Medical officer notified' : online ? '4G signal found · uploading 3 records' : 'Saved on this device', 100, 520, 12.5, 500, C.secondary)
-  progress(ctx, 42, 548, 276, done ? 1 : online ? smooth(seg(p, 0.18, 0.62)) : 0, 8, C.tint2, done ? C.success : C.info)
-  if (online && !done) for (let i = 0; i < 3; i++) { const k = (t * 1.5 + i / 3) % 1; ctx.beginPath(); ctx.arc(42 + k * 276, 552, 3, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill() }
-  txt(ctx, done ? '✓ 3 of 3 records' : '', 42, 584, 12.5, 700, C.success)
-  button(ctx, 'Back to dashboard', 700, 0, { variant: 'secondary' })
+  txt(ctx, done ? 'Synced to PHC Devkhal' : online ? 'Network found · syncing…' : 'Saved on this device', 90, 468, 15, 800, done ? C.primaryDark : C.ink)
+  txt(ctx, done ? 'Medical officer dashboard updated' : online ? 'Encrypted upload · 1 record' : 'Will sync when network returns', 90, 490, 11.5, 500, C.secondary)
+  progress(ctx, 32, 516, 296, done ? 1 : online ? smooth(seg(p, 0.15, 0.55)) : 0, 8, C.tint2, done ? C.success : C.info)
+  if (online && !done) for (let i = 0; i < 3; i++) { const k = (t * 1.5 + i / 3) % 1; ctx.beginPath(); ctx.arc(32 + k * 296, 520, 3, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill() }
+  txt(ctx, 'Screening record only — not a medical diagnosis', 180, 556, 10.5, 600, C.muted, 'center')
+  bottomNav(ctx, 2)
 }
 
-const DRAW: Record<string, Draw> = { login, language, dashboard, register, joint, questions, connect, calibrate, assess, analysis, result, exercises, sync }
+const DRAW: Record<string, Draw> = { login, language, dashboard, intake, joint, questions, camRom, camPosture, placement, pairing, calibrate, assess, analysis, result, guidance, nutrition, report }
 
 export function screenAt(t: number): { id: string; p: number; start: number; idx: number } {
   for (let i = 0; i < SCREENS.length; i++) {

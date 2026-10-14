@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import { groundHeight, WALLS } from './world'
+import { T } from './timeline'
 import { easeOut, rng, seg, smooth, v3 } from './util'
 
-export const IMPACT_T0 = 80
+export const IMPACT_T0 = T.impact
 
 export function buildImpact(scene: THREE.Scene, phc: THREE.Vector3) {
   const root = new THREE.Group(); scene.add(root)
@@ -45,7 +46,7 @@ export function buildImpact(scene: THREE.Scene, phc: THREE.Vector3) {
     const beacon = new THREE.Mesh(beaconGeo, bm); beacon.position.copy(c); root.add(beacon)
     const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: '#99EFE5', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }))
     ring.position.copy(c).add(v3(0, 0.6, 0)); root.add(ring)
-    const top = phc.clone().setY(8)
+    const top = phc.clone().add(v3(0, 8, 0))
     const mid = c.clone().lerp(top, 0.5); mid.y += 18 + c.distanceTo(top) * 0.18
     const curve = new THREE.QuadraticBezierCurve3(c.clone().add(v3(0, 3, 0)), mid, top)
     const tg = new THREE.TubeGeometry(curve, 50, 0.45, 6)
@@ -62,9 +63,9 @@ export function buildImpact(scene: THREE.Scene, phc: THREE.Vector3) {
   return {
     update(t: number) {
       const tt = t - IMPACT_T0
-      root.visible = t > 78 && t < 98.5
+      root.visible = t > IMPACT_T0 - 2 && t < T.total + 0.5
       if (!root.visible) return
-      const fadeOut = 1 - smooth(seg(t, 92, 95))
+      const fadeOut = 1 - smooth(seg(t, T.end, T.end + 3))
       for (const it of items) {
         const k = easeOut(seg(tt, it.at, it.at + 0.8))
         it.beacon.scale.set(1, 4 + 46 * k, 1)
