@@ -42,6 +42,7 @@ npm run showcase:build   # → dist/showcase (static, deployable anywhere)
 ```
 Chapters: Hills → The problem → ASHA arrives (on foot, up the switchbacks) → App (intake: sign-in, language, dashboard, patient, joint, symptoms) → **Camera ROM** (pose model tracks hip–knee–ankle angle) → **Posture** → **Strap pod** (below the knee, on the tibia) → **Tibial shock** (walk test plus an anatomy explainer) → **Lab-validated** (the shoe-cushioning tibial-accelerometer method, and why it is novel) → Result → **Nutrition** (diet plan by risk band) → Sync → Architecture → Impact → SAATHI.
 - Peak tibial-acceleration values in the film (2.0 / 3.1–3.6 / 5.1 / 8.4 g) are **illustrative**, not measured results.
+- **Share it:** `npm run showcase:publish` builds a static copy into `docs/` (relative paths, works from any sub-folder). Host that folder anywhere, e.g. GitHub Pages (Settings → Pages → branch + `/docs`), Vercel or Netlify.
 - **Record video** writes the whole film to an MP4/WebM file at 1080p, with music (Chrome/Edge).
 - Music is generated live with WebAudio: tanpura drone, bansuri in raag Bhupali, tabla keherwa. No audio files are used.
 - Code: `showcase/src/` — `timeline.ts` (chapter times), `world.ts` (mountain hamlet, terraces, gorge, PHC), `characters.ts` (people, pod, tripod), `signals.ts` (knee angle, sway, tibial shock), `phone.ts` (17 app screens drawn on canvas), `lab.ts` (anatomy + sports-lab dioramas), `architecture.ts`, `impact.ts`, `audio.ts`, `main.ts` (cast, camera, overlay, UI).

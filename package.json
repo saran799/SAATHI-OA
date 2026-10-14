@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "showcase": "vite --config vite.showcase.config.ts",
-    "showcase:build": "tsc -p showcase/tsconfig.json --noEmit && vite build --config vite.showcase.config.ts"
+    "showcase:build": "tsc -p showcase/tsconfig.json --noEmit && vite build --config vite.showcase.config.ts",
+    "showcase:publish": "tsc -p showcase/tsconfig.json --noEmit && vite build --config vite.showcase.config.ts --outDir ../docs --emptyOutDir && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\""
   },
   "dependencies": {
     "@types/three": "^0.170.0",
