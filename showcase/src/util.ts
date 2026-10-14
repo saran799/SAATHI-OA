@@ -86,7 +86,7 @@ export function labelSprite(title: string, sub?: string, opts: { color?: string;
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   tex.anisotropy = 4
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }))
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, toneMapped: false }))
   const s = opts.scale ?? 4
   sp.scale.set(s, s * H / W, 1)
   return sp

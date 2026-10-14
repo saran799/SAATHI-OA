@@ -3,8 +3,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import logoUrl from '../../src/assets/saathi-logo.png'
 import markUrl from '../../src/assets/saathi-mark.png'
 import { FONT, clamp, easeOut, roundRect, seg, smooth } from './util'
-import { T, STEPS_T } from './timeline'
-import { jointAngle, kneeAngle, romSoFar, shockAt, stepsDone, sway } from './signals'
+import { T, STEPS_T, STEP_CLASS } from './timeline'
+import { jointAngle, kneeAngle, romSoFar, shockAt, stepsDone, sway, POSTURE, POSTURE_DIFF, postureLive, ROM_T0, ROM_T1, STEP_PEAKS } from './signals'
 
 /* ---------- palette (from the SAATHI Figma exports) ---------- */
 const C = {
@@ -19,7 +19,7 @@ export const markImg = new Image(); markImg.src = markUrl
 export const SCREENS: [string, number, number][] = [
   ['login', T.app, 27.6], ['language', 27.6, 29], ['dashboard', 29, 31], ['intake', 31, 33.5], ['joint', 33.5, 35.5], ['questions', 35.5, T.camera],
   ['camRom', T.camera, T.posture], ['camPosture', T.posture, T.strap], ['placement', T.strap, 61.6], ['pairing', 61.6, 64.4], ['calibrate', 64.4, T.shock],
-  ['assess', T.shock, T.result], ['analysis', T.result, 95.6], ['result', 95.6, T.nutrition], ['guidance', T.nutrition, 104], ['nutrition', 104, T.sync], ['report', T.sync, T.arch + 4],
+  ['assess', T.shock, T.result], ['analysis', T.result, 95.6], ['result', 95.6, T.nutrition], ['guidance', T.nutrition, 104], ['nutrition', 104, T.sync], ['report', T.sync, T.phc + 1.5],
 ]
 
 const W = 360, H = 780, S = 1.5
@@ -212,7 +212,7 @@ const language: Draw = (ctx, p) => {
   chip(ctx, '● Step 1 of 2', 338, 56, C.tint, C.ink, 11, 'right')
   txt(ctx, 'Select Language', 20, 132, 24, 800)
   txt(ctx, 'Choose your preferred language to continue', 20, 156, 13, 500, C.secondary)
-  const sel = p > 0.45 ? 1 : 0
+  const sel = 0 // the app is shown in English throughout
   LANGS.forEach(([n, e], i) => {
     const y = 176 + i * 74
     const on = i === sel
@@ -224,7 +224,7 @@ const language: Draw = (ctx, p) => {
     if (on) check(ctx, 314, y + 32, 12)
     else { ctx.beginPath(); ctx.arc(314, y + 32, 11, 0, Math.PI * 2); ctx.strokeStyle = C.mint; ctx.lineWidth = 2; ctx.stroke() }
   })
-  tap(ctx, 250, 282, seg(p, 0.38, 0.6))
+  tap(ctx, 250, 208, seg(p, 0.38, 0.6))
   rr(ctx, 20, 630, 320, 40, 12, C.tint)
   speaker(ctx, 36, 650, C.primary)
   txt(ctx, 'Voice guidance in every language', 62, 655, 12, 600, C.ink)
@@ -275,24 +275,24 @@ const intake: Draw = (ctx, p, t) => {
   txt(ctx, 'New patient · will get an ID on save', 24, 202, 12.5, 500, C.secondary)
   chip(ctx, 'Ready', 336, 168, C.mint, C.primaryDark, 10.5, 'right')
   if (!s3) {
-    const name = 'Kamala Devi'.slice(0, Math.floor(seg(p, 0.03, 0.25) * 11))
+    const name = 'Tashi Bhutia'.slice(0, Math.floor(seg(p, 0.03, 0.25) * 12))
     field(ctx, 'Full Name *', name, 24, 230, 312, p < 0.27, t)
-    field(ctx, 'Age (Yrs) *', '64'.slice(0, Math.floor(seg(p, 0.28, 0.36) * 2)), 24, 310, 146, p >= 0.27 && p < 0.38, t)
+    field(ctx, 'Age (Yrs) *', '68'.slice(0, Math.floor(seg(p, 0.28, 0.36) * 2)), 24, 310, 146, p >= 0.27 && p < 0.38, t)
     field(ctx, 'Mobile (optional)', '', 190, 310, 146, false, t)
     txt(ctx, 'Gender *', 24, 392, 13, 600, C.secondary)
     rr(ctx, 24, 400, 312, 48, 14, C.tint)
     ;['Male', 'Female', 'Other'].forEach((s, i) => {
-      const on = i === 1 && p > 0.42
+      const on = i === 0 && p > 0.42
       if (on) rr(ctx, 28 + i * 103, 404, 100, 40, 11, C.surface)
       txt(ctx, s, 78 + i * 103, 430, 13.5, on ? 800 : 600, on ? C.primaryDark : C.secondary, 'center')
     })
-    tap(ctx, 180, 424, seg(p, 0.38, 0.5))
+    tap(ctx, 78, 424, seg(p, 0.38, 0.5))
     rr(ctx, 24, 466, 312, 48, 12, C.mintSoft)
-    txt(ctx, 'Village: Devkhal · PHC Devkhal', 40, 495, 13, 700, C.primaryDark)
+    txt(ctx, 'Village: Lingdok · PHC Rongli', 40, 495, 13, 700, C.primaryDark)
     button(ctx, 'Next: Location  →', 700, seg(p, 0.44, 0.52))
   } else {
-    field(ctx, 'Height (cm) *', '150', 24, 230, 146, false, t)
-    field(ctx, 'Weight (kg) *', '62', 190, 230, 146, false, t)
+    field(ctx, 'Height (cm) *', '162', 24, 230, 146, false, t)
+    field(ctx, 'Weight (kg) *', '58', 190, 230, 146, false, t)
     txt(ctx, 'Occupation & Physical Load *', 24, 316, 13, 600, C.secondary)
     const occ = ['Farm work', 'Household work', 'Carrying loads', 'Weaving / craft', 'Retired']
     let x = 24, y = 326
@@ -321,7 +321,7 @@ const joint: Draw = (ctx, p) => {
   topBar(ctx, 'Screening Intake', 'Saved', C.surface, C.ink)
   stepHead(ctx, 1, 7, 'Joint selection')
   txt(ctx, 'Select Joint to Assess', 24, 182, 21, 800)
-  txt(ctx, 'Screening for Kamala Devi. Choose the joint with the most trouble.', 24, 202, 11.5, 500, C.secondary)
+  txt(ctx, 'Screening for Tashi Bhutia. Choose the joint with the most trouble.', 24, 202, 11.5, 500, C.secondary)
   JOINTS.forEach(([id, l, h], i) => {
     const y = 220 + i * 88
     const on = i === 0 && p > 0.25
@@ -376,70 +376,105 @@ const questions: Draw = (ctx, p) => {
   button(ctx, q === 3 && p > 0.85 ? 'Next: Movement' : 'Next Question', 704, seg(p, 0.88, 0.98), { x: 134, w: 202, h: 48 })
 }
 
-/* ---- camera tests (OpenCV / MediaPipe Pose) ---- */
-function camFeed(ctx: Ctx, x: number, y: number, w: number, h: number, t: number, standing: boolean) {
+/* ---- camera tests (MediaPipe Pose) — phases follow the app's CameraCheck screen ---- */
+type CamPhase = 'setup' | 'ready' | 'intro' | 'rec' | 'result' | 'next'
+function camPhase(t: number, test: 1 | 2): { ph: CamPhase; k: number } {
+  if (test === 1) {
+    if (t < T.camera + 1.3) return { ph: 'setup', k: 0 }
+    if (t < T.camera + 1.85) return { ph: 'ready', k: 0 }
+    if (t < ROM_T0) return { ph: 'intro', k: 0 }
+    if (t < ROM_T1) return { ph: 'rec', k: (t - ROM_T0) / (ROM_T1 - ROM_T0) }
+    if (t < T.posture - 0.45) return { ph: 'result', k: 1 }
+    return { ph: 'next', k: 1 }
+  }
+  if (t < T.posture + 0.9) return { ph: 'setup', k: 0 }
+  if (t < POSTURE.t0 - 0.5) return { ph: 'ready', k: 0 }
+  if (t < POSTURE.t0) return { ph: 'intro', k: 0 }
+  if (t < POSTURE.t1) return { ph: 'rec', k: (t - POSTURE.t0) / (POSTURE.t1 - POSTURE.t0) }
+  return { ph: 'result', k: 1 }
+}
+type Pt = readonly [number, number]
+function angleMark(ctx: Ctx, hip: Pt, knee: Pt, ank: Pt, label: string, side: -1 | 1) {
+  ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 4
+  ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(knee[0], knee[1]); ctx.lineTo(ank[0], ank[1]); ctx.stroke()
+  for (const pt of [hip, knee, ank]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 5.5, 0, Math.PI * 2); ctx.fillStyle = '#FFD166'; ctx.fill(); ctx.strokeStyle = '#7A5A17'; ctx.lineWidth = 1.5; ctx.stroke() }
+  ctx.font = `800 11px ${FONT}`; const w = ctx.measureText(label).width + 12
+  const lx = side < 0 ? knee[0] - 12 - w : knee[0] + 12
+  rr(ctx, lx, knee[1] - 10, w, 20, 6, 'rgba(14,26,26,0.82)')
+  txt(ctx, label, lx + 6, knee[1] + 4, 11, 800, '#FFD166')
+}
+function camFeed(ctx: Ctx, x: number, y: number, w: number, h: number, t: number, standing: boolean, tracking: boolean) {
   ctx.save(); roundRect(ctx, x, y, w, h, 18); ctx.clip()
-  // camera image: courtyard wall + slate floor
+  // camera image: house wall + slate courtyard
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#9C8A74'); g.addColorStop(0.62, '#B9A88F'); g.addColorStop(0.63, '#8E8D88'); g.addColorStop(1, '#6E6D69')
   ctx.fillStyle = g; ctx.fillRect(x, y, w, h)
   ctx.fillStyle = 'rgba(80,50,30,0.35)'; for (let i = 0; i < 5; i++) ctx.fillRect(x, y + 40 + i * 50, w, 6)
-  rr(ctx, x + w * 0.66, y + 40, 60, 110, 4, '#2E86DE'); rr(ctx, x + w * 0.66 + 6, y + 46, 48, 98, 3, '#5A341B')
-  // patient (front view, mirrored like the selfie preview)
-  const cx = x + w * 0.45, base = y + h * 0.9
+  rr(ctx, x + w * 0.7, y + 40, 60, 110, 4, '#2E86DE'); rr(ctx, x + w * 0.7 + 6, y + 46, 48, 98, 3, '#5A341B')
+  // patient, front view (rear camera: the patient's right side appears on the left of the image)
+  const cx = x + w * 0.45, base = y + h * 0.92
   const sw = standing ? sway(t) * 900 : 0
-  const P = (px: number, py: number) => [cx + px + sw * (1 - (base - (base + py)) / 400), base + py] as const
+  const P = (px: number, py: number) => [cx + px + sw * (-py / 300), base + py] as const
   ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-  let hip: readonly [number, number], kneeR: readonly [number, number], ankR: readonly [number, number], kneeL: readonly [number, number], ankL: readonly [number, number]
-  const sh = standing ? -270 : -205
+  let hipR: Pt, hipL: Pt, kneeR: Pt, ankR: Pt, kneeL: Pt, ankL: Pt
+  const sh = standing ? -272 : -208
   if (standing) {
-    hip = P(0, -150); kneeR = P(-18, -80); ankR = P(-20, -8); kneeL = P(18, -80); ankL = P(20, -8)
+    hipR = P(-17, -150); hipL = P(17, -150)
+    kneeR = P(-21, -81); ankR = P(-20, -10); kneeL = P(18, -80); ankL = P(19, -10)
   } else {
-    // seated: thighs come toward the camera (foreshortened), right shin swings up
+    // seated: thighs come toward the camera (foreshortened); the right shin swings up as the knee straightens
     const a = kneeAngle(t) * Math.PI / 180
-    hip = P(0, -118); kneeR = P(-22, -92); kneeL = P(22, -92); ankL = P(22, -20)
-    ankR = P(-22, -92 + 72 * Math.cos(a))
-    // chair
-    rr(ctx, cx - 50, base - 120, 100, 14, 4, '#8B5A2B'); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(cx - 46, base - 108, 8, 100); ctx.fillRect(cx + 38, base - 108, 8, 100)
-    rr(ctx, cx - 44, base - 210, 88, 30, 5, '#2EC4B6')
+    rr(ctx, cx - 54, base - 124, 108, 14, 4, '#8B5A2B'); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(cx - 50, base - 112, 8, 104); ctx.fillRect(cx + 42, base - 112, 8, 104)
+    rr(ctx, cx - 46, base - 222, 92, 34, 5, '#8B5A2B')
+    hipR = P(-17, -120); hipL = P(17, -120)
+    kneeR = P(-24, -96); kneeL = P(24, -96); ankL = P(24, -22)
+    ankR = P(-24, -96 + 74 * Math.cos(a))
   }
-  const shL = P(32, sh), shR = P(-32, sh), head = P(0, sh - 38)
-  // body silhouette
-  ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 46; ctx.beginPath(); ctx.moveTo(head[0], head[1] + 40); ctx.lineTo(hip[0], hip[1]); ctx.stroke()
-  ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 22
-  for (const [k, a] of [[kneeR, ankR], [kneeL, ankL]] as const) { ctx.beginPath(); ctx.moveTo(hip[0] + (k[0] - cx) * 0.4, hip[1]); ctx.lineTo(k[0], k[1]); ctx.stroke(); ctx.strokeStyle = '#8D5A3B'; ctx.lineWidth = 15; ctx.beginPath(); ctx.moveTo(k[0], k[1]); ctx.lineTo(a[0], a[1]); ctx.stroke(); ctx.strokeStyle = '#A3214F'; ctx.lineWidth = 22 }
-  ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 13
+  const shL = P(32, sh), shR = P(-32, sh), head = P(0, sh - 40)
+  // shirt + sleeveless jacket
+  ctx.strokeStyle = '#E9E3D6'; ctx.lineWidth = 48; ctx.beginPath(); ctx.moveTo(head[0], head[1] + 44); ctx.lineTo((hipR[0] + hipL[0]) / 2, hipR[1] - 8); ctx.stroke()
+  ctx.strokeStyle = '#2F4A3A'; ctx.lineWidth = 17
+  for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(head[0] + sx * 15, head[1] + 46); ctx.lineTo((hipR[0] + hipL[0]) / 2 + sx * 15, hipR[1] - 8); ctx.stroke() }
+  // legs: shorts end above the knee, bare shins
+  for (const [hp, k, an] of [[hipR, kneeR, ankR], [hipL, kneeL, ankL]] as const) {
+    ctx.strokeStyle = '#3E4B5C'; ctx.lineWidth = 24; ctx.beginPath(); ctx.moveTo(hp[0], hp[1]); ctx.lineTo(hp[0] + (k[0] - hp[0]) * 0.72, hp[1] + (k[1] - hp[1]) * 0.72); ctx.stroke()
+    ctx.strokeStyle = '#C99B70'; ctx.lineWidth = 15; ctx.beginPath(); ctx.moveTo(hp[0] + (k[0] - hp[0]) * 0.72, hp[1] + (k[1] - hp[1]) * 0.72); ctx.lineTo(k[0], k[1]); ctx.lineTo(an[0], an[1]); ctx.stroke()
+    ctx.fillStyle = '#2B2B2B'; ctx.beginPath(); ctx.ellipse(an[0], an[1] + 4, 10, 6, 0, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.strokeStyle = '#E9E3D6'; ctx.lineWidth = 13
   const elL = P(44, sh + 70), elR = P(-44, sh + 70), haL = P(36, sh + 130), haR = P(-36, sh + 130)
-  for (const [s, e, hnd] of [[shL, elL, haL], [shR, elR, haR]] as const) { ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(e[0], e[1]); ctx.lineTo(hnd[0], hnd[1]); ctx.stroke() }
-  ctx.beginPath(); ctx.arc(head[0], head[1], 20, 0, Math.PI * 2); ctx.fillStyle = '#8D5A3B'; ctx.fill()
-  ctx.beginPath(); ctx.arc(head[0], head[1] - 6, 20, Math.PI, 0); ctx.fillStyle = '#D8D8D8'; ctx.fill()
-  // landmarks + skeleton (MediaPipe style)
-  const bones: [readonly [number, number], readonly [number, number]][] = [[shL, shR], [shL, elL], [elL, haL], [shR, elR], [elR, haR], [shL, P(16, hip[1] - base)], [shR, P(-16, hip[1] - base)], [P(16, hip[1] - base), P(-16, hip[1] - base)], [P(16, hip[1] - base), kneeL], [kneeL, ankL]]
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5
-  for (const [a, b] of bones) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke() }
-  const hipR = P(-16, hip[1] - base)
-  ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 4
-  ctx.beginPath(); ctx.moveTo(hipR[0], hipR[1]); ctx.lineTo(kneeR[0], kneeR[1]); ctx.lineTo(ankR[0], ankR[1]); ctx.stroke()
-  for (const pt of [shL, shR, elL, elR, haL, haR, P(16, hip[1] - base), kneeL, ankL, head]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#7CFFE9'; ctx.fill() }
-  for (const pt of [hipR, kneeR, ankR]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 6, 0, Math.PI * 2); ctx.fillStyle = '#FFD166'; ctx.fill(); ctx.strokeStyle = '#7A5A17'; ctx.lineWidth = 1.5; ctx.stroke() }
-  if (standing) { // plumb line
-    ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(124,255,233,0.9)'; ctx.lineWidth = 2
-    ctx.beginPath(); ctx.moveTo(cx, head[1] - 30); ctx.lineTo(cx, base + 4); ctx.stroke(); ctx.setLineDash([])
+  for (const [s0, e, hnd] of [[shL, elL, haL], [shR, elR, haR]] as const) { ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(e[0], e[1]); ctx.stroke(); ctx.strokeStyle = '#C99B70'; ctx.beginPath(); ctx.moveTo(e[0], e[1]); ctx.lineTo(hnd[0], hnd[1]); ctx.stroke(); ctx.strokeStyle = '#E9E3D6' }
+  ctx.beginPath(); ctx.arc(head[0], head[1], 20, 0, Math.PI * 2); ctx.fillStyle = '#C99B70'; ctx.fill()
+  ctx.beginPath(); ctx.arc(head[0], head[1] - 5, 21, Math.PI * 1.05, Math.PI * 1.95); ctx.fillStyle = '#5B3A6B'; ctx.fill()
+  ctx.fillStyle = '#3A2747'; ctx.fillRect(head[0] - 20, head[1] - 9, 40, 5)
+  if (tracking) {
+    // MediaPipe-style skeleton
+    const bones: [Pt, Pt][] = [[shL, shR], [shL, elL], [elL, haL], [shR, elR], [elR, haR], [shL, hipL], [shR, hipR], [hipL, hipR], [hipL, kneeL], [kneeL, ankL], [hipR, kneeR], [kneeR, ankR]]
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5
+    for (const [a, b] of bones) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke() }
+    for (const pt of [shL, shR, elL, elR, haL, haR, head]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#7CFFE9'; ctx.fill() }
+    if (standing) {
+      angleMark(ctx, hipR, kneeR, ankR, `R ${postureLive(t, 'right').toFixed(1)}°`, -1)
+      angleMark(ctx, hipL, kneeL, ankL, `L ${postureLive(t, 'left').toFixed(1)}°`, 1)
+    } else {
+      for (const pt of [hipL, kneeL, ankL]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#7CFFE9'; ctx.fill() }
+      angleMark(ctx, hipR, kneeR, ankR, `${Math.round(jointAngle(t))}°`, -1)
+    }
   }
   ctx.restore()
 }
-function cameraScreen(ctx: Ctx, p: number, t: number, test: 1 | 2) {
+function cameraScreen(ctx: Ctx, _p: number, t: number, test: 1 | 2) {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
   const title = test === 1 ? 'Joint Movement' : 'Posture'
-  topBar(ctx, title, 'Triage active')
+  const { ph, k } = camPhase(t, test)
+  topBar(ctx, 'Movement Assessment', 'Triage active')
   ctx.fillStyle = C.surface; ctx.fillRect(0, 105, W, 50)
   txt(ctx, title, 16, 136, 15, 800, C.primary)
   txt(ctx, `TEST ${test} OF 2`, 344, 128, 10.5, 600, C.secondary, 'right')
-  const tracking = p > 0.06
-  txt(ctx, tracking ? 'TRACKING PATIENT' : 'WAITING...', 344, 144, 9.5, 800, tracking ? C.success : C.warning, 'right')
+  const tracking = ph !== 'setup'
+  txt(ctx, tracking ? 'TRACKING PATIENT' : 'WAITING FOR PATIENT…', 344, 144, 9.5, 800, tracking ? C.success : C.warning, 'right')
   const fx = 16, fy = 166, fw = 328, fh = 420
-  camFeed(ctx, fx, fy, fw, fh, t, test === 2)
-  const rec = p > 0.16 && p < 0.86
-  if (test === 1 && rec) {
+  camFeed(ctx, fx, fy, fw, fh, t, test === 2, tracking)
+  if (ph === 'rec' && test === 1) {
     rr(ctx, fx + 10, fy + 10, 150, 64, 14, 'rgba(14,26,26,0.75)')
     txt(ctx, 'JOINT ANGLE', fx + 22, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
     txt(ctx, `${Math.round(jointAngle(t))}°`, fx + 22, fy + 62, 26, 800, '#fff')
@@ -449,41 +484,50 @@ function cameraScreen(ctx: Ctx, p: number, t: number, test: 1 | 2) {
     txt(ctx, `${Math.round(rom)}°`, fx + 180, fy + 58, 24, 800, '#fff')
     progress(ctx, fx + 180, fy + 64, 126, rom / 140, 5, 'rgba(255,255,255,0.25)', C.mint)
   }
-  if (test === 2 && rec) {
-    const k = seg(p, 0.16, 0.86)
-    rr(ctx, fx + 10, fy + 10, 140, 64, 14, 'rgba(14,26,26,0.75)')
-    txt(ctx, 'STABILITY', fx + 22, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
-    txt(ctx, `${Math.round(88 + 4 * Math.sin(t))}%`, fx + 22, fy + 62, 26, 800, '#fff')
-    rr(ctx, fx + 228, fy + 10, 90, 64, 14, 'rgba(0,104,95,0.88)')
-    txt(ctx, 'HOLD', fx + 240, fy + 30, 9.5, 800, 'rgba(255,255,255,0.8)')
-    txt(ctx, `${Math.max(0, 5 - Math.floor(k * 5))}s`, fx + 240, fy + 62, 24, 800, '#fff')
+  if (ph === 'rec' && test === 2) {
+    rr(ctx, fx + 10, fy + 10, 150, 64, 14, 'rgba(14,26,26,0.75)')
+    txt(ctx, 'RIGHT KNEE', fx + 22, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
+    txt(ctx, `${postureLive(t, 'right').toFixed(1)}°`, fx + 22, fy + 62, 24, 800, '#FFD166')
+    rr(ctx, fx + 168, fy + 10, 150, 64, 14, 'rgba(14,26,26,0.75)')
+    txt(ctx, 'LEFT KNEE', fx + 180, fy + 30, 9.5, 800, 'rgba(255,255,255,0.7)')
+    txt(ctx, `${postureLive(t, 'left').toFixed(1)}°`, fx + 180, fy + 62, 24, 800, '#FFD166')
+    rr(ctx, fx + 104, fy + 84, 120, 28, 14, 'rgba(0,104,95,0.9)')
+    txt(ctx, `HOLD STILL · ${Math.max(0, 5 - k * 5).toFixed(0)}s`, fx + 164, fy + 103, 11, 800, '#fff', 'center')
   }
-  if (p > 0.08 && p < 0.17) {
-    const a = win01(p, 0.08, 0.17)
-    ctx.globalAlpha = a
-    rr(ctx, fx, fy, fw, fh, 18, 'rgba(0,104,95,0.9)')
-    txt(ctx, `TEST ${test}`, 180, fy + fh / 2 - 14, 18, 800, '#fff', 'center')
+  if (ph === 'intro') {
+    rr(ctx, fx, fy, fw, fh, 18, 'rgba(0,104,95,0.92)')
+    txt(ctx, `TEST ${test}`, 180, fy + fh / 2 - 14, 18, 800, C.mint, 'center')
     txt(ctx, title, 180, fy + fh / 2 + 22, 28, 800, '#fff', 'center')
-    ctx.globalAlpha = 1
   }
-  if (p <= 0.08) wrap(ctx, test === 1 ? 'Please ask the patient to sit on the chair and face the camera.' : 'Ask the patient to stand still, arms relaxed, for 5 seconds.', 30, 618, 300, 16, 800, C.ink, 1.35)
-  else if (rec) {
+  if (ph === 'next') {
+    rr(ctx, fx, fy, fw, fh, 18, 'rgba(225,251,248,0.95)')
+    check(ctx, 180, fy + 150, 26, C.success)
+    txt(ctx, 'Complete 1', 180, fy + 210, 22, 800, C.primaryDark, 'center')
+    txt(ctx, 'Next · TEST 2 Posture', 180, fy + 240, 14, 700, C.secondary, 'center')
+  }
+  if (ph === 'setup') {
+    wrap(ctx, test === 1 ? 'Please ask the patient to sit on the chair and face the camera.' : 'Please ask the patient to stand naturally facing the camera.', 30, 622, 300, 16, 800, C.ink, 1.35)
+    txt(ctx, 'Keep hips, knees and ankles in the frame', 30, 690, 12, 600, C.secondary)
+  } else if (ph === 'ready' || ph === 'intro') {
+    wrap(ctx, 'Patient detected. The patient is ready. Please tap Start Assessment.', 30, 622, 300, 14, 700, C.ink, 1.35)
+    button(ctx, 'START ASSESSMENT', 700, ph === 'ready' ? seg(t, test === 1 ? T.camera + 1.5 : POSTURE.t0 - 0.8, test === 1 ? T.camera + 1.85 : POSTURE.t0 - 0.5) : 1, { h: 50 })
+  } else if (ph === 'rec') {
     ctx.beginPath(); ctx.arc(150, 614, 6, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 2) % 2 ? C.error : '#F28B82'; ctx.fill()
     txt(ctx, 'LIVE', 164, 619, 14, 800, C.error)
-    const sec = seg(p, 0.16, 0.86) * (test === 1 ? 8 : 5)
-    txt(ctx, `Test progress: ${sec.toFixed(1)}s / ${test === 1 ? 30 : 10}s`, 180, 648, 13, 600, C.secondary, 'center')
+    txt(ctx, test === 1 ? `Test progress: ${(k * 8).toFixed(1)}s / 30s` : `Hold still: ${(k * 5).toFixed(1)}s / 5s`, 180, 648, 13, 600, C.secondary, 'center')
     rr(ctx, 24, 668, 312, 44, 14, 'rgba(14,26,26,0.9)')
-    txt(ctx, test === 1 ? 'Slowly straighten and bend the knee' : 'Stand still… looking straight ahead', 180, 696, 13.5, 700, '#fff', 'center')
+    txt(ctx, test === 1 ? 'Slowly bend the knee, then straighten it' : 'Please stand still for 5 seconds', 180, 696, 13.5, 700, '#fff', 'center')
   } else {
-    card(ctx, 16, 596, 328, 112, 16)
-    txt(ctx, `TEST ${test} — ${title}`, 30, 622, 13.5, 800)
-    check(ctx, 38, 644, 8, C.success); txt(ctx, 'Completed', 52, 649, 12.5, 800, C.success)
-    if (test === 1) { txt(ctx, 'ROM: 74°  ·  Max flexion: 88°', 30, 676, 12.5, 700, C.secondary); txt(ctx, 'Smoothness: uneven at end-range', 30, 696, 12.5, 700, C.secondary) }
-    else { txt(ctx, 'Sway: low  ·  Stability: 90%', 30, 676, 12.5, 700, C.secondary); txt(ctx, 'Weight shifted slightly to the left', 30, 696, 12.5, 700, C.secondary) }
-    button(ctx, test === 1 ? 'NEXT' : 'CONTINUE', 718, seg(p, 0.93, 0.99), { h: 48 })
+    card(ctx, 16, 596, 328, 124, 16)
+    txt(ctx, `TEST ${test} — ${title}`, 30, 620, 13.5, 800)
+    check(ctx, 254, 615, 8, C.success); txt(ctx, 'Completed', 330, 620, 11.5, 800, C.success, 'right')
+    const rows: [string, string][] = test === 1
+      ? [['Range of motion', '74°'], ['Joint angle range', '92° – 166°'], ['Smoothness · Quality', '71% · Good']]
+      : [['Left knee angle', `${POSTURE.left}°`], ['Right knee angle', `${POSTURE.right}°`], ['Symmetry difference', `${POSTURE_DIFF}°`]]
+    rows.forEach(([a, b], i) => { txt(ctx, a, 30, 648 + i * 22, 12.5, 600, C.secondary); txt(ctx, b, 330, 648 + i * 22, 12.5, 800, i === 2 && test === 2 ? C.warningText : C.ink, 'right') })
+    button(ctx, test === 1 ? 'NEXT' : 'CONTINUE', 728, seg(t, test === 1 ? T.posture - 0.9 : T.strap - 0.6, test === 1 ? T.posture - 0.5 : T.strap - 0.2), { h: 44 })
   }
 }
-function win01(p: number, a: number, b: number) { return Math.min(smooth((p - a) / 0.02), smooth((b - p) / 0.02)) }
 const camRom: Draw = (ctx, p, t) => cameraScreen(ctx, p, t, 1)
 const camPosture: Draw = (ctx, p, t) => cameraScreen(ctx, p, t, 2)
 
@@ -525,7 +569,7 @@ const placement: Draw = (ctx, p, t) => {
   txt(ctx, 'Attach the strap as shown', 180, 502, 14, 800, C.ink, 'center')
   wrap(ctx, 'Strap the small sensor just below the knee on the Right side, light facing forward.', 50, 524, 270, 11.5, 500, C.secondary, 1.35)
   card(ctx, 24, 568, 312, 104, 16)
-  ;['Seat the patient on a firm chair', 'Then walk 5 steps at a normal pace'].forEach((s, i) => {
+  ;['Seat the patient on a firm chair', 'Explain the walk: 5 normal steps'].forEach((s, i) => {
     ctx.beginPath(); ctx.arc(46, 596 + i * 44, 12, 0, Math.PI * 2); ctx.fillStyle = C.mintSoft; ctx.fill()
     txt(ctx, String(i + 2), 46, 601 + i * 44, 12, 800, C.primary, 'center')
     txt(ctx, s, 68, 601 + i * 44, 13, 700)
@@ -567,52 +611,57 @@ const calibrate: Draw = (ctx, p) => {
   txt(ctx, 'Sensor Setup', 24, 186, 21, 800)
   txt(ctx, 'A short 4-step setup before recording.', 24, 206, 12.5, 500, C.secondary)
   const steps = ['Prepare', 'Position', 'Calibrate', 'Ready']
-  const active = p < 0.15 ? 0 : p < 0.3 ? 1 : p < 0.82 ? 2 : 3
+  const active = p < 0.18 ? 0 : p < 0.34 ? 1 : p < 0.8 ? 2 : 3
   steps.forEach((s, i) => {
     rr(ctx, 24 + i * 79, 222, 72, 36, 10, i < active ? C.mint : i === active ? C.primary : C.tint)
     txt(ctx, `${i + 1}. ${s}`, 60 + i * 79, 245, 10.5, 800, i === active ? '#fff' : i < active ? C.primaryDark : C.muted, 'center')
   })
-  const k = smooth(seg(p, 0.3, 0.82))
+  const k = smooth(seg(p, 0.34, 0.8))
   const cx = 180, cy = 390
   card(ctx, 24, 272, 312, 250, 18)
   ctx.beginPath(); ctx.arc(cx, cy, 86, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 14; ctx.stroke()
   ctx.beginPath(); ctx.arc(cx, cy, 86, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
-  if (k < 1) { txt(ctx, `${Math.round(k * 100)}%`, cx, cy + 12, 38, 800, C.ink, 'center'); txt(ctx, 'hold still', cx, cy + 36, 12, 600, C.secondary, 'center') }
+  if (k < 1) { txt(ctx, `${Math.round(k * 100)}%`, cx, cy + 12, 38, 800, C.ink, 'center'); txt(ctx, 'Hold still', cx, cy + 36, 12, 600, C.secondary, 'center') }
   else check(ctx, cx, cy, 40, C.success)
-  txt(ctx, k < 1 ? 'Learning resting orientation' : 'Sensor calibrated', 180, 556, 17, 800, k < 1 ? C.ink : C.success, 'center')
-  txt(ctx, 'Gravity reference = 1 g · tibia axis aligned', 180, 580, 12, 600, C.secondary, 'center')
+  const msg = active === 0 ? 'Sensor strapped · patient stands up' : active === 1 ? 'Stand straight, leg relaxed and still' : k < 1 ? 'Setting the starting position' : 'Sensor calibrated'
+  txt(ctx, msg, 180, 556, 17, 800, k >= 1 ? C.success : C.ink, 'center')
+  txt(ctx, 'Sensor setup takes about 3 seconds of quiet standing', 180, 580, 12, 600, C.secondary, 'center')
   button(ctx, 'Start movement assessment', 700, seg(p, 0.9, 0.99))
 }
 
+const CLASS_COL: Record<string, [string, string]> = { LOW: [C.mintSoft, C.primaryDark], MID: [C.warningTint, C.warningText], HIGH: [C.errorTint, C.error] }
 const assess: Draw = (ctx, _p, t) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
   topBar(ctx, 'Movement Assessment', 'Triage active')
   card(ctx, 16, 116, 328, 40, 12)
-  ctx.beginPath(); ctx.arc(34, 136, 5, 0, Math.PI * 2); ctx.fillStyle = Math.floor(t * 2) % 2 ? C.error : '#F28B82'; ctx.fill()
-  txt(ctx, 'LIVE RECORDING', 46, 141, 12, 800, C.ink)
-  chip(ctx, 'Kamala · Right knee', 334, 123, C.mint, C.primaryDark, 10, 'right')
+  const live = t >= T.shock + 0.4 && stepsDone(t) < 5
+  ctx.beginPath(); ctx.arc(34, 136, 5, 0, Math.PI * 2); ctx.fillStyle = live ? (Math.floor(t * 2) % 2 ? C.error : '#F28B82') : C.success; ctx.fill()
+  txt(ctx, live || t < T.shock + 0.4 ? 'LIVE RECORDING' : 'RECORDING COMPLETE', 46, 141, 12, 800, C.ink)
+  chip(ctx, 'Tashi · Right knee', 334, 123, C.mint, C.primaryDark, 10, 'right')
   const n = stepsDone(t)
   // timer ring
   card(ctx, 16, 166, 328, 176, 18)
   const el = Math.max(0, t - T.shock)
   const rem = Math.max(0, 30 - Math.floor(el * 1.6))
-  ctx.beginPath(); ctx.arc(110, 254, 58, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 10; ctx.stroke()
-  ctx.beginPath(); ctx.arc(110, 254, 58, -Math.PI / 2, -Math.PI / 2 + (1 - rem / 30) * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
-  txt(ctx, 'REMAINING', 110, 236, 9.5, 800, C.secondary, 'center')
-  txt(ctx, `00:${String(rem).padStart(2, '0')}`, 110, 266, 26, 800, C.ink, 'center')
-  txt(ctx, 'STEPS', 196, 214, 10, 800, C.secondary)
-  txt(ctx, `${n} of 5`, 196, 244, 26, 800, C.primary)
-  txt(ctx, 'PEAK TIBIAL SHOCK', 196, 278, 10, 800, C.secondary)
-  let peak = 1
-  for (let i = 0; i < 60; i++) peak = Math.max(peak, shockAt(t - i * 0.02))
-  const best = n > 0 ? Math.max(...[3.1, 3.4, 3.3, 3.6, 3.4].slice(0, n)) : 0
-  txt(ctx, n > 0 ? `${best.toFixed(1)} g` : '— g', 196, 308, 26, 800, C.warningText)
-  rr(ctx, 32, 318, 0, 0, 0, C.tint)
+  ctx.beginPath(); ctx.arc(100, 254, 58, 0, Math.PI * 2); ctx.strokeStyle = C.tint2; ctx.lineWidth = 10; ctx.stroke()
+  ctx.beginPath(); ctx.arc(100, 254, 58, -Math.PI / 2, -Math.PI / 2 + (1 - rem / 30) * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
+  txt(ctx, 'REMAINING', 100, 236, 9.5, 800, C.secondary, 'center')
+  txt(ctx, `00:${String(rem).padStart(2, '0')}`, 100, 266, 26, 800, C.ink, 'center')
+  txt(ctx, 'STEPS COUNTED BY POD', 180, 206, 9.5, 800, C.secondary)
+  txt(ctx, `${n} of 5`, 180, 238, 26, 800, C.primary)
+  txt(ctx, 'SHOCK CLASS PER STEP', 180, 272, 9.5, 800, C.secondary)
+  STEP_CLASS.forEach((c, i) => {
+    const x = 180 + i * 31, on = i < n
+    const [bg, fg] = on ? CLASS_COL[c] : [C.tint, C.muted]
+    rr(ctx, x, 284, 28, 40, 8, bg)
+    txt(ctx, String(i + 1), x + 14, 299, 10, 800, on ? fg : C.muted, 'center')
+    txt(ctx, on ? (c === 'HIGH' ? 'HI' : c === 'MID' ? 'MID' : 'LO') : '·', x + 14, 316, 9, 800, on ? fg : C.muted, 'center')
+  })
   // movement trace (accelerometer)
   card(ctx, 16, 352, 328, 222, 18)
   txt(ctx, 'Movement Trace', 32, 380, 15, 800)
   chip(ctx, 'Calibrated', 330, 364, C.tint, C.ink, 10, 'right')
-  txt(ctx, 'Tibial acceleration (g)', 32, 402, 11, 700, C.secondary)
+  txt(ctx, 'Tibial acceleration (g) · illustrative', 32, 402, 11, 700, C.secondary)
   const gx = 32, gy = 412, gw = 296, gh = 146
   rr(ctx, gx, gy, gw, gh, 10, C.tint)
   ctx.strokeStyle = C.tint2; ctx.lineWidth = 1
@@ -630,13 +679,12 @@ const assess: Draw = (ctx, _p, t) => {
   STEPS_T.forEach((s, i) => {
     const x = gx + gw - ((t - s) / span) * gw
     if (x < gx || x > gx + gw || t < s) return
-    const y = gy + gh - 10 - ((([3.1, 3.4, 3.3, 3.6, 3.4][i]) - 0.4) / 3.8) * (gh - 20)
-    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = C.warning; ctx.fill()
+    const y = gy + gh - 10 - ((STEP_PEAKS[i] - 0.4) / 3.8) * (gh - 20)
+    ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fillStyle = STEP_CLASS[i] === 'HIGH' ? C.error : C.warning; ctx.fill()
   })
   rr(ctx, 16, 584, 328, 44, 12, n >= 5 ? C.mintSoft : C.tint)
   txt(ctx, n >= 5 ? '✓ Test completed · 5 steps captured' : 'Movement detected — keep walking steadily', 180, 611, 12.5, 700, n >= 5 ? C.primaryDark : C.ink, 'center')
   button(ctx, n >= 5 ? 'Analyse results' : 'Stop Recording', 700, 0, { h: 50 })
-  void peak
 }
 
 const analysis: Draw = (ctx, p, t) => {
@@ -650,7 +698,7 @@ const analysis: Draw = (ctx, p, t) => {
   ctx.beginPath(); ctx.arc(cx, cy, 58, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
   txt(ctx, `${Math.round(p * 100)}%`, cx, cy + 10, 28, 800, C.ink, 'center')
   txt(ctx, 'SCREENING PIPELINE', 24, 384, 11, 800, C.secondary)
-  const items: [string, string][] = [['Patient information', '64 F'], ['Symptoms', '8 / 8'], ['Camera · ROM & posture', '74°'], ['Wearable · tibial shock', '3.6 g'], ['Estimating screening risk', 'NN']]
+  const items: [string, string][] = [['Patient information', '68 M'], ['Symptoms', '8 / 8'], ['Camera · ROM + posture', '74° · Δ7.5°'], ['Pod · 5-step walk', '2 HIGH · 3 MID'], ['Screening risk model', '13 inputs']]
   items.forEach(([l, v], i) => {
     const y = 396 + i * 58
     const k = seg(p, 0.05 + i * 0.18, 0.2 + i * 0.18)
@@ -668,10 +716,10 @@ const result: Draw = (ctx, p) => {
   topBar(ctx, 'Screening Result', 'Triage active')
   chip(ctx, '✓ Assessment finalised', 16, 116, C.mint, C.primaryDark, 10.5)
   txt(ctx, 'Right knee screening complete', 16, 170, 18.5, 800)
-  txt(ctx, 'Symptoms · camera movement · tibial shock', 16, 190, 12, 500, C.secondary)
+  txt(ctx, 'Symptoms · camera ROM + posture · tibial shock', 16, 190, 12, 500, C.secondary)
   rr(ctx, 16, 202, 328, 46, 12, C.tint)
-  txt(ctx, 'Kamala Devi (64F)', 30, 230, 14, 800)
-  chip(ctx, 'PHC Devkhal', 334, 212, C.surface, C.ink, 10, 'right')
+  txt(ctx, 'Tashi Bhutia (68M)', 30, 230, 14, 800)
+  chip(ctx, 'PHC Rongli', 334, 212, C.surface, C.ink, 10, 'right')
   const k = easeOut(seg(p, 0.03, 0.25))
   ctx.globalAlpha = k
   card(ctx, 16, 258, 328, 196, 18)
@@ -694,7 +742,7 @@ const result: Draw = (ctx, p) => {
   ctx.globalAlpha = 1
   card(ctx, 16, 464, 328, 166, 18)
   txt(ctx, 'KEY MEASURED FINDINGS', 32, 490, 10.5, 800, C.secondary)
-  ;([['Range of movement', 'Camera · MediaPipe', '74°'], ['Posture & balance', 'Camera', 'Stable'], ['Peak tibial shock', 'Wearable pod', '3.6 g ↑']] as [string, string, string][]).forEach(([a, b, v], i) => {
+  ;([['Range of movement', 'Camera · seated bend / straighten', '74°'], ['Knee posture (standing)', 'Camera · R 168.9° · L 176.4°', 'Δ 7.5°'], ['Tibial shock · 5 steps', 'Wearable pod on the shin', '2 HIGH ↑']] as [string, string, string][]).forEach(([a, b, v], i) => {
     const kk = easeOut(seg(p, 0.3 + i * 0.1, 0.45 + i * 0.1))
     ctx.globalAlpha = kk
     const y = 502 + i * 42
@@ -714,7 +762,7 @@ const guidance: Draw = (ctx, p) => {
   topBar(ctx, 'Post Screening Guidance', '✓ Ready')
   rr(ctx, 16, 116, 328, 52, 12, C.tint)
   ctx.beginPath(); ctx.arc(42, 142, 16, 0, Math.PI * 2); ctx.fillStyle = C.mint; ctx.fill(); txt(ctx, 'KD', 42, 147, 11, 800, C.primaryDark, 'center')
-  txt(ctx, 'Kamala Devi 64F', 66, 140, 13.5, 800); txt(ctx, 'Right knee', 66, 157, 11, 500, C.secondary)
+  txt(ctx, 'Tashi Bhutia 68M', 66, 140, 13.5, 800); txt(ctx, 'Right knee', 66, 157, 11, 500, C.secondary)
   chip(ctx, '● Moderate risk', 334, 128, C.infoTint, C.info, 10, 'right')
   txt(ctx, 'Personalised Guidelines', 16, 206, 21, 800)
   txt(ctx, 'Care steps tailored to moderate screening risk', 16, 226, 12, 500, C.secondary)
@@ -739,7 +787,7 @@ const guidance: Draw = (ctx, p) => {
   tap(ctx, 200, 440, seg(p, 0.6, 0.85))
   rr(ctx, 16, 566, 328, 84, 16, C.primary)
   txt(ctx, 'COMMUNITY HEALTH WORKER NOTE', 30, 590, 9.5, 800, 'rgba(255,255,255,0.9)')
-  wrap(ctx, 'Explain to Kamala that this is a screening result, not a diagnosis.', 30, 612, 300, 12.5, 600, '#fff', 1.3)
+  wrap(ctx, 'Explain to Tashi that this is a screening result, not a diagnosis.', 30, 612, 300, 12.5, 600, '#fff', 1.3)
   button(ctx, 'Share via WhatsApp', 664, 0, { h: 46 })
   button(ctx, 'Back to Home Dashboard', 718, 0, { h: 44, variant: 'secondary' })
 }
@@ -747,11 +795,11 @@ const guidance: Draw = (ctx, p) => {
 type Food = [string, string, string]
 const PLANS: { band: string; title: string; fg: string; bg: string; foods: Food[]; tip: string }[] = [
   { band: 'Low', title: 'Maintain & prevent', fg: C.primaryDark, bg: C.mint, tip: 'Stay active · re-screen in 6 months',
-    foods: [['Mandua (ragi) roti, millets', 'Energy + calcium', '#7A4A2E'], ['Rajma, dal, chana', 'Protein for muscles', '#B5482A'], ['Seasonal greens & fruit', 'Vitamins, fibre', '#3F9A3A'], ['Milk / curd daily', 'Calcium for bones', '#F2EEE3']] },
-  { band: 'Moderate', title: 'Anti-inflammatory plate', fg: C.info, bg: C.infoTint, tip: 'Every kilo lost = 4 kilos less load on the knee',
-    foods: [['Haldi + black pepper, ginger, garlic', 'Natural anti-inflammatory', '#F2B134'], ['Ragi, curd, milk, moringa', 'Calcium-rich', '#F2EEE3'], ['Walnuts, alsi (flaxseed)', 'Omega-3 fats', '#9A6338'], ['Less sugar, fried & packaged food', 'Reduces swelling', '#E5534B']] },
+    foods: [['Millet / ragi roti, rice', 'Energy + calcium', '#7A4A2E'], ['Rajma, dal, chana', 'Protein for muscles', '#B5482A'], ['Seasonal greens & fruit', 'Vitamins, fibre', '#3F9A3A'], ['Milk / curd daily', 'Calcium for bones', '#F2EEE3']] },
+  { band: 'Moderate', title: 'Anti-inflammatory plate', fg: C.info, bg: C.infoTint, tip: 'Each kg lost = 4 kg less load on the knee',
+    foods: [['Haldi, black pepper, ginger', 'Natural anti-inflammatory', '#F2B134'], ['Ragi, curd, milk, moringa', 'Calcium-rich', '#F2EEE3'], ['Walnuts, alsi (flaxseed)', 'Omega-3 fats', '#9A6338'], ['Less sugar & fried food', 'Reduces swelling', '#E5534B']] },
   { band: 'Higher', title: 'Joint-protective + weight care', fg: C.error, bg: C.errorTint, tip: 'Follow PHC advice · visit within 2 weeks',
-    foods: [['Protein every meal: dal, egg, paneer', 'Protects muscle', '#E8C07A'], ['Morning sun + calcium foods', 'Vitamin D & bone', '#FFC300'], ['Smaller portions, more vegetables', 'Healthy weight', '#55A043'], ['No sugary drinks · less salt', 'Less inflammation', '#4FB3D9']] },
+    foods: [['Dal, egg or paneer each meal', 'Protects muscle', '#E8C07A'], ['Morning sun + calcium foods', 'Vitamin D & bone', '#FFC300'], ['Smaller portions, more veg', 'Healthy weight', '#55A043'], ['No sugary drinks · less salt', 'Less inflammation', '#4FB3D9']] },
 ]
 export function nutritionBand(p: number) { return p < 0.52 ? 1 : p < 0.76 ? 0 : 2 }
 const nutrition: Draw = (ctx, p) => {
@@ -766,7 +814,7 @@ const nutrition: Draw = (ctx, p) => {
     if (on) rr(ctx, 20 + i * 108, 188, 104, 38, 11, pl.fg)
     txt(ctx, pl.band, 72 + i * 108, 213, 13.5, 800, on ? '#fff' : C.secondary, 'center')
   })
-  if (b === 1) { chip(ctx, "Kamala's band", 344, 236, C.infoTint, C.info, 9.5, 'right') }
+  if (b === 1) { chip(ctx, "Tashi's band", 344, 236, C.infoTint, C.info, 9.5, 'right') }
   tap(ctx, 72 + b * 108, 207, b === 1 ? 0 : seg(p, b === 0 ? 0.5 : 0.74, b === 0 ? 0.6 : 0.84))
   const pl = PLANS[b]
   const start = b === 1 ? 0 : b === 0 ? 0.52 : 0.76
@@ -787,7 +835,7 @@ const nutrition: Draw = (ctx, p) => {
   })
   rr(ctx, 16, 612, 328, 52, 14, pl.bg)
   wrap(ctx, pl.tip, 30, 642, 300, 12.5, 800, pl.fg)
-  button(ctx, 'Share diet card (print / WhatsApp)', 700, 0, { h: 50 })
+  button(ctx, 'Share diet card', 700, 0, { h: 50 })
 }
 
 const report: Draw = (ctx, p, t) => {
@@ -798,19 +846,19 @@ const report: Draw = (ctx, p, t) => {
   chip(ctx, done ? '● Synced' : '● 1 pending', 300, 58, done ? C.mint : C.tint, done ? C.primaryDark : C.secondary, 11, 'right')
   card(ctx, 16, 116, 328, 238, 18)
   txt(ctx, 'SCREENING ID: S-GOZBVQ', 32, 144, 10.5, 800, C.secondary)
-  txt(ctx, 'Kamala Devi', 32, 174, 20, 800)
-  txt(ctx, '64 F · Right knee · Devkhal · 14 Oct 2026', 32, 196, 11.5, 600, C.secondary)
+  txt(ctx, 'Tashi Bhutia', 32, 174, 20, 800)
+  txt(ctx, '68 M · Right knee · Lingdok · 14 Oct 2026', 32, 196, 11.5, 600, C.secondary)
   rr(ctx, 32, 212, 296, 60, 14, C.tint)
   ctx.beginPath(); ctx.arc(64, 242, 20, 0, Math.PI * 2); ctx.strokeStyle = C.primaryDark; ctx.lineWidth = 5; ctx.stroke()
   txt(ctx, 'Screening Risk Band', 96, 238, 13, 800); txt(ctx, 'Moderate · follow-up in 60 days', 96, 257, 11, 600, C.secondary)
-  ;[['ROM (camera)', '74°'], ['Peak tibial shock', '3.6 g'], ['Nutrition plan', 'Moderate']].forEach(([a, b], i) => { txt(ctx, a, 32, 298 + i * 20, 11.5, 600, C.secondary); txt(ctx, b, 328, 298 + i * 20, 11.5, 800, C.ink, 'right') })
+  ;[['ROM · knee posture Δ', '74° · 7.5°'], ['Tibial shock (5 steps)', '2 HIGH · 3 MID'], ['Nutrition plan', 'Moderate']].forEach(([a, b], i) => { txt(ctx, a, 32, 298 + i * 20, 11.5, 600, C.secondary); txt(ctx, b, 328, 298 + i * 20, 11.5, 800, C.ink, 'right') })
   ;['Download PDF', 'WhatsApp', 'Print'].forEach((l, i) => { rr(ctx, 16 + i * 112, 366, 104, 42, 12, C.surface, C.tint2); txt(ctx, l, 68 + i * 112, 392, 12, 700, C.primary, 'center') })
   card(ctx, 16, 422, 328, 150, 18, done ? C.mintSoft : C.surface)
   const cx = 56, cy = 470
   ctx.fillStyle = done ? C.primary : online ? C.info : C.muted
   ctx.beginPath(); ctx.arc(cx - 8, cy + 4, 11, 0, Math.PI * 2); ctx.arc(cx + 4, cy - 3, 14, 0, Math.PI * 2); ctx.arc(cx + 16, cy + 5, 10, 0, Math.PI * 2); ctx.fill()
   ctx.fillRect(cx - 8, cy + 4, 24, 11)
-  txt(ctx, done ? 'Synced to PHC Devkhal' : online ? 'Network found · syncing…' : 'Saved on this device', 90, 468, 15, 800, done ? C.primaryDark : C.ink)
+  txt(ctx, done ? 'Synced to PHC Rongli' : online ? 'Network found · syncing…' : 'Saved on this device', 90, 468, 15, 800, done ? C.primaryDark : C.ink)
   txt(ctx, done ? 'Medical officer dashboard updated' : online ? 'Encrypted upload · 1 record' : 'Will sync when network returns', 90, 490, 11.5, 500, C.secondary)
   progress(ctx, 32, 516, 296, done ? 1 : online ? smooth(seg(p, 0.15, 0.55)) : 0, 8, C.tint2, done ? C.success : C.info)
   if (online && !done) for (let i = 0; i < 3; i++) { const k = (t * 1.5 + i / 3) % 1; ctx.beginPath(); ctx.arc(32 + k * 296, 520, 3, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill() }

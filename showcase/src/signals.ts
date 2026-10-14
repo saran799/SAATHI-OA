@@ -18,8 +18,21 @@ export function romSoFar(t: number) {
   return 74 * (0.5 - 0.5 * Math.cos((k / 4) * Math.PI * 2))
 }
 
-/** small postural sway for the posture test (metres) */
-export const sway = (t: number) => Math.sin(t * 2.1) * 0.012 + Math.sin(t * 5.3) * 0.004
+/** tiny natural sway while standing still for the posture test (metres) */
+export const sway = (t: number) => Math.sin(t * 2.1) * 0.004 + Math.sin(t * 5.3) * 0.0015
+
+/** Camera posture test: mean hip–knee–ankle angle of each knee while standing still for 5 s */
+export const POSTURE = { t0: T.posture + 1.9, t1: T.posture + 6.9, right: 168.9, left: 176.4 }
+export const POSTURE_DIFF = +(POSTURE.left - POSTURE.right).toFixed(1)
+/** running mean shown live (settles as frames accumulate) */
+export function postureLive(t: number, side: 'left' | 'right') {
+  const k = Math.min(1, Math.max(0, (t - POSTURE.t0) / (POSTURE.t1 - POSTURE.t0)))
+  const target = POSTURE[side]
+  return target + (1 - k) * (side === 'left' ? 1.6 : -2.2) * Math.sin(t * 5 + (side === 'left' ? 1 : 0))
+}
+
+/** per-step peak tibial acceleration (g, illustrative). Pod classes: MID < 3.4 g ≤ HIGH */
+export const STEP_PEAKS = [3.0, 3.5, 3.1, 3.6, 3.2]
 
 /** Tibial acceleration (g) recorded by the pod during the walking test. Illustrative values. */
 export function shockAt(t: number) {
@@ -27,7 +40,7 @@ export function shockAt(t: number) {
   STEPS_T.forEach((ts, i) => {
     const d = t - ts
     if (d > -0.1 && d < 0.4) {
-      const peak = [3.1, 3.4, 3.3, 3.6, 3.4][i]
+      const peak = STEP_PEAKS[i]
       g += (peak - 1) * Math.exp(-Math.pow(d / 0.028, 2)) - 0.5 * Math.exp(-Math.pow((d - 0.07) / 0.04, 2)) + 0.35 * Math.exp(-Math.pow((d - 0.16) / 0.05, 2))
     }
   })

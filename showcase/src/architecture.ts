@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { sensorDevice } from './characters'
 import { T } from './timeline'
+import { paintDashboardStill } from './dashboard'
 import { FONT, easeOutBack, labelSprite, mat, roundRect, seg, smooth, v3 } from './util'
 
 export const ARCH_Y = 70
@@ -51,7 +52,7 @@ export function buildArchitecture(scene: THREE.Scene, buildPhone: () => THREE.Gr
 
   // 1. wearable pod on the tibia
   const sensor = sensorDevice(); sensor.scale.setScalar(42); sensor.position.set(-15.5, 3, 0)
-  add(sensor, 1.0, labelSprite('Wearable pod', 'IMU on tibia · tibial shock', { scale: 5.8 }), 6.6)
+  add(sensor, 1.0, labelSprite('Wearable pod', 'IMU on tibia · shock per step', { scale: 5.8 }), 6.6)
   const strap = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.35, 10, 30), mat('#2B2F36', { flat: false }))
   strap.position.set(-15.5, 3, -0.8); add(strap, 1.1)
 
@@ -106,15 +107,11 @@ export function buildArchitecture(scene: THREE.Scene, buildPhone: () => THREE.Gr
   const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.1, 0.1), new THREE.MeshBasicMaterial({ color: '#D7263D' })); crossV.position.set(0, 2.1, 1.76); phc.add(crossV)
   const crossH = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.35, 0.1), new THREE.MeshBasicMaterial({ color: '#D7263D' })); crossH.position.set(0, 2.1, 1.76); phc.add(crossH)
   const mon = new THREE.Mesh(new RoundedBoxGeometry(3.4, 2.2, 0.2, 2, 0.1), mat('#1C2026', { flat: false })); mon.position.set(0, 4.6, 0.5); phc.add(mon)
-  const dashC = document.createElement('canvas'); dashC.width = 512; dashC.height = 320
-  const dctx = dashC.getContext('2d')!
-  dctx.fillStyle = '#F8F9FF'; dctx.fillRect(0, 0, 512, 320)
-  dctx.fillStyle = '#00685F'; dctx.fillRect(0, 0, 512, 56)
-  dctx.fillStyle = '#fff'; dctx.font = `700 30px ${FONT}`; dctx.fillText('PHC referrals', 20, 38)
-  ;[[160, '#5ED3B8'], [90, '#F5C04A'], [40, '#E5534B']].forEach(([w, c], i) => { dctx.fillStyle = c as string; roundRect(dctx, 30, 90 + i * 70, (w as number) * 2.4, 40, 10); dctx.fill() })
-  const dt = new THREE.CanvasTexture(dashC); dt.colorSpace = THREE.SRGBColorSpace
-  const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.15, 1.95), new THREE.MeshBasicMaterial({ map: dt, toneMapped: false })); scr.position.set(0, 4.6, 0.61); phc.add(scr)
-  add(phc, 10.6, labelSprite('PHC dashboard', 'Referrals · village analytics', { scale: 5.8 }), 8.4)
+  const dashC = document.createElement('canvas'); dashC.width = 768; dashC.height = 480
+  const dt = new THREE.CanvasTexture(dashC); dt.colorSpace = THREE.SRGBColorSpace; dt.anisotropy = 8
+  paintDashboardStill(dashC, () => { dt.needsUpdate = true })
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 2.0), new THREE.MeshBasicMaterial({ map: dt, toneMapped: false })); scr.position.set(0, 4.6, 0.61); phc.add(scr)
+  add(phc, 10.6, labelSprite('PHC dashboard', 'Overview · registry · analytics', { scale: 5.8 }), 8.4)
 
   // links + flowing data packets
   const links: Link[] = []

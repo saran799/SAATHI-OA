@@ -35,14 +35,16 @@ Replace points: `services/sensor.ts` (Web Bluetooth), `services/analysis.ts` + `
 Sync is **simulated** — no data leaves the device.
 
 ## Interactive 3D demo film (`/showcase`)
-A ~2.5-minute 3D film (Three.js) set in a Himalayan hill hamlet above a river gorge. It walks through the idea, the app prototype, the screening procedure and the architecture. It's interactive: drag to orbit, jump between chapters, click markers.
+A ~2.7-minute 3D film (Three.js) set in a Himalayan hill hamlet above a river gorge. It walks through the idea, the app prototype, the screening procedure and the architecture. It's interactive: drag to orbit, jump between chapters, click markers.
 ```bash
 npm run showcase         # http://localhost:5174
 npm run showcase:build   # → dist/showcase (static, deployable anywhere)
 ```
-Chapters: Hills → The problem → ASHA arrives (on foot, up the switchbacks) → App (intake: sign-in, language, dashboard, patient, joint, symptoms) → **Camera ROM** (pose model tracks hip–knee–ankle angle) → **Posture** → **Strap pod** (below the knee, on the tibia) → **Tibial shock** (walk test plus an anatomy explainer) → **Lab-validated** (the shoe-cushioning tibial-accelerometer method, and why it is novel) → Result → **Nutrition** (diet plan by risk band) → Sync → Architecture → Impact → SAATHI.
+Chapters: Hills → The problem → ASHA arrives (on foot, up the switchbacks) → App (intake: sign-in, language, dashboard, patient, joint, symptoms) → **Camera ROM** (pose model tracks hip–knee–ankle angle) → **Knee posture** (standing still for 5 s: left vs right hip–knee–ankle angle and the symmetry difference) → **Strap pod** (below the knee, on the tibia) → **Tibial shock** (walk test plus an anatomy explainer) → **Lab-validated** (the shoe-cushioning tibial-accelerometer method, and why it is novel) → Result → **Nutrition** (diet plan by risk band) → Sync → **PHC dashboard** (the screening arrives at PHC Rongli: Overview counters tick, the new row appears in the Patient Registry, Analytics update) → Architecture → Impact → SAATHI.
+- The patient is Tashi Bhutia (68, a farmer from a Sikkim hill hamlet) in trousers, so the camera can see his knee landmarks clearly; the worker is ASHA Sunita. The app runs in English.
+- The PHC dashboard numbers follow the real PHC dashboard design (Overview / Patients / Analytics); the names and numbers are demo data.
 - Peak tibial-acceleration values in the film (2.0 / 3.1–3.6 / 5.1 / 8.4 g) are **illustrative**, not measured results.
 - **Share it:** `npm run showcase:publish` builds a static copy into `docs/` (relative paths, works from any sub-folder). Host that folder anywhere, e.g. GitHub Pages (Settings → Pages → branch + `/docs`), Vercel or Netlify.
 - **Record video** writes the whole film to an MP4/WebM file at 1080p, with music (Chrome/Edge).
 - Music is generated live with WebAudio: tanpura drone, bansuri in raag Bhupali, tabla keherwa. No audio files are used.
-- Code: `showcase/src/` — `timeline.ts` (chapter times), `world.ts` (mountain hamlet, terraces, gorge, PHC), `characters.ts` (people, pod, tripod), `signals.ts` (knee angle, sway, tibial shock), `phone.ts` (17 app screens drawn on canvas), `lab.ts` (anatomy + sports-lab dioramas), `architecture.ts`, `impact.ts`, `audio.ts`, `main.ts` (cast, camera, overlay, UI).
+- Code: `showcase/src/` — `timeline.ts` (chapter times), `world.ts` (mountain hamlet, terraces, gorge, PHC), `characters.ts` (people, pod, tripod), `signals.ts` (knee angle, sway, tibial shock), `phone.ts` (app screens drawn on canvas), `dashboard.ts` (PHC dashboard), `lab.ts` (anatomy + sports-lab dioramas), `architecture.ts`, `impact.ts`, `audio.ts`, `main.ts` (cast, camera, overlay, UI).

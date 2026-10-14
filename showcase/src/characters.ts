@@ -28,6 +28,12 @@ export interface PersonOpts {
   turban?: string
   scale?: number
   stick?: boolean
+  dupatta?: string      // salwar-kameez scarf across the chest
+  kurta?: boolean       // long kurta hem (hidden while seated / kneeling, so legs never clip)
+  shorts?: boolean      // knee-length shorts: knee + shin are bare (camera can see the knee)
+  cap?: string          // knitted cap
+  vest?: string         // sleeveless jacket
+  moustache?: string
 }
 
 export function person(o: PersonOpts): Rig {
@@ -49,6 +55,19 @@ export function person(o: PersonOpts): Rig {
     b.rotation.z = 0.5; torso.add(b)
     torso.add(mesh(new THREE.CylinderGeometry(0.135, 0.15, 0.12, 10), mat(o.saree, { flat: false }), 0, 0.05, 0))
   }
+  if (o.dupatta) {
+    const dm = mat(o.dupatta, { flat: false })
+    const d1 = mesh(new THREE.BoxGeometry(0.1, 0.6, 0.322), dm, -0.02, 0.32, 0); d1.rotation.z = -0.55; torso.add(d1)
+    const ring = mesh(new THREE.TorusGeometry(0.135, 0.028, 6, 14), dm, 0, 0.55, 0, false); ring.rotation.x = Math.PI / 2; torso.add(ring)
+    const tail = mesh(new THREE.BoxGeometry(0.1, 0.42, 0.03), dm, -0.12, 0.3, -0.15); tail.rotation.z = 0.1; torso.add(tail)
+  }
+  if (o.vest) {
+    const vm = mat(o.vest, { flat: false })
+    // open-front sleeveless jacket (cylinder with a gap at +z)
+    torso.add(mesh(new THREE.CylinderGeometry(0.162, 0.142, 0.5, 14, 1, true, 0.42, Math.PI * 2 - 0.84), vm, 0, 0.3, 0))
+    torso.add(mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.04, 14, 1, true, 0.42, Math.PI * 2 - 0.84), mat('#E0C27A'), 0, 0.06, 0, false))
+    for (let i = 0; i < 3; i++) torso.add(mesh(new THREE.SphereGeometry(0.009, 6, 4), mat('#E0C27A', { metal: 0.6, rough: 0.3 }), 0.072, 0.16 + i * 0.11, 0.142, false))
+  }
   // neck + head
   torso.add(mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.08, 6), skinM, 0, 0.6, 0))
   const head = new THREE.Group(); head.position.y = 0.72; torso.add(head)
@@ -57,6 +76,15 @@ export function person(o: PersonOpts): Rig {
   const hair = mesh(new THREE.SphereGeometry(0.122, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM, 0, 0.012, -0.012)
   head.add(hair)
   if (o.bun) head.add(mesh(new THREE.SphereGeometry(0.06, 10, 8), hairM, 0, 0.0, -0.13))
+  if (o.cap) {
+    const cm = mat(o.cap, { flat: false, rough: 0.9 })
+    head.add(mesh(new THREE.SphereGeometry(0.128, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42), cm, 0, 0.03, -0.005))
+    const rib = mesh(new THREE.TorusGeometry(0.118, 0.022, 6, 18), mat('#3A2747', { flat: false, rough: 0.9 }), 0, 0.055, -0.005); rib.rotation.x = Math.PI / 2; head.add(rib)
+  }
+  if (o.moustache) {
+    const mm = mat(o.moustache, { rough: 0.8 })
+    for (const sx of [-1, 1]) { const m = mesh(new THREE.CapsuleGeometry(0.009, 0.03, 3, 6), mm, sx * 0.022, -0.026, 0.108, false); m.rotation.z = Math.PI / 2 + sx * 0.35; head.add(m) }
+  }
   if (o.turban) {
     const tb = mesh(new THREE.TorusGeometry(0.1, 0.05, 8, 16), mat(o.turban), 0, 0.07, 0)
     tb.rotation.x = Math.PI / 2; head.add(tb)
@@ -87,10 +115,11 @@ export function person(o: PersonOpts): Rig {
     const hp = new THREE.Group(); hp.position.set(side * 0.085, 0, 0); hips.add(hp)
     hp.add(mesh(new THREE.CylinderGeometry(0.065, 0.055, 0.42, 8), legM, 0, -0.21, 0))
     const kn = new THREE.Group(); kn.position.y = -0.42; hp.add(kn)
-    kn.add(mesh(new THREE.SphereGeometry(0.055, 8, 6), legM, 0, 0, 0))
-    kn.add(mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.42, 8), o.saree ? skinM : legM, 0, -0.21, 0))
+    kn.add(mesh(new THREE.SphereGeometry(0.055, 8, 6), o.shorts ? skinM : legM, 0, 0, 0))
+    kn.add(mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.42, 8), o.saree || o.shorts ? skinM : legM, 0, -0.21, 0))
+    if (o.shorts) hp.add(mesh(new THREE.CylinderGeometry(0.074, 0.07, 0.07, 10), legM, 0, -0.33, 0, false)) // hem, just above the knee
     if (o.saree) kn.add(mesh(new THREE.TorusGeometry(0.042, 0.008, 4, 10), mat('#C0C0C0', { metal: 0.8, rough: 0.3 }), 0, -0.38, 0, false))
-    kn.add(mesh(new THREE.BoxGeometry(0.08, 0.05, 0.18), mat('#5A3A22'), 0, -0.43, 0.04))
+    kn.add(mesh(new THREE.BoxGeometry(0.08, 0.05, 0.18), mat(o.shorts ? '#2B2B2B' : '#5A3A22'), 0, -0.43, 0.04))
     return { hp, kn }
   }
   const LL = leg(-1), LR = leg(1)
@@ -108,9 +137,16 @@ export function person(o: PersonOpts): Rig {
     sd.add(mesh(new THREE.BoxGeometry(0.385, 0.04, 0.065), mat(o.border ?? '#E0A526'), 0, -0.13, 0.45, false))
     sd.visible = false
     hips.add(sd); seatedDrape = sd
-  } else if (o.legs) {
-    // kurta hem
-    hips.add(mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.3, 10), topM, 0, -0.1, 0))
+  } else if (o.kurta) {
+    // knee-length kurta (side-slit look): hidden when seated or kneeling so the thighs never cut through it
+    const k = new THREE.Group()
+    k.add(mesh(new THREE.CylinderGeometry(0.15, 0.215, 0.36, 12), topM, 0, -0.13, 0))
+    k.add(mesh(new THREE.CylinderGeometry(0.217, 0.219, 0.035, 12), mat(o.dupatta ?? o.top), 0, -0.3, 0, false))
+    hips.add(k); skirt = k
+  } else if (o.legs && !o.shorts) {
+    // short tunic hem
+    const k = mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.2, 10), topM, 0, -0.05, 0)
+    hips.add(k); skirt = k
   }
 
   if (o.stick) {
@@ -210,6 +246,7 @@ export function placeOnSeat(r: Rig) {
 
 /** kneeling on the ground in front of the patient (strapping the pod) */
 export function kneelPose(r: Rig, lean = 0.45) {
+  if (r.skirt) r.skirt.visible = false
   r.hips.position.y = 0.5
   r.legL.rotation.x = -0.15; r.legR.rotation.x = -0.15
   r.kneeL.rotation.x = Math.PI / 2 + 0.15; r.kneeR.rotation.x = Math.PI / 2 + 0.15

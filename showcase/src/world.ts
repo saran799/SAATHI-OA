@@ -14,7 +14,7 @@ export const WALLS = ['#2E86DE', '#E84C8B', '#FFB703', '#2EC4B6', '#9B5DE5', '#F
 const FLAGS = ['#1E6FD9', '#FFFFFF', '#E63946', '#2BA84A', '#FFC300'] // Himalayan prayer-flag colours
 
 /* ------------------------------------------------------------------ terrain */
-// footpath (x, z) from the footbridge up the switchbacks to Kamala's courtyard
+// footpath (x, z) from the footbridge up the switchbacks to Tashi's courtyard
 export const PATH_XZ: [number, number][] = [[-10, 92], [14, 86], [36, 77], [12, 66], [-26, 56], [-6, 46], [26, 37], [10, 27], [-4, 19], [3, 12], [6, 6.5]]
 function pathDist(x: number, z: number) {
   let best = 1e9
@@ -260,7 +260,7 @@ function phcBuilding(x: number, y: number, z: number) {
   ctx.fillStyle = '#FFFFFF'; ctx.fillRect(28, 34, 60, 60)
   ctx.fillStyle = '#D7263D'; ctx.fillRect(50, 40, 16, 48); ctx.fillRect(34, 56, 48, 16)
   ctx.fillStyle = '#FFFFFF'; ctx.font = '700 56px Inter, system-ui, sans-serif'; ctx.textBaseline = 'middle'
-  ctx.fillText('PHC Devkhal', 110, 66)
+  ctx.fillText('PHC Rongli', 110, 66)
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace
   const board = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.75), new THREE.MeshBasicMaterial({ map: tex, fog: false }))
   board.position.set(0, 7.4, 3.2); g.add(board)

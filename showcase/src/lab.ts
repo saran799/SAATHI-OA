@@ -154,4 +154,4 @@ export function buildLab(scene: THREE.Scene) {
 }
 
 /** illustrative peak tibial accelerations (g) shown in the explainer */
-export const PEAKS = { healthyWalk: 2.0, kamalaWalk: 3.6, hardShoe: 8.4, cushionShoe: 5.1 }
+export const PEAKS = { healthyWalk: 2.0, oaWalk: 3.6, hardShoe: 8.4, cushionShoe: 5.1 }

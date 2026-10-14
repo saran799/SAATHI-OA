@@ -6,8 +6,9 @@ import { createPhone, logoImg, markImg, screenAt, SCREENS } from './phone'
 import { buildArchitecture } from './architecture'
 import { buildImpact } from './impact'
 import { buildLab, ANAT_PERIOD, ANAT_T0, ANAT_WORN, LAB_SWAP, LAB_T0, NOVEL_T0, PEAKS, RUN_PERIOD } from './lab'
-import { T, CHAPTERS, STEPS_T } from './timeline'
-import { kneeAngle, jointAngle, romSoFar, sway, shockAt, stepsDone, pulse, ROM_T0, ROM_T1 } from './signals'
+import { T, CHAPTERS, STEPS_T, STEP_CLASS } from './timeline'
+import { kneeAngle, jointAngle, romSoFar, sway, shockAt, stepsDone, pulse, ROM_T0, ROM_T1, POSTURE, postureLive, STEP_PEAKS } from './signals'
+import { createDashboardMonitor, monitorK } from './dashboard'
 import { Score } from './audio'
 import { FONT, clamp, easeInOut, easeOut, lerp, mat, mesh, roundRect, seg, smooth, splineAt, v3, win } from './util'
 import logoUrl from '../../src/assets/saathi-logo.png'
@@ -37,18 +38,21 @@ const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.05, 4000)
 ui.add(camera)
 
 const world = buildWorld(scene)
+const fogBase = (scene.fog as THREE.Fog).color.clone(), fogArch = new THREE.Color('#EEF6F9')
 
 /* =============================== cast =============================== */
-const K = person({ skin: '#8D5A3B', top: '#2E7D32', saree: '#A3214F', border: '#F2B134', hair: '#D8D8D8', bun: true, stick: true })
-const A = person({ skin: '#A0694A', top: '#6A1B4D', saree: '#EC5F9E', border: '#7B1E5B', hair: '#141414', bun: true })
+// Tashi Bhutia, 68 — knee-length shorts so the camera can see both knees (a saree would hide the knee landmarks)
+const K = person({ skin: '#C99B70', top: '#E9E3D6', legs: '#3E4B5C', shorts: true, hair: '#CFCFCF', cap: '#5B3A6B', vest: '#2F4A3A', moustache: '#D9D9D9', stick: true })
+// Sunita, ASHA worker — salwar kameez with a dupatta
+const A = person({ skin: '#A0694A', top: '#E84C8B', legs: '#F6E3EC', kurta: true, dupatta: '#7B1E5B', hair: '#141414', bun: true })
 scene.add(K.root, A.root)
 const stick = K.root.userData.stick as THREE.Object3D
 const bag = ashaBag(); bag.position.set(0.17, 0.1, 0.02); A.torso.add(bag)
 
-// SAATHI pod strapped below Kamala's right knee, on the front of the tibia
-const sensor = sensorDevice(); sensor.position.set(0, -0.11, 0.06); K.kneeL.add(sensor)
+// SAATHI pod strapped just below Tashi's right knee, on the front of the tibia, light facing forward
+const sensor = sensorDevice(); sensor.scale.setScalar(1.3); sensor.position.set(0, -0.11, 0.062); K.kneeL.add(sensor)
 const strapMat = new THREE.MeshStandardMaterial({ color: '#2B2F36', roughness: 0.6 })
-const strap = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.012, 6, 24), strapMat)
+const strap = new THREE.Mesh(new THREE.TorusGeometry(0.054, 0.013, 6, 28), strapMat)
 strap.rotation.x = Math.PI / 2; strap.position.y = -0.11; K.kneeL.add(strap)
 let strapK = 1
 function setStrap(k: number) {
@@ -56,7 +60,7 @@ function setStrap(k: number) {
   if (q === strapK) return
   strapK = q
   strap.geometry.dispose()
-  strap.geometry = new THREE.TorusGeometry(0.056, 0.012, 6, 24, Math.max(0.01, q * Math.PI * 2))
+  strap.geometry = new THREE.TorusGeometry(0.054, 0.013, 6, 28, Math.max(0.01, q * Math.PI * 2))
   strap.visible = q > 0.02
 }
 
@@ -109,6 +113,7 @@ const glowTex = (() => {
 const heroGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 }))
 heroGlow.scale.set(3.4, 3.4, 1); heroGlow.position.z = -0.4; heroPhone.add(heroGlow)
 
+const dash = createDashboardMonitor(); ui.add(dash.group); dash.group.visible = false
 const arch = buildArchitecture(scene, phoneKit.build)
 const impact = buildImpact(scene, world.phc)
 const lab = buildLab(scene)
@@ -132,7 +137,7 @@ const painGlow = radialSprite('rgba(255,60,60,1)', 'rgba(255,0,0,0)', 0.4); scen
 const shockGlow = radialSprite('rgba(255,210,60,1)', 'rgba(255,120,0,0)', 0.2); scene.add(shockGlow)
 const heelRing = ringSprite('#FFC300'); scene.add(heelRing)
 const bleRings = [0, 1, 2].map(() => { const s = ringSprite('#99EFE5'); scene.add(s); return s })
-const syncDots = Array.from({ length: 18 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), new THREE.MeshBasicMaterial({ color: '#FFE08A' })); scene.add(m); return m })
+const syncDots = Array.from({ length: 22 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), new THREE.MeshBasicMaterial({ color: '#FFE08A' })); const g = radialSprite('rgba(255,230,140,0.9)', 'rgba(255,200,60,0)', 6); m.add(g); scene.add(m); return m })
 const towerRings = [0, 1, 2].map(() => { const s = ringSprite('#FFE08A'); scene.add(s); return s })
 const ashaPin = radialSprite('rgba(255,255,255,1)', 'rgba(124,255,233,0)', 3); scene.add(ashaPin)
 
@@ -145,16 +150,22 @@ const ashaStand = v3(8.6, 0, 2.35)
 const behindStand = v3(7.9, 0, 4.4)
 const kneelSpot = v3(7.62, 0, 1.98)
 const kneeFront = v3(7.1, 0, 1.5)
-const watchSpot = v3(8.95, 0, 3.2)
+const watchSpot = v3(10.0, 0, 1.5)
 const postureSpot = v3(7.2, 0, 1.4)
-const WALK_A = v3(3.2, 0, 1.9), WALK_B = v3(7.6, 0, 1.9), WALK_T0 = 67.5, WALK_T1 = 72.45
+const seatFront = v3(7.2, 0, 1.53)
+const WALK_A = v3(5.0, 0, 1.9), WALK_B = v3(9.2, 0, 1.9), WALK_T0 = 67.5, WALK_T1 = 72.45
+// sensor-chapter beats
+const POD_T = T.strap + 1.1, WRAP_T = T.strap + 2.4, WRAP_T1 = T.strap + 3.9 // pod placed, strap wrapped
+const RISE_T = T.strap + 4.4                                                  // patient + ASHA get up
+const GRAB_T = RISE_T + 0.8                                                   // ASHA takes the phone off the tripod
+const AT_START_T = RISE_T + 2.7                                               // patient at the start of the walk lane
 
 const ROAD_L = world.road.getLength()
 const nearestU = (x: number, z: number) => { let best = 0, bd = 1e9; for (let i = 0; i <= 3000; i++) { const p = world.road.getPointAt(i / 3000); const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = i / 3000 } } return best }
 const uLow = nearestU(24, 71)
 const U_NEAR0 = 1 - 4.3 / ROAD_L
 const pathEnd = world.road.getPointAt(1)
-/** where Sunita is (and which way she faces) while she climbs to Kamala's courtyard */
+/** where Sunita is (and which way she faces) while she climbs to Tashi's courtyard */
 function ashaApproach(t: number, out: THREE.Vector3): number {
   if (t < 20.5) {
     const u = Math.min(1, uLow + (t - T.asha) * 1.3 / ROAD_L)
@@ -168,7 +179,7 @@ function ashaApproach(t: number, out: THREE.Vector3): number {
   out.lerpVectors(pathEnd, ashaStand, k); out.y = lerp(pathEnd.y, 0, Math.min(1, k * 3))
   return Math.atan2(ashaStand.x - pathEnd.x, ashaStand.z - pathEnd.z)
 }
-const kamalaWalkX = (t: number) => lerp(WALK_A.x, WALK_B.x, seg(t, WALK_T0, WALK_T1))
+const patientWalkX = (t: number) => lerp(WALK_A.x, WALK_B.x, seg(t, WALK_T0, WALK_T1))
 const faceAt = (from: THREE.Vector3, to: THREE.Vector3) => Math.atan2(to.x - from.x, to.z - from.z)
 
 function seated(t: number) {
@@ -177,6 +188,19 @@ function seated(t: number) {
   K.torso.rotation.x = 0.04
   K.shoulderL.rotation.x = -0.55; K.shoulderR.rotation.x = -0.55; K.elbowL.rotation.x = -0.65; K.elbowR.rotation.x = -0.65
   K.head.rotation.y = 0.35 + Math.sin(t * 0.5) * 0.1
+}
+
+/** blend seated (k = 0) → standing (k = 1); used to get up from / sit down on the chair */
+function standUp(k: number, from: THREE.Vector3, to: THREE.Vector3, rot: number) {
+  const e = smooth(k)
+  K.root.position.lerpVectors(from, to, e); K.root.rotation.y = rot
+  K.hips.position.y = lerp(0.5, K.hipH, e)
+  K.legL.rotation.x = K.legR.rotation.x = lerp(-Math.PI / 2, 0, e)
+  K.kneeL.rotation.x = K.kneeR.rotation.x = lerp(Math.PI / 2, 0, e)
+  K.legL.rotation.y = 0.08 * (1 - e); K.legR.rotation.y = -0.08 * (1 - e)
+  K.torso.rotation.x = 0.08 + 0.42 * Math.sin(e * Math.PI)
+  K.shoulderL.rotation.x = K.shoulderR.rotation.x = -0.55 * (1 - e)
+  K.elbowL.rotation.x = K.elbowR.rotation.x = -0.65 * (1 - e)
 }
 
 function animateCast(t: number) {
@@ -209,32 +233,52 @@ function animateCast(t: number) {
     K.root.position.lerpVectors(standPos, front, smooth(seg(t, 24.2, 25.2)))
     K.root.rotation.y = faceAt(standPos, front)
     walkPose(K, t * 4.6, 0.25, 1)
-  } else if (t < T.posture || (t >= T.posture + 6.6 && t < T.shock) || t >= T.result - 0.5) {
+  } else if (t < T.posture) {
     seated(t)
-    // camera ROM test: straighten + bend the right knee
-    if (t > ROM_T0 - 0.2 && t < ROM_T1 + 0.2) { K.kneeL.rotation.x = Math.PI / 2 - kneeAngle(t) * DEG; K.head.rotation.y = 0.0; K.head.rotation.x = 0.2 }
-    if (t > T.strap) { K.head.rotation.y = 0; K.head.rotation.x = 0.35 }
-    if (t > T.strap + 6) { K.head.rotation.x = 0.1; K.head.rotation.y = 0.5 }
-  } else if (t < T.shock) {
-    // posture test: stand tall facing the phone camera
+    // camera test 1 (joint movement): seated, facing the camera — bend and straighten the right knee
+    if (t > ROM_T0 - 0.2 && t < ROM_T1 + 0.2) { K.kneeL.rotation.x = Math.PI / 2 - kneeAngle(t) * DEG; K.head.rotation.y = 0.0; K.head.rotation.x = 0.1 }
+  } else if (t < T.posture + 0.8) {
+    standUp(seg(t, T.posture, T.posture + 0.8), seatPos, postureSpot, 0)
+  } else if (t < T.strap - 0.6) {
+    // camera test 2 (posture): stand naturally facing the camera, still for 5 s — the right knee rests slightly bent
     K.root.position.copy(postureSpot); K.root.position.x += sway(t); K.root.rotation.y = 0
-    K.torso.rotation.x = 0.03 + sway(t * 1.3) * 0.6
-    K.torso.rotation.z = sway(t) * 1.2
-    K.shoulderL.rotation.z = -0.12; K.shoulderR.rotation.z = 0.12
-  } else {
-    // walking test (tibial shock): walk past the phone at an easy pace
+    K.torso.rotation.x = 0.04
+    K.legL.rotation.x = -0.09; K.kneeL.rotation.x = 0.2; K.hips.position.y = K.hipH - 0.006
+    K.shoulderL.rotation.z = -0.1; K.shoulderR.rotation.z = 0.1
+  } else if (t < T.strap + 0.2) {
+    standUp(1 - seg(t, T.strap - 0.6, T.strap + 0.2), seatPos, postureSpot, 0)
+  } else if (t < RISE_T) {
+    seated(t)
+    K.head.rotation.y = 0; K.head.rotation.x = 0.4 // watches the pod being strapped
+  } else if (t < RISE_T + 0.6) {
+    standUp(seg(t, RISE_T, RISE_T + 0.6), seatPos, seatFront, 0)
+  } else if (t < AT_START_T) {
+    // walk to the start of the lane
+    const k = seg(t, RISE_T + 0.6, AT_START_T)
+    K.root.position.lerpVectors(seatFront, WALK_A, k)
+    K.root.rotation.y = faceAt(seatFront, WALK_A)
+    walkPose(K, t * 5.2, 0.3, 0.6)
+  } else if (t < WALK_T0) {
+    // sensor setup: ~3 s of quiet standing, sensor leg straight and still
+    K.root.position.copy(WALK_A)
+    K.root.rotation.y = lerp(faceAt(seatFront, WALK_A), Math.PI / 2, smooth(seg(t, AT_START_T, AT_START_T + 0.5)))
+    K.torso.rotation.x = 0.06; K.head.rotation.y = -0.25
+  } else if (t < T.result - 0.5) {
+    // walking test (tibial shock): five easy steps along the courtyard
     const wk = t >= WALK_T0 && t < WALK_T1
-    K.root.position.set(kamalaWalkX(t), 0, WALK_A.z)
+    K.root.position.set(patientWalkX(t), 0, WALK_A.z)
     K.root.rotation.y = Math.PI / 2
     if (wk) walkPose(K, Math.PI / 2 + (2 * Math.PI * (t - STEPS_T[0])) / 0.9, 0.36, 0.4)
     K.torso.rotation.x = 0.12
+  } else {
+    seated(t)
   }
 
   /* ---------------- Sunita (ASHA) ---------------- */
   resetPose(A)
   A.root.visible = t >= T.asha - 0.1
-  handPhone.visible = t >= 25.6 && !(t >= 39.6 && t < 62.8)
-  standPhone.visible = t >= 39.6 && t < 62.8
+  handPhone.visible = t >= 25.6 && !(t >= 39.6 && t < GRAB_T)
+  standPhone.visible = t >= 39.6 && t < GRAB_T
   stand.visible = t >= 38.3 && t < T.shock
   if (t < 25.8) {
     const rot = ashaApproach(t, tmpV)
@@ -246,6 +290,7 @@ function animateCast(t: number) {
     A.root.rotation.y = faceAt(ashaStand, seatPos) + 0.35
     holdPhonePose(A, 0.6 + 0.4 * smooth(seg(t, 25.8, 26.6)))
   } else if (t < 39.6) {
+    // mounts the phone on the tripod in front of the patient
     const k = smooth(seg(t, 38, 39.4))
     A.root.position.lerpVectors(ashaStand, behindStand, k)
     A.root.rotation.y = k < 0.9 ? faceAt(ashaStand, behindStand) : Math.PI
@@ -255,25 +300,33 @@ function animateCast(t: number) {
     A.root.position.copy(behindStand); A.root.rotation.y = Math.PI - 0.12
     A.shoulderL.rotation.x = -0.2; A.head.rotation.x = 0.1
     if (t < 40.4) holdPhonePose(A, 1 - seg(t, 39.6, 40.4))
-    if (t > 50.2 && t < 50.9) { A.shoulderR.rotation.x = -1.6; A.elbowR.rotation.x = -0.3 } // asks Kamala to stand
-  } else if (t < 58.2) {
-    const k = smooth(seg(t, T.strap, 58.0))
+    if (t > T.posture + 0.0 && t < T.posture + 0.8) { A.shoulderR.rotation.x = -1.5; A.elbowR.rotation.x = -0.3 } // asks him to stand
+    if (t > T.strap - 1.0) { A.shoulderR.rotation.x = -1.2; A.elbowR.rotation.x = -0.4 } // asks him to sit again
+  } else if (t < POD_T - 0.2) {
+    const k = smooth(seg(t, T.strap, POD_T - 0.3))
     A.root.position.lerpVectors(behindStand, kneelSpot, k); A.root.position.x += Math.sin(k * Math.PI) * 0.6
     A.root.rotation.y = k < 0.85 ? faceAt(behindStand, kneelSpot) : faceAt(kneelSpot, kneeFront)
     walkPose(A, t * 7.5, 0.4 * (1 - k))
-  } else if (t < 62.2) {
+  } else if (t < RISE_T) {
     A.root.position.copy(kneelSpot); A.root.rotation.y = faceAt(kneelSpot, kneeFront)
     kneelPose(A, 0.5)
-    const w = Math.sin(t * 6) * 0.08
+    const w = t > WRAP_T && t < WRAP_T1 ? Math.sin(t * 6) * 0.08 : 0
     A.shoulderL.rotation.x += w; A.shoulderR.rotation.x -= w
-  } else if (t < 62.8) {
-    const k = smooth(seg(t, 62.2, 62.8))
-    A.root.position.lerpVectors(kneelSpot, watchSpot, k); A.root.rotation.y = faceAt(kneelSpot, watchSpot)
+  } else if (t < GRAB_T) {
+    // back to the tripod for the phone
+    const k = smooth(seg(t, RISE_T, GRAB_T))
+    A.root.position.lerpVectors(kneelSpot, behindStand, k); A.root.position.x += Math.sin(k * Math.PI) * 0.5
+    A.root.rotation.y = faceAt(kneelSpot, behindStand)
     walkPose(A, t * 7.5, 0.4)
+  } else if (t < GRAB_T + 0.9) {
+    const k = smooth(seg(t, GRAB_T, GRAB_T + 0.9))
+    A.root.position.lerpVectors(behindStand, watchSpot, k)
+    A.root.rotation.y = faceAt(behindStand, watchSpot)
+    walkPose(A, t * 7.5, 0.4)
+    holdPhonePose(A, 0.7)
   } else if (t < T.result - 0.5) {
     A.root.position.copy(watchSpot)
-    const target = t >= T.shock ? v3(kamalaWalkX(t), 0, WALK_A.z) : seatPos
-    A.root.rotation.y = faceAt(watchSpot, target)
+    A.root.rotation.y = faceAt(watchSpot, K.root.position)
     holdPhonePose(A, 0.9)
   } else {
     A.root.position.copy(ashaStand)
@@ -305,12 +358,12 @@ function animateCast(t: number) {
   }
 
   /* ---------------- pod + strap ---------------- */
-  const podOn = t >= 58.3
+  const podOn = t >= POD_T
   sensor.visible = podOn
-  sensor.position.z = lerp(0.36, 0.06, smooth(seg(t, 58.3, 59.7)))
-  sensor.position.y = lerp(-0.05, -0.11, smooth(seg(t, 58.3, 59.7)))
-  setStrap(t < 59.7 ? 0 : seg(t, 59.7, 61.4))
-  ;(sensor.userData.led as THREE.Mesh).visible = Math.floor(t * 3) % 2 === 0 || (t > 62.6 && t < T.shock + 6)
+  sensor.position.z = lerp(0.3, 0.062, smooth(seg(t, POD_T, WRAP_T)))
+  sensor.position.y = lerp(-0.06, -0.11, smooth(seg(t, POD_T, WRAP_T)))
+  setStrap(t < WRAP_T ? 0 : seg(t, WRAP_T, WRAP_T1))
+  ;(sensor.userData.led as THREE.Mesh).visible = Math.floor(t * 3) % 2 === 0 || (t > T.strap + 6.5 && t < T.shock + 6)
 
   // pain glow (problem chapter)
   K.kneeL.getWorldPosition(tmpV)
@@ -323,7 +376,7 @@ function animateCast(t: number) {
   sensor.getWorldPosition(tmpV)
   bleRings.forEach((r, i) => {
     const k = ((t * 0.8 + i / 3) % 1)
-    r.visible = t > 61.8 && t < WALK_T1
+    r.visible = t > T.strap + 4.1 && t < WALK_T1
     r.position.copy(tmpV); r.scale.setScalar(0.05 + k * 0.45); r.material.opacity = (1 - k) * 0.85
   })
 
@@ -352,7 +405,7 @@ function animateCast(t: number) {
 
   // sync: phone → tower → PHC
   handPhone.getWorldPosition(tmpV2)
-  const sk = t > T.sync + 0.5 && t < T.arch
+  const sk = t > T.sync + 0.5 && t < T.phc + 1.4
   const towerTop = world.towerTop, phcTop = world.phc.clone().add(v3(0, 7, 0))
   syncDots.forEach((dd, i) => {
     dd.visible = sk
@@ -365,10 +418,13 @@ function animateCast(t: number) {
     const k = ((t * 0.6 + i / 3) % 1)
     r.visible = sk; r.position.copy(towerTop); r.scale.setScalar(2 + k * 16); r.material.opacity = (1 - k)
   })
-  thali.visible = t > T.nutrition - 0.5 && t < T.arch
+  thali.visible = t > T.nutrition - 0.5 && t < T.phc
 }
 
 /* =============================== camera direction =============================== */
+// architecture + impact camera path, authored with the architecture chapter starting at 116 s (shifted to T.arch below)
+const ARCH_KEYS_P = [[116, -34, 74, 52], [118.2, -22, 76, 33], [121.5, -10, 76.5, 31], [125, 3, 77, 32], [128.5, 16, 77, 32], [132, 4, 86, 60], [135, 60, 150, 205], [139, 185, 140, 125], [142, 210, 118, -30], [146, 34, 42, 72], [150, 8, 14, 31]]
+const ARCH_KEYS_L = [[116, -24, 72, 0], [118.2, -22, 74, 0], [121.5, -10, 74.5, 0], [125, 3, 74.5, 0], [128.5, 17, 74.5, 0], [132, 4, 73.5, 0], [135, 10, 0, 0], [139, 10, 0, 0], [142, 10, 0, 0], [146, 4, 3, 0], [150, 4, 2.5, -2]]
 type Seg = { a: number; b: number; blend?: number; keys?: { p: number[][]; l: number[][] }; proc?: (t: number, p: THREE.Vector3, l: THREE.Vector3) => void }
 const orbit = (c: THREE.Vector3, r: number, h: number, a0: number, a1: number, ta: number, tb: number) => (t: number, p: THREE.Vector3, l: THREE.Vector3) => {
   const a = lerp(a0, a1, seg(t, ta, tb))
@@ -392,35 +448,42 @@ const SEGS: Seg[] = [
     l.y += lerp(1.0, 0.8, k); l.lerp(v3(7.6, 0.8, 1.6), k * 0.6)
   } },
   { a: T.app, b: T.camera, blend: 1.0, proc: orbit(v3(7.4, 0.9, 1.8), 8.5, 2.6, 0.25, 0.95, T.app, T.camera) },
-  // camera ROM test (front-left of Kamala; tripod + phone in frame)
+  // camera test 1 — joint movement (front-left of the patient: right leg, tripod + phone in frame)
   { a: T.camera, b: T.posture, blend: 1.2, keys: {
-    p: [[38, 11, 2.4, 7.5], [40, 5.5, 1.3, 3.75], [44, 5.35, 1.05, 3.2], [50, 5.45, 1.1, 3.1]],
-    l: [[38, 7.4, 0.8, 2.4], [40, 7.2, 0.65, 1.9], [44, 7.15, 0.55, 1.75], [50, 7.15, 0.6, 1.75]] } },
-  // posture test: view from behind the phone
-  { a: T.posture, b: T.strap, blend: 0.9, keys: { p: [[50, 6.3, 1.55, 5.7], [57, 6.65, 1.45, 5.0]], l: [[50, 7.2, 0.92, 1.35], [57, 7.2, 0.9, 1.35]] } },
-  // strapping close-up, then pairing + calibration
+    p: [[38, 11, 2.4, 7.5], [40, 5.5, 1.3, 3.75], [44, 5.35, 1.05, 3.2], [T.posture, 5.45, 1.1, 3.1]],
+    l: [[38, 7.4, 0.8, 2.4], [40, 7.2, 0.65, 1.9], [44, 7.15, 0.55, 1.75], [T.posture, 7.15, 0.6, 1.75]] } },
+  // camera test 2 — knee posture: the phone's point of view, both legs in frame
+  { a: T.posture, b: T.strap, blend: 0.9, keys: { p: [[T.posture, 5.35, 1.5, 5.0], [T.strap, 5.55, 1.35, 4.6]], l: [[T.posture, 7.3, 0.8, 1.35], [T.strap, 7.3, 0.78, 1.35]] } },
+  // strapping close-up on the right shin, then the walk to the lane + quiet standing for sensor setup
   { a: T.strap, b: T.shock, blend: 0.8, keys: {
-    p: [[57, 5.8, 1.3, 3.9], [58.6, 6.05, 0.95, 2.95], [61.8, 6.15, 0.9, 2.8], [63.6, 5.5, 1.4, 3.9], [67, 5.1, 1.5, 4.3]],
-    l: [[57, 7.3, 0.6, 1.6], [58.6, 7.45, 0.42, 1.62], [61.8, 7.45, 0.42, 1.62], [63.6, 7.5, 0.7, 2.0], [67, 7.5, 0.8, 2.0]] } },
+    p: [[T.strap, 6.3, 1.25, 4.0], [POD_T, 6.15, 0.98, 2.85], [RISE_T - 0.2, 6.25, 0.92, 2.72], [RISE_T + 1.0, 7.0, 1.55, 6.1], [AT_START_T + 0.3, 6.15, 1.3, 5.1], [T.shock, 5.85, 1.15, 5.3]],
+    l: [[T.strap, 7.15, 0.55, 1.6], [POD_T, 7.28, 0.42, 1.6], [RISE_T - 0.2, 7.26, 0.42, 1.58], [RISE_T + 1.0, 6.5, 0.8, 1.8], [AT_START_T + 0.3, 5.75, 0.82, 1.9], [T.shock, 5.75, 0.74, 1.9]] } },
   // walking test — side tracking shot of the right shin
   { a: T.shock, b: WALK_T1, proc: (t, p, l) => {
-    const x = kamalaWalkX(t)
+    const x = patientWalkX(t)
     p.set(x + 0.5, 0.95, 5.6); l.set(x + 0.9, 0.62, 1.9)
   } },
   // fly up to the floating anatomy diorama
   { a: WALK_T1, b: T.lab, keys: {
-    p: [[WALK_T1, 8.1, 0.95, 5.6], [73.3, 6, 10, 34], [74.4, 1.6, 28.4, 84], [79, -0.4, 28.2, 81]],
-    l: [[WALK_T1, 8.5, 0.62, 1.9], [73.3, 3, 14, 40], [74.4, 0.6, 27.3, 64], [79, 0.6, 27.3, 64]] } },
+    p: [[WALK_T1, WALK_B.x + 0.5, 0.95, 5.6], [73.3, 6, 10, 34], [74.4, 1.6, 28.4, 84], [79, -0.4, 28.2, 81]],
+    l: [[WALK_T1, WALK_B.x + 0.9, 0.62, 1.9], [73.3, 3, 14, 40], [74.4, 0.6, 27.3, 64], [79, 0.6, 27.3, 64]] } },
   // lab treadmill, then pull back to both dioramas for the novelty
   { a: T.lab, b: T.result, keys: {
     p: [[79, -0.4, 28.2, 81], [80.6, 24.5, 26.8, 79], [86, 25, 26.6, 77.5], [88.2, 12, 30.5, 101], [93, 12, 30, 99]],
     l: [[79, 0.6, 27.3, 64], [80.6, 24.5, 25.2, 64], [86, 24.5, 25.2, 64], [88.2, 12, 25.8, 64], [93, 12, 25.8, 64]] } },
   { a: T.result, b: T.nutrition, proc: orbit(v3(7.3, 0.9, 1.8), 7.5, 2.4, -0.25, 0.3, T.result, T.nutrition) },
   { a: T.nutrition, b: T.sync, blend: 1.0, keys: { p: [[101, 4.6, 1.6, 4.5], [104, 5.2, 1.25, 3.7], [111, 5.45, 1.1, 3.35]], l: [[101, 6.6, 0.6, 2.0], [104, 6.3, 0.42, 2.15], [111, 6.3, 0.4, 2.15]] } },
-  { a: T.sync, b: T.arch, blend: 1.0, keys: { p: [[111, 28, 14, 42], [113.2, 118, 52, 32], [116, 132, 58, 12]], l: [[111, 6, 1, 2], [113.2, 10, -5, 45], [116, 10, -5, 45]] } },
+  { a: T.sync, b: T.phc, blend: 1.0, keys: { p: [[111, 28, 14, 42], [113.2, 118, 52, 32], [T.phc, 132, 58, 12]], l: [[111, 6, 1, 2], [113.2, 10, -5, 45], [T.phc, 10, -5, 45]] } },
+  // across the gorge to the PHC, where the record lands on the medical officer's dashboard
+  { a: T.phc, b: T.arch, proc: (t, p, l) => {
+    const k = easeInOut(seg(t, T.phc, T.phc + 2.2))
+    const phc = world.phc
+    p.lerpVectors(v3(132, 58, 12), v3(phc.x + 34 + (t - T.phc) * 0.6, phc.y + 30, phc.z - 46), k)
+    l.lerpVectors(v3(10, -5, 45), v3(phc.x, phc.y + 3, phc.z), k)
+  } },
   { a: T.arch, b: TOTAL, blend: 1.4, keys: {
-    p: [[116, -34, 74, 52], [118.2, -22, 76, 33], [121.5, -10, 76.5, 31], [125, 3, 77, 32], [128.5, 16, 77, 32], [132, 4, 86, 60], [135, 60, 150, 205], [139, 185, 140, 125], [142, 210, 118, -30], [146, 34, 42, 72], [150, 8, 14, 31]],
-    l: [[116, -24, 72, 0], [118.2, -22, 74, 0], [121.5, -10, 74.5, 0], [125, 3, 74.5, 0], [128.5, 17, 74.5, 0], [132, 4, 73.5, 0], [135, 10, 0, 0], [139, 10, 0, 0], [142, 10, 0, 0], [146, 4, 3, 0], [150, 4, 2.5, -2]] } },
+    p: ARCH_KEYS_P.map(([tt, x, y, z]) => [tt - 116 + T.arch, x, y, z]),
+    l: ARCH_KEYS_L.map(([tt, x, y, z]) => [tt - 116 + T.arch, x, y, z]) } },
 ]
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3()
 function evalSeg(s: Seg, t: number, p: THREE.Vector3, l: THREE.Vector3) {
@@ -442,8 +505,8 @@ function cameraAt(t: number, p: THREE.Vector3, l: THREE.Vector3) {
 /* =============================== hero phone choreography =============================== */
 type PMode = 'hand' | 'hero' | 'corner' | 'gone'
 const PKEYS: [number, PMode][] = [
-  [0, 'hand'], [26, 'hand'], [27, 'hero'], [38, 'hero'], [38.6, 'corner'], [57, 'corner'], [57.5, 'hero'], [67, 'hero'], [67.5, 'corner'],
-  [72, 'corner'], [72.5, 'gone'], [93, 'gone'], [93.6, 'hero'], [111, 'hero'], [111.6, 'corner'], [116, 'corner'], [116.6, 'gone'],
+  [0, 'hand'], [26, 'hand'], [27, 'hero'], [38, 'hero'], [38.6, 'corner'], [T.strap, 'corner'], [T.strap + 0.5, 'hero'], [POD_T - 0.1, 'hero'], [POD_T + 0.5, 'corner'], [RISE_T, 'corner'], [RISE_T + 0.5, 'hero'], [T.shock, 'hero'], [T.shock + 0.5, 'corner'],
+  [72, 'corner'], [72.5, 'gone'], [93, 'gone'], [93.6, 'hero'], [111, 'hero'], [111.6, 'corner'], [T.phc + 0.4, 'corner'], [T.phc + 1.0, 'gone'],
 ]
 const poseP = { a: new THREE.Vector3(), b: new THREE.Vector3() }, poseQ = { a: new THREE.Quaternion(), b: new THREE.Quaternion() }
 function modePose(m: PMode, t: number, pos: THREE.Vector3, q: THREE.Quaternion) {
@@ -478,25 +541,42 @@ function updateHeroPhone(t: number) {
   heroGlow.material.opacity = 0.75 * (ma === 'hand' ? k : mb === 'hand' ? 1 - k : 1)
 }
 
+/* =============================== PHC dashboard monitor =============================== */
+function updateMonitor(t: number) {
+  const k = monitorK(t)
+  dash.group.visible = k > 0.002
+  if (!dash.group.visible) return
+  dash.render(t)
+  const dist = 2.5
+  const visH = 2 * dist * Math.tan((camera.fov * DEG) / 2), visW = visH * camera.aspect
+  const s = Math.min(1, (visW * 0.94) / dash.size.w, (visH * 0.8) / dash.size.h)
+  const wideAsp = camera.aspect > 1.15
+  tmpV.set(0, (wideAsp ? -0.09 : 0) - (1 - k) * 0.5, -dist).applyMatrix4(camera.matrixWorld)
+  dash.group.position.copy(tmpV)
+  dash.group.quaternion.copy(camera.quaternion).multiply(tmpQ.setFromEuler(new THREE.Euler(-0.04 * (1 - k), Math.sin(t * 0.35) * 0.025, 0)))
+  dash.group.scale.setScalar(s * (0.9 + 0.1 * k))
+}
+
 /* =============================== 2D overlay (minimal text) =============================== */
 const CAPTIONS: [number, number, string, string, boolean?][] = [
   [9.6, 16.6, 'Knee pain, high in the hills', 'The nearest PHC is across the gorge'],
   [17.4, 20.2, 'Meet Sunita, ASHA worker', 'She walks these hills — SAATHI is her screening kit'],
   [96.2, 100.6, 'Screening risk in minutes', 'A smarter referral, not a diagnosis', true],
-  [111.8, 115.6, 'Syncs when the network returns', 'Records reach the medical officer at PHC Devkhal'],
-  [133.2, 138.8, 'Every hill hamlet. Earlier care.', ''],
+  [111.8, 115.6, 'Syncs when the network returns', 'The record travels to PHC Rongli, across the gorge'],
+  [T.impact + 1.2, T.impact + 6.8, 'Every hill hamlet. Earlier care.', ''],
 ]
 const HEADERS: [number, number, string, string][] = [
-  [38.8, 49.6, 'Step 1 · Camera checks knee movement', 'On-device pose model tracks hip – knee – ankle'],
-  [50.6, 56.6, 'Step 2 · Camera checks posture', 'Shoulder – hip – ankle alignment and sway'],
-  [57.8, 66.6, 'Step 3 · Pod strapped below the knee', 'On the front of the shin bone (tibia)'],
-  [67.4, 72.2, 'Step 4 · Walk test: tibial shock', 'The pod records the jolt at every heel strike'],
+  [38.8, T.posture - 0.3, 'Test 1 of 2 · Joint movement', 'Seated, facing the camera · bend and straighten the knee'],
+  [T.posture + 0.5, T.strap - 0.4, 'Test 2 of 2 · Knee posture', 'Standing still for 5 s · left vs right knee angle (hip – knee – ankle)'],
+  [T.strap + 0.3, RISE_T + 0.4, 'Pod strapped just below the knee', 'On the front of the shin bone (tibia) · light facing forward'],
+  [RISE_T + 0.8, T.shock - 0.2, 'Sensor setup · 3 s of quiet standing', 'The pod learns its resting position before the walk'],
+  [67.4, 72.2, 'Walk test · tibial shock at every step', 'The pod counts each heel strike and classes it LOW · MID · HIGH'],
   [101.4, 110.6, "Care doesn't stop at screening", 'A local diet plan matched to the risk band'],
 ]
 const STEP_GROUPS: { title: string; from: number; to: number; names: string[] }[] = [
   { title: 'APP FLOW · INTAKE', from: 0, to: 5, names: ['Sign in', 'Language', 'Dashboard', 'Register patient', 'Select joint', 'Symptoms'] },
-  { title: 'SCREENING · CAMERA', from: 6, to: 7, names: ['Knee range of motion', 'Posture & balance'] },
-  { title: 'SCREENING · SENSOR POD', from: 8, to: 11, names: ['Strap pod on tibia', 'Pair pod', 'Calibrate', 'Walk test · tibial shock'] },
+  { title: 'SCREENING · CAMERA', from: 6, to: 7, names: ['Test 1 · Joint movement', 'Test 2 · Knee posture'] },
+  { title: 'SCREENING · SENSOR POD', from: 8, to: 11, names: ['Strap pod below knee', 'Pair pod', 'Sensor setup', 'Walk test · tibial shock'] },
   { title: 'OUTCOME', from: 12, to: 16, names: ['On-device AI', 'Risk result', 'Guidance', 'Nutrition plan', 'Report & sync'] },
 ]
 const logoForOverlay = new Image(); logoForOverlay.src = logoUrl
@@ -578,7 +658,7 @@ function header(ctx: CanvasRenderingContext2D, u: number, W: number, k: number, 
   ctx.globalAlpha = 1
 }
 
-const shockFn = (tt: number) => pulse(tt, ANAT_T0, ANAT_PERIOD, tt < ANAT_WORN ? PEAKS.healthyWalk : PEAKS.kamalaWalk)
+const shockFn = (tt: number) => pulse(tt, ANAT_T0, ANAT_PERIOD, tt < ANAT_WORN ? PEAKS.healthyWalk : PEAKS.oaWalk)
 const LAB_P0 = LAB_T0 + 0.2 * RUN_PERIOD - 0.05
 const labFn = (tt: number) => tt < LAB_T0 ? 1 : pulse(tt, LAB_P0, RUN_PERIOD, tt < LAB_SWAP ? PEAKS.hardShoe : PEAKS.cushionShoe)
 
@@ -642,16 +722,16 @@ function drawOverlay(t: number) {
   const pinA = win(t, T.asha + 0.3, 20.4, 0.4)
   if (pinA > 0) {
     const p = project(wp(A.root).add(v3(0, 2.6, 0)), W, H)
-    if (p.front) { ctx.globalAlpha = pinA; callout(ctx, u, p, 60, -70, 'Sunita · ASHA', 'climbing to Kamala\u2019s hamlet', '#E84C8B'); ctx.globalAlpha = 1 }
+    if (p.front) { ctx.globalAlpha = pinA; callout(ctx, u, p, 60, -70, 'Sunita · ASHA', 'climbing to Tashi\u2019s hamlet', '#E84C8B'); ctx.globalAlpha = 1 }
   }
 
   // ----- app flow step rail -----
   const mode = phoneMode(t)
-  const railOn = (t > 26.3 && t < 72.2) || (t > 93.6 && t < 116)
+  const railOn = (t > 26.3 && t < 72.2) || (t > 93.6 && t < T.phc)
   if (railOn && wide && (mode === 'hero' || mode === 'corner' || t < 27)) {
     const cur = screenAt(t)
     const grp = STEP_GROUPS.find(g => cur.idx >= g.from && cur.idx <= g.to)!
-    const a = Math.min(smooth(seg(t, 26.3, 27.3)), 1 - smooth(seg(t, 71.4, 72.2)), t > 93 ? smooth(seg(t, 93.6, 94.4)) : 1, 1 - smooth(seg(t, 115.2, 116)))
+    const a = Math.min(smooth(seg(t, 26.3, 27.3)), 1 - smooth(seg(t, 71.4, 72.2)), t > 93 ? smooth(seg(t, 93.6, 94.4)) : 1, 1 - smooth(seg(t, T.phc - 0.8, T.phc)))
     ctx.globalAlpha = a
     const x = 70 * u, rowH = 58 * u
     const top = H / 2 - (grp.names.length * rowH) / 2 + 30 * u
@@ -699,30 +779,47 @@ function drawOverlay(t: number) {
       let da = a2 - a1; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2
       ctx.beginPath(); ctx.moveTo(knee.x, knee.y); ctx.arc(knee.x, knee.y, 46 * u, a1, a1 + da, da < 0); ctx.closePath()
       ctx.fillStyle = 'rgba(255,209,102,0.35)'; ctx.fill()
-      callout(ctx, u, knee, -150, -120, `${Math.round(jointAngle(t))}°  knee angle`, `range of motion ${Math.round(romSoFar(t))}°`, '#FFB703')
+      callout(ctx, u, knee, -150, -120, `Joint angle ${Math.round(jointAngle(t))}°`, `range of motion ${Math.round(romSoFar(t))}°`, '#FFB703')
     }
     ctx.globalAlpha = 1
   }
-  const pa = win(t, T.posture + 1.0, T.strap - 0.4, 0.4)
+  const pa = win(t, T.posture + 1.1, T.strap - 0.7, 0.4)
   if (pa > 0) {
     ctx.globalAlpha = pa
     const P = (o: THREE.Object3D, l?: THREE.Vector3) => project(wp(o, l), W, H)
-    const head = P(K.head), shL = P(K.shoulderL), shR = P(K.shoulderR), hpL = P(K.legL), hpR = P(K.legR), knL = P(K.kneeL), knR = P(K.kneeR)
-    const anL = P(K.kneeL, v3(0, -0.42, 0)), anR = P(K.kneeR, v3(0, -0.42, 0))
-    const bones: [P2, P2][] = [[shL, shR], [hpL, hpR], [shL, hpL], [shR, hpR], [hpL, knL], [knL, anL], [hpR, knR], [knR, anR]]
-    bones.forEach(([a, b]) => line(ctx, a, b, '#7CFFE9', 5 * u))
-    for (const p of [head, shL, shR, hpL, hpR, knL, knR, anL, anR]) dot(ctx, p, 7 * u, '#00B4A6')
-    const foot = project(wp(K.root).setY(0), W, H)
-    line(ctx, { x: foot.x, y: head.y - 30 * u, front: true }, foot, 'rgba(255,255,255,0.9)', 2.5 * u, [10 * u, 8 * u])
-    callout(ctx, u, shR, 160, -40, 'Posture stability 90%', 'aligned · low sway', '#00B4A6')
+    // MediaPipe landmarks 24-26-28 (right) and 23-25-27 (left): hip – knee – ankle
+    const legs: [THREE.Object3D, THREE.Object3D, string, number, number][] = [
+      [K.legL, K.kneeL, 'Right knee', postureLive(t, 'right'), -1],
+      [K.legR, K.kneeR, 'Left knee', postureLive(t, 'left'), 1],
+    ]
+    for (const [hipO, kneeO, name, val, side] of legs) {
+      const hip = P(hipO), knee = P(kneeO), ank = P(kneeO, v3(0, -0.42, 0.02))
+      if (!(hip.front && knee.front && ank.front)) continue
+      line(ctx, hip, knee, '#FFD166', 6 * u); line(ctx, knee, ank, '#FFD166', 6 * u)
+      for (const q of [hip, knee, ank]) dot(ctx, q, 8 * u, '#FFB703')
+      callout(ctx, u, knee, side * 170, -30, `${name} ${val.toFixed(1)}°`, 'hip – knee – ankle', '#FFB703')
+    }
+    // 5-second hold + symmetry
+    const k = clamp((t - POSTURE.t0) / (POSTURE.t1 - POSTURE.t0))
+    const bw = 560 * u, bh = 128 * u, bx = 70 * u, by = H - bh - 120 * u
+    card(ctx, bx, by, bw, bh, 26 * u, 'rgba(10,32,30,0.85)')
+    const rx = bx + 66 * u, ry = by + bh / 2, rr0 = 40 * u
+    ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.arc(rx, ry, rr0, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 8 * u; ctx.stroke()
+    ctx.beginPath(); ctx.arc(rx, ry, rr0, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2); ctx.strokeStyle = '#99EFE5'; ctx.stroke()
+    txt(ctx, k < 1 ? `${Math.max(0, 5 - k * 5).toFixed(0)}s` : '✓', rx, ry + 1 * u, 24 * u, 800, '#FFFFFF', 'center')
+    txt(ctx, k < 1 ? 'STANDING STILL · 5 s' : 'POSTURE DATA SUFFICIENT', bx + 130 * u, by + 38 * u, 15 * u, 800, '#99EFE5')
+    txt(ctx, 'Symmetry difference', bx + 130 * u, by + 74 * u, 20 * u, 700, '#FFFFFF')
+    txt(ctx, `${Math.abs(postureLive(t, 'left') - postureLive(t, 'right')).toFixed(1)}°`, bx + bw - 30 * u, by + 74 * u, 30 * u, 800, '#FFD166', 'right')
+    txt(ctx, 'right knee rests more bent than the left', bx + 130 * u, by + 104 * u, 14 * u, 600, 'rgba(255,255,255,0.65)')
     ctx.globalAlpha = 1
   }
 
   // ----- strapping callout -----
-  const sa = win(t, 59.8, 62.2, 0.4)
+  const sa = win(t, WRAP_T + 0.3, RISE_T - 0.1, 0.4)
   if (sa > 0) {
     ctx.globalAlpha = sa
-    callout(ctx, u, project(wp(sensor), W, H), -180, 90, 'SAATHI pod on the tibia', 'just below the right knee', '#00685F')
+    callout(ctx, u, project(wp(sensor), W, H), -190, 110, 'SAATHI pod on the tibia', 'just below the right knee · light forward', '#00685F')
     ctx.globalAlpha = 1
   }
 
@@ -732,11 +829,18 @@ function drawOverlay(t: number) {
     ctx.globalAlpha = wa
     const n = stepsDone(t)
     const pod = project(wp(sensor), W, H)
-    const peak = n ? [3.1, 3.4, 3.3, 3.6, 3.4][n - 1] : 0
-    callout(ctx, u, pod, -40, -190, n ? `Peak tibial shock ${peak.toFixed(1)} g` : 'Recording…', `step ${Math.max(1, n)} of 5 · illustrative`, '#FF8A00')
+    const cls = n ? STEP_CLASS[n - 1] : ''
+    const ccol = cls === 'HIGH' ? '#E5484D' : '#FF8A00'
+    callout(ctx, u, pod, 70, -190, n ? `Step ${n} · ${cls} shock` : 'Recording…', n ? `peak ≈ ${STEP_PEAKS[n - 1].toFixed(1)} g (illustrative)` : 'walk 5 easy steps', n ? ccol : '#00685F')
     const pw = 520 * u, ph = 210 * u, px = 70 * u, py = H - ph - 70 * u
     const gp = graphPanel(ctx, u, px, py, pw, ph, 'TIBIAL ACCELERATION', 4)
     trace(ctx, u, gp.gx, gp.gy, gp.gw, gp.gh, t, shockAt, 4, '#FFB703', 2.4)
+    // per-step classes, as the pod reports them (StepHistory)
+    STEP_CLASS.forEach((c, i) => {
+      const on = i < n, cx = px + i * 104 * u
+      pill(ctx, cx, py - 62 * u, 94 * u, 44 * u, on ? (c === 'HIGH' ? '#E5484D' : '#FF8A00') : 'rgba(10,32,30,0.55)')
+      txt(ctx, on ? `${i + 1} · ${c}` : `${i + 1} · —`, cx + 47 * u, py - 40 * u, 17 * u, 800, '#FFFFFF', 'center')
+    })
     ctx.globalAlpha = 1
   }
 
@@ -753,7 +857,7 @@ function drawOverlay(t: number) {
     const pw = 560 * u, ph = 230 * u, px = 70 * u, py = H - ph - 70 * u
     const gp = graphPanel(ctx, u, px, py, pw, ph, worn ? 'STIFF OA GAIT' : 'HEALTHY GAIT', 4)
     trace(ctx, u, gp.gx, gp.gy, gp.gw, gp.gh, t, shockFn, 4, worn ? '#FF5A36' : '#2EC4B6')
-    txt(ctx, `peak ≈ ${worn ? PEAKS.kamalaWalk : PEAKS.healthyWalk} g`, px + pw - 26 * u, py + ph - 22 * u, 20 * u, 800, '#FFFFFF', 'right')
+    txt(ctx, `peak ≈ ${worn ? PEAKS.oaWalk : PEAKS.healthyWalk} g`, px + pw - 26 * u, py + ph - 22 * u, 20 * u, 800, '#FFFFFF', 'right')
     ctx.globalAlpha = 1
   }
 
@@ -823,7 +927,7 @@ function drawOverlay(t: number) {
   const ar = win(t, T.arch + 1.6, T.impact - 0.4, 0.6)
   if (ar > 0) {
     ctx.globalAlpha = ar
-    pill(ctx, W / 2 - 400 * u, 80 * u, 800 * u, 96 * u, 'rgba(255,255,255,0.95)')
+    pill(ctx, W / 2 - 480 * u, 80 * u, 960 * u, 96 * u, 'rgba(255,255,255,0.95)')
     txt(ctx, 'How SAATHI works', W / 2, 114 * u, 38 * u, 800, '#004F48', 'center')
     txt(ctx, 'Camera + pod → phone (on-device AI) → cloud → PHC  ·  offline-first', W / 2, 151 * u, 21 * u, 600, '#2F8981', 'center')
     ctx.globalAlpha = 1
@@ -861,7 +965,7 @@ function drawOverlay(t: number) {
   }
 
   // ----- watermark -----
-  if (t > T.problem && t < T.end + 1 && (t < T.arch || t > T.impact + 0.5) && markForOverlay.complete && wide) {
+  if (t > T.problem && t < T.end + 1 && (t < T.phc || t > T.impact + 0.5) && markForOverlay.complete && wide) {
     ctx.globalAlpha = 0.9
     pill(ctx, W - 240 * u, 96 * u, 180 * u, 48 * u, 'rgba(255,255,255,0.9)')
     ctx.drawImage(markForOverlay, W - 228 * u, 102 * u, 46 * u, 36 * u)
@@ -977,14 +1081,14 @@ const uiEls = Array.from(document.querySelectorAll('.ui'))
 const hotspotLayer = $('hotspots')
 hotspotLayer.style.display = 'none'
 const HOTSPOTS: { label: string; pos: () => THREE.Vector3; t: number }[] = [
-  { label: "Kamala's home", pos: () => world.kamalaHouse.clone().setY(6.4), t: T.problem },
+  { label: "Tashi's home", pos: () => world.kamalaHouse.clone().setY(6.4), t: T.problem },
   { label: 'Footpath from the gorge', pos: () => world.road.getPointAt(0.45).add(v3(0, 3, 0)), t: T.asha },
-  { label: 'Camera ROM + posture test', pos: () => stand.position.clone().add(v3(0, 1.8, 0)), t: T.camera },
+  { label: 'Camera tests · ROM + knee posture', pos: () => stand.position.clone().add(v3(0, 1.8, 0)), t: T.camera },
   { label: 'Pod on the tibia', pos: () => wp(sensor).add(v3(0, 0.35, 0)), t: T.strap },
   { label: 'Tibial shock explainer', pos: () => lab.anat.position.clone().add(v3(0, 14, 0)), t: ANAT_T0 + 1 },
   { label: 'Sports-lab validation', pos: () => lab.lab.position.clone().add(v3(0, 10, 0)), t: T.lab },
   { label: 'Mobile tower · sync', pos: () => world.towerTop.clone().add(v3(0, 3, 0)), t: T.sync },
-  { label: 'PHC Devkhal', pos: () => world.phc.clone().add(v3(0, 10, 0)), t: T.sync },
+  { label: 'PHC Rongli · dashboard', pos: () => world.phc.clone().add(v3(0, 10, 0)), t: T.phc },
   { label: 'Architecture', pos: () => v3(0, 78, 0), t: T.arch },
 ]
 const hsEls = HOTSPOTS.map(h => {
@@ -1064,8 +1168,14 @@ function frame(now: number) {
   }
   camera.updateMatrixWorld()
   updateHeroPhone(exploring ? 0 : t)
+  updateMonitor(exploring ? -10 : t)
   phoneKit.render(t)
 
+  // architecture chapter: thick pale haze turns the hillside behind the floating diagram into a clean backdrop
+  const fogK = exploring ? 0 : win(t, T.arch - 0.4, T.impact - 0.2, 1.2)
+  const fog = scene.fog as THREE.Fog
+  fog.near = lerp(220, 30, fogK); fog.far = lerp(1500, 105, fogK)
+  fog.color.copy(fogBase).lerp(fogArch, fogK)
   renderer.clear()
   renderer.render(scene, camera)
   renderer.clearDepth()
