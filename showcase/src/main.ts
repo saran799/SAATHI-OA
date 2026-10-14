@@ -159,6 +159,16 @@ const POD_T = T.strap + 1.1, WRAP_T = T.strap + 2.4, WRAP_T1 = T.strap + 3.9 // 
 const RISE_T = T.strap + 4.4                                                  // patient + ASHA get up
 const GRAB_T = RISE_T + 0.8                                                   // ASHA takes the phone off the tripod
 const AT_START_T = RISE_T + 2.7                                               // patient at the start of the walk lane
+// camera tests: test 1 (ROM) films the right knee from the SIDE; Sunita then carries the tripod to the front for test 2
+const SIDE_STAND = v3(5.05, 0, 1.45), FRONT_STAND = v3(7.2, 0, 3.6), SIDE_ASHA = v3(5.55, 0, 0.55)
+const MOVE_T0 = ROM_T1 + 0.05, MOVE_T1 = T.posture + 1.3, GRIP = 0.35 // walk to the tripod / carry it / step back
+const CARRY_DIR = FRONT_STAND.clone().sub(SIDE_STAND).normalize()
+function placeTripod(t: number) {
+  const k = smooth(seg(t, MOVE_T0 + GRIP, MOVE_T1 - GRIP))
+  stand.position.lerpVectors(SIDE_STAND, FRONT_STAND, k); stand.rotation.y = lerp(-Math.PI / 2, 0, k)
+  standPhone.position.copy(stand.position).setY(1.255); standPhone.rotation.y = stand.rotation.y
+  return k
+}
 
 const ROAD_L = world.road.getLength()
 const nearestU = (x: number, z: number) => { let best = 0, bd = 1e9; for (let i = 0; i <= 3000; i++) { const p = world.road.getPointAt(i / 3000); const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = i / 3000 } } return best }
@@ -235,7 +245,7 @@ function animateCast(t: number) {
     walkPose(K, t * 4.6, 0.25, 1)
   } else if (t < T.posture) {
     seated(t)
-    // camera test 1 (joint movement): seated, facing the camera — bend and straighten the right knee
+    // camera test 1 (joint movement): seated, filmed from his right side — bend and straighten the right knee
     if (t > ROM_T0 - 0.2 && t < ROM_T1 + 0.2) { K.kneeL.rotation.x = Math.PI / 2 - kneeAngle(t) * DEG; K.head.rotation.y = 0.0; K.head.rotation.x = 0.1 }
   } else if (t < T.posture + 0.8) {
     standUp(seg(t, T.posture, T.posture + 0.8), seatPos, postureSpot, 0)
@@ -280,6 +290,7 @@ function animateCast(t: number) {
   handPhone.visible = t >= 25.6 && !(t >= 39.6 && t < GRAB_T)
   standPhone.visible = t >= 39.6 && t < GRAB_T
   stand.visible = t >= 38.3 && t < T.shock
+  placeTripod(t)
   if (t < 25.8) {
     const rot = ashaApproach(t, tmpV)
     A.root.position.copy(tmpV); A.root.rotation.y = rot
@@ -290,17 +301,37 @@ function animateCast(t: number) {
     A.root.rotation.y = faceAt(ashaStand, seatPos) + 0.35
     holdPhonePose(A, 0.6 + 0.4 * smooth(seg(t, 25.8, 26.6)))
   } else if (t < 39.6) {
-    // mounts the phone on the tripod in front of the patient
-    const k = smooth(seg(t, 38, 39.4))
-    A.root.position.lerpVectors(ashaStand, behindStand, k)
-    A.root.rotation.y = k < 0.9 ? faceAt(ashaStand, behindStand) : Math.PI
-    walkPose(A, t * 7.5, 0.4 * (1 - k))
+    // walks round the front of the patient and mounts the phone on the tripod at his right side (side view)
+    const k = smooth(seg(t, 37.7, 39.3))
+    A.root.position.lerpVectors(ashaStand, SIDE_ASHA, k); A.root.position.z += Math.sin(k * Math.PI) * 0.95
+    tmpV.copy(SIDE_ASHA); A.root.rotation.y = k < 0.92 ? faceAt(ashaStand, tmpV.setZ(SIDE_ASHA.z + 1.6)) : faceAt(SIDE_ASHA, SIDE_STAND)
+    walkPose(A, t * 7.5, 0.45 * (1 - k))
     holdPhonePose(A, 0.8)
+  } else if (t < MOVE_T0) {
+    A.root.position.copy(SIDE_ASHA); A.root.rotation.y = faceAt(SIDE_ASHA, seatPos) - 0.25
+    A.shoulderL.rotation.x = -0.2; A.head.rotation.x = 0.1
+    if (t < 40.4) holdPhonePose(A, 1 - seg(t, 39.6, 40.4))
+  } else if (t < MOVE_T1) {
+    // steps behind the tripod, carries it (phone still mounted) round to the front of the patient, then steps back
+    const grip = tmpV2.copy(stand.position).addScaledVector(CARRY_DIR, -0.42)
+    const carryYaw = Math.atan2(CARRY_DIR.x, CARRY_DIR.z)
+    if (t < MOVE_T0 + GRIP) {
+      const k = smooth(seg(t, MOVE_T0, MOVE_T0 + GRIP))
+      A.root.position.lerpVectors(SIDE_ASHA, grip, k); A.root.rotation.y = lerp(faceAt(SIDE_ASHA, seatPos) - 0.25, carryYaw, k)
+      walkPose(A, t * 7.5, 0.3)
+    } else if (t < MOVE_T1 - GRIP) {
+      A.root.position.copy(grip); A.root.rotation.y = carryYaw
+      walkPose(A, t * 7.5, 0.4)
+      A.shoulderR.rotation.x = -0.95; A.elbowR.rotation.x = -0.35; A.shoulderL.rotation.x = -0.95; A.elbowL.rotation.x = -0.35
+      A.shoulderR.rotation.z = 0.12; A.shoulderL.rotation.z = -0.12
+    } else {
+      const k = smooth(seg(t, MOVE_T1 - GRIP, MOVE_T1))
+      A.root.position.lerpVectors(grip, behindStand, k); A.root.rotation.y = lerp(carryYaw, Math.PI - 0.12, k)
+      walkPose(A, t * 7.5, 0.3 * (1 - k))
+    }
   } else if (t < T.strap) {
     A.root.position.copy(behindStand); A.root.rotation.y = Math.PI - 0.12
     A.shoulderL.rotation.x = -0.2; A.head.rotation.x = 0.1
-    if (t < 40.4) holdPhonePose(A, 1 - seg(t, 39.6, 40.4))
-    if (t > T.posture + 0.0 && t < T.posture + 0.8) { A.shoulderR.rotation.x = -1.5; A.elbowR.rotation.x = -0.3 } // asks him to stand
     if (t > T.strap - 1.0) { A.shoulderR.rotation.x = -1.2; A.elbowR.rotation.x = -0.4 } // asks him to sit again
   } else if (t < POD_T - 0.2) {
     const k = smooth(seg(t, T.strap, POD_T - 0.3))
@@ -432,7 +463,7 @@ const orbit = (c: THREE.Vector3, r: number, h: number, a0: number, a1: number, t
 }
 const SEGS: Seg[] = [
   { a: 0, b: T.asha, keys: {
-    p: [[0, 70, 88, 270], [3, 42, 52, 170], [6, 22, 22, 72], [9, 13, 5, 17], [11.5, 10.5, 2.6, 8.6], [14.5, 8.8, 1.45, 4.9], [17, 8.5, 1.3, 4.4]],
+    p: [[0, 62, 128, 255], [3, 40, 66, 165], [6, 22, 22, 72], [9, 13, 5, 17], [11.5, 10.5, 2.6, 8.6], [14.5, 8.8, 1.45, 4.9], [17, 8.5, 1.3, 4.4]],
     l: [[0, 0, 12, -60], [3, 0, 6, -20], [6, 4, 2, 0], [9, 5.5, 1.2, 0], [11.5, 5.6, 1.0, 0.9], [14.5, 6.2, 0.6, 1.7], [17, 6.2, 0.55, 1.75]] } },
   // wide: Sunita climbing from the footbridge — the hamlet perched above the gorge
   { a: T.asha, b: 20.5, proc: (t, p, l) => {
@@ -448,10 +479,10 @@ const SEGS: Seg[] = [
     l.y += lerp(1.0, 0.8, k); l.lerp(v3(7.6, 0.8, 1.6), k * 0.6)
   } },
   { a: T.app, b: T.camera, blend: 1.0, proc: orbit(v3(7.4, 0.9, 1.8), 8.5, 2.6, 0.25, 0.95, T.app, T.camera) },
-  // camera test 1 — joint movement (front-left of the patient: right leg, tripod + phone in frame)
+  // camera test 1 — joint movement: over the tripod phone's shoulder, the right knee in profile
   { a: T.camera, b: T.posture, blend: 1.2, keys: {
-    p: [[38, 11, 2.4, 7.5], [40, 5.5, 1.3, 3.75], [44, 5.35, 1.05, 3.2], [T.posture, 5.45, 1.1, 3.1]],
-    l: [[38, 7.4, 0.8, 2.4], [40, 7.2, 0.65, 1.9], [44, 7.15, 0.55, 1.75], [T.posture, 7.15, 0.6, 1.75]] } },
+    p: [[38, 9.6, 2.6, 6.6], [40, 3.35, 1.6, 3.85], [44, 3.45, 1.5, 3.75], [ROM_T1, 3.5, 1.5, 3.7], [T.posture, 4.2, 1.6, 4.4]],
+    l: [[38, 7.0, 0.8, 2.0], [40, 6.35, 0.7, 1.15], [44, 6.45, 0.64, 1.15], [ROM_T1, 6.45, 0.64, 1.15], [T.posture, 6.6, 0.8, 2.0]] } },
   // camera test 2 — knee posture: the phone's point of view, both legs in frame
   { a: T.posture, b: T.strap, blend: 0.9, keys: { p: [[T.posture, 5.35, 1.5, 5.0], [T.strap, 5.55, 1.35, 4.6]], l: [[T.posture, 7.3, 0.8, 1.35], [T.strap, 7.3, 0.78, 1.35]] } },
   // strapping close-up on the right shin, then the walk to the lane + quiet standing for sensor setup
@@ -566,7 +597,7 @@ const CAPTIONS: [number, number, string, string, boolean?][] = [
   [T.impact + 1.2, T.impact + 6.8, 'Every hill hamlet. Earlier care.', ''],
 ]
 const HEADERS: [number, number, string, string][] = [
-  [38.8, T.posture - 0.3, 'Test 1 of 2 · Joint movement', 'Seated, facing the camera · bend and straighten the knee'],
+  [38.8, T.posture - 0.3, 'Test 1 of 2 · Joint movement', 'Seated, side view · knee bends and straightens in the camera plane'],
   [T.posture + 0.5, T.strap - 0.4, 'Test 2 of 2 · Knee posture', 'Standing still for 5 s · left vs right knee angle (hip – knee – ankle)'],
   [T.strap + 0.3, RISE_T + 0.4, 'Pod strapped just below the knee', 'On the front of the shin bone (tibia) · light facing forward'],
   [RISE_T + 0.8, T.shock - 0.2, 'Sensor setup · 3 s of quiet standing', 'The pod learns its resting position before the walk'],
@@ -678,9 +709,11 @@ function drawOverlay(t: number) {
     ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 40 * u
     roundRect(ctx, cx - cw / 2, cy - cw / 2, cw, cw, 44 * u); ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.fill(); ctx.restore()
     if (logoForOverlay.complete) ctx.drawImage(logoForOverlay, cx - cw / 2 + 14 * u, cy - cw / 2 + 14 * u, cw - 28 * u, cw - 28 * u)
-    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 16 * u
-    txt(ctx, 'AI-assisted knee osteoarthritis screening for India\u2019s hill villages', cx, cy + cw / 2 + 52 * u, 34 * u, 700, '#FFFFFF', 'center')
-    ctx.shadowBlur = 0; ctx.globalAlpha = 1
+    const tag = 'AI-assisted knee osteoarthritis screening for India\u2019s hill villages'
+    ctx.font = `700 ${32 * u}px ${FONT}`; const tw = ctx.measureText(tag).width + 64 * u
+    pill(ctx, cx - tw / 2, cy + cw / 2 + 26 * u, tw, 60 * u, 'rgba(0,40,36,0.78)')
+    txt(ctx, tag, cx, cy + cw / 2 + 57 * u, 32 * u, 700, '#FFFFFF', 'center')
+    ctx.globalAlpha = 1
   }
 
   // ----- chapter tag -----
@@ -710,8 +743,14 @@ function drawOverlay(t: number) {
     g.addColorStop(0, 'rgba(0,20,18,0)'); g.addColorStop(1, 'rgba(0,20,18,0.55)')
     ctx.fillStyle = g; ctx.fillRect(0, H * 0.62, W, H * 0.38)
     const y = H - 190 * u + (1 - k) * 20 * u
-    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 18 * u
     const lx = left && wide ? 70 * u : W / 2, al: CanvasTextAlign = left && wide ? 'left' : 'center'
+    {
+      ctx.font = `800 ${(left ? 54 : 62) * u}px ${FONT}`; let bw = ctx.measureText(title).width
+      if (sub) { ctx.font = `600 ${28 * u}px ${FONT}`; bw = Math.max(bw, ctx.measureText(sub).width) }
+      bw += 80 * u; const bh = (sub ? 150 : 96) * u, bx = al === 'left' ? lx - 40 * u : lx - bw / 2
+      card(ctx, bx, y - 52 * u, bw, bh, 30 * u, 'rgba(0,36,32,0.62)')
+    }
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 10 * u
     txt(ctx, title, lx, y, (left ? 54 : 62) * u, 800, '#FFFFFF', al)
     if (sub) txt(ctx, sub, lx, y + 58 * u, 28 * u, 600, '#D5F8F5', al)
     ctx.shadowBlur = 0; ctx.globalAlpha = 1
@@ -754,12 +793,14 @@ function drawOverlay(t: number) {
   }
 
   // ----- camera tests: view frustum + pose skeleton -----
-  const fa = win(t, 39.9, T.strap - 0.3, 0.5)
+  const side = t < MOVE_T0 + 0.5
+  const fa = side ? win(t, 39.9, MOVE_T0, 0.5) : win(t, MOVE_T1 + 0.1, T.strap - 0.3, 0.5)
   if (fa > 0) {
     ctx.globalAlpha = fa * 0.9
     const lens = project(wp(standPhone, v3(0, 0.6, -0.15)), W, H)
-    const zc = t < T.posture + 0.5 ? 1.25 : 1.4
-    const cs = [v3(6.65, 0.02, zc), v3(7.75, 0.02, zc), v3(7.75, t < T.posture + 0.5 ? 1.35 : 1.75, zc), v3(6.65, t < T.posture + 0.5 ? 1.35 : 1.75, zc)].map(c => project(c, W, H))
+    const cs = (side
+      ? [v3(7.1, 0.02, 0.5), v3(7.1, 0.02, 2.05), v3(7.1, 1.4, 2.05), v3(7.1, 1.4, 0.5)]
+      : [v3(6.65, 0.02, 1.4), v3(7.75, 0.02, 1.4), v3(7.75, 1.75, 1.4), v3(6.65, 1.75, 1.4)]).map(c => project(c, W, H))
     if (lens.front && cs.every(c => c.front)) {
       ctx.beginPath(); cs.forEach((c, i) => i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)); ctx.closePath()
       ctx.fillStyle = 'rgba(124,255,233,0.07)'; ctx.fill(); ctx.strokeStyle = 'rgba(124,255,233,0.7)'; ctx.lineWidth = 2 * u; ctx.stroke()
@@ -779,7 +820,7 @@ function drawOverlay(t: number) {
       let da = a2 - a1; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2
       ctx.beginPath(); ctx.moveTo(knee.x, knee.y); ctx.arc(knee.x, knee.y, 46 * u, a1, a1 + da, da < 0); ctx.closePath()
       ctx.fillStyle = 'rgba(255,209,102,0.35)'; ctx.fill()
-      callout(ctx, u, knee, -150, -120, `Joint angle ${Math.round(jointAngle(t))}°`, `range of motion ${Math.round(romSoFar(t))}°`, '#FFB703')
+      callout(ctx, u, knee, -250, 120, `Joint angle ${Math.round(jointAngle(t))}°`, `range of motion ${Math.round(romSoFar(t))}°`, '#FFB703')
     }
     ctx.globalAlpha = 1
   }

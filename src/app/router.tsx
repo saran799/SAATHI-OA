@@ -1,4 +1,4 @@
-import { createBrowserRouter, createHashRouter, Navigate, Outlet, ScrollRestoration } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from 'react-router-dom'
 import { useApp } from '../store/appStore'
 import Login from '../features/auth/Login'
 import Language from '../features/auth/Language'
@@ -29,9 +29,7 @@ function Protected() {
 }
 function LangGate() { const authed = useApp(s => s.authed); return authed ? <Language /> : <Navigate to="/login" replace /> }
 
-// static hosting (e.g. githack) has no SPA fallback, so the static build uses hash URLs
-const makeRouter = import.meta.env.VITE_HASH_ROUTER === '1' ? createHashRouter : createBrowserRouter
-export const router = makeRouter([
+export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/language', element: <LangGate /> },
   { element: <Protected />, children: [
