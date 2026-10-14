@@ -22,7 +22,29 @@ const chapterAt = (t: number) => { let i = 0; while (i < CHAPTERS.length - 1 && 
 const glCanvas = document.getElementById('gl') as HTMLCanvasElement
 const overlay = document.getElementById('overlay') as HTMLCanvasElement
 const octx = overlay.getContext('2d')!
-const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: 'high-performance' })
+
+// If 3D or the module fails for any reason, say so on screen instead of showing a black page.
+function fatal(msg: string) {
+  const el = document.getElementById('fatal')
+  if (!el) return
+  const p = el.querySelector('p'); if (p) p.textContent = msg
+  el.classList.remove('hidden')
+  const s = document.getElementById('start'); if (s) s.classList.add('gone')
+}
+window.addEventListener('error', e => fatal('Could not start: ' + (e.message || 'the page failed to load. Check your connection and reload.')))
+window.addEventListener('unhandledrejection', e => fatal('Could not start: ' + (e.reason?.message || e.reason || 'the page failed to load. Reload to try again.')))
+
+let renderer: THREE.WebGLRenderer
+try {
+  renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: 'high-performance' })
+} catch (err) {
+  fatal('This browser could not start 3D (WebGL). Turn on hardware acceleration, or open the link in Chrome, Edge or Safari and reload.')
+  throw err
+}
+glCanvas.addEventListener('webglcontextlost', e => {
+  e.preventDefault()
+  fatal('The 3D view stopped (graphics context lost). Reload the page to restart the film.')
+})
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.toneMapping = THREE.ACESFilmicToneMapping
