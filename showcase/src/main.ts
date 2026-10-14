@@ -125,6 +125,7 @@ const handPhone = phoneKit.build(); handPhone.scale.setScalar(0.072); handPhone.
 A.handR.add(handPhone)
 const standPhone = phoneKit.build(); standPhone.scale.setScalar(0.072); standPhone.position.set(7.2, 1.255, 3.6); scene.add(standPhone)
 const heroPhone = phoneKit.build(); ui.add(heroPhone)
+const heroScreen = heroPhone.children.find(c => (c as unknown as { material?: { map?: unknown } }).material?.map) as THREE.Mesh
 const glowTex = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 256
   const g = c.getContext('2d')!; const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128)
@@ -1269,4 +1270,5 @@ function frame(now: number) {
 requestAnimationFrame(frame)
 
 // expose for debugging / screenshots
-;(window as unknown as { saathi: unknown }).saathi = { seek: (s: number) => { t = s }, get t() { return t }, play: () => setPlaying(true), pause: () => setPlaying(false), SCREENS, easeOut }
+;(window as unknown as { saathi: unknown }).saathi = { seek: (s: number) => { t = s }, get t() { return t }, play: () => setPlaying(true), pause: () => setPlaying(false), SCREENS, easeOut, phoneCanvas: phoneKit.canvas,
+  phoneRect: () => { const v = new THREE.Vector3(); heroScreen.getWorldPosition(v); v.project(camera); return { x: v.x * 0.5 + 0.5, y: -v.y * 0.5 + 0.5, z: v.z, vis: heroPhone.visible } } }

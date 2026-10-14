@@ -413,8 +413,8 @@ export function createDashboardMonitor() {
   const SW = 2.5, SH = SW * H / W
   const bezel = new THREE.Mesh(new RoundedBoxGeometry(SW + 0.1, SH + 0.1, 0.07, 3, 0.03), new THREE.MeshStandardMaterial({ color: '#16191F', roughness: 0.35, metalness: 0.3 }))
   group.add(bezel)
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }))
-  screen.position.z = 0.037; group.add(screen)
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }))
+  screen.position.z = 0.06; group.add(screen)
   const neck = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.34, 0.05), new THREE.MeshStandardMaterial({ color: '#2A2F38', roughness: 0.4, metalness: 0.5 }))
   neck.position.set(0, -SH / 2 - 0.2, -0.06); group.add(neck)
   let lastDraw = -1

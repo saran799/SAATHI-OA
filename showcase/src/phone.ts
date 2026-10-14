@@ -941,7 +941,9 @@ export function createPhone() {
   tex.anisotropy = 8
   tex.minFilter = THREE.LinearMipmapLinearFilter
 
-  const screenMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })
+  // Lifted clear of the body + polygon offset: 0.0015 in front of the body used to lose the
+  // depth test on 16-bit depth buffers (most phones), so the screen rendered as a black rectangle.
+  const screenMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })
   const build = () => {
     const g = new THREE.Group()
     const body = new THREE.Mesh(new RoundedBoxGeometry(1, 2.12, 0.1, 4, 0.12), new THREE.MeshStandardMaterial({ color: '#1C2026', roughness: 0.35, metalness: 0.6 }))
@@ -949,7 +951,7 @@ export function createPhone() {
     const rim = new THREE.Mesh(new RoundedBoxGeometry(1.02, 2.14, 0.07, 4, 0.12), new THREE.MeshStandardMaterial({ color: '#7FD8CF', roughness: 0.3, metalness: 0.8 }))
     g.add(rim)
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.93, 2.015), screenMat)
-    screen.position.z = 0.0515
+    screen.position.z = 0.085
     g.add(screen)
     const btn = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.22, 0.04), new THREE.MeshStandardMaterial({ color: '#7FD8CF', metalness: 0.8, roughness: 0.3 }))
     btn.position.set(0.515, 0.45, 0); g.add(btn)
