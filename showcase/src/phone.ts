@@ -143,9 +143,11 @@ function topBar(ctx: Ctx, title: string, pillText?: string, pillBg: string = C.m
     x = 50
   }
   if (markImg.complete) ctx.drawImage(markImg, x, 58, 30, 24)
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pillText ? 220 : 300, 104); ctx.clip()
-  txt(ctx, title, x + 38, 78, 16.5, 800, C.ink)
-  ctx.restore()
+  ctx.font = `800 11px ${FONT}`
+  const room = (pillText ? 300 - ctx.measureText(pillText).width - 34 : 304) - (x + 38)
+  let fs = 16.5; ctx.font = `800 ${fs}px ${FONT}`
+  while (fs > 11 && ctx.measureText(title).width > room) { fs -= 0.5; ctx.font = `800 ${fs}px ${FONT}` }
+  txt(ctx, title, x + 38, 78, fs, 800, C.ink)
   if (pillText) chip(ctx, pillText, 300, 59, pillBg, pillFg, 11, 'right')
   ctx.beginPath(); ctx.arc(326, 72, 15, 0, Math.PI * 2); ctx.fillStyle = C.primary; ctx.fill()
   ctx.beginPath(); ctx.arc(326, 68, 4.5, 0, Math.PI * 2); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke()
@@ -604,8 +606,8 @@ const placement: Draw = (ctx, p, t) => {
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H)
   topBar(ctx, 'Movement Assessment', 'Triage active')
   stepHead(ctx, 3, 7, 'Placement guide')
-  txt(ctx, 'Knee Assessment —', 24, 186, 20, 800); txt(ctx, 'Instructions', 24, 210, 20, 800)
-  chip(ctx, '● Pair ready', 336, 180, C.mint, C.primaryDark, 10.5, 'right')
+  txt(ctx, 'Knee Assessment', 24, 186, 20, 800); txt(ctx, 'Instructions', 24, 210, 20, 800)
+  chip(ctx, '● Pair ready', 336, 204, C.mint, C.primaryDark, 10.5, 'right')
   ;[['1. Wear', 'Strap'], ['2. Calib', 'Stand'], ['3. Test', 'Walk'], ['4. Done', 'Report']].forEach(([a, b], i) => {
     const on = i === 0
     rr(ctx, 24 + i * 79, 228, 72, 48, 10, on ? C.primary : C.tint)
@@ -618,7 +620,7 @@ const placement: Draw = (ctx, p, t) => {
   legArt(ctx, 178, 412, t, 1)
   const pk = 0.5 + 0.5 * Math.sin(t * 5)
   ctx.beginPath(); ctx.arc(215, 409, 16 + pk * 6, 0, Math.PI * 2); ctx.strokeStyle = `rgba(0,104,95,${0.6 - pk * 0.4})`; ctx.lineWidth = 2.5; ctx.stroke()
-  txt(ctx, 'below knee · on the tibia', 238, 372, 10.5, 800, C.primary)
+  txt(ctx, 'on the tibia', 238, 372, 10.5, 800, C.primary)
   txt(ctx, 'Attach the strap as shown', 180, 502, 14, 800, C.ink, 'center')
   wrap(ctx, 'Strap the small sensor just below the knee on the Right side, light facing forward.', 50, 524, 270, 11.5, 500, C.secondary, 1.35)
   card(ctx, 24, 568, 312, 104, 16)
@@ -751,7 +753,7 @@ const analysis: Draw = (ctx, p, t) => {
   ctx.beginPath(); ctx.arc(cx, cy, 58, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); ctx.strokeStyle = C.primary; ctx.lineCap = 'round'; ctx.stroke()
   txt(ctx, `${Math.round(p * 100)}%`, cx, cy + 10, 28, 800, C.ink, 'center')
   txt(ctx, 'SCREENING PIPELINE', 24, 384, 11, 800, C.secondary)
-  const items: [string, string][] = [['Patient information', '68 M'], ['Symptoms', '8 / 8'], ['Camera · ROM + posture', '74° · Δ7.5°'], ['Pod · 5-step walk', '2 HIGH · 3 MID'], ['Screening risk model', '13 inputs']]
+  const items: [string, string][] = [['Patient information', '68 M'], ['Symptoms', '8 / 8'], ['Camera · ROM, posture', '74° · Δ7.5°'], ['Pod · 5-step walk', '2 HIGH · 3 MID'], ['Screening risk model', '13 inputs']]
   items.forEach(([l, v], i) => {
     const y = 396 + i * 58
     const k = seg(p, 0.05 + i * 0.18, 0.2 + i * 0.18)
@@ -761,7 +763,7 @@ const analysis: Draw = (ctx, p, t) => {
     txt(ctx, l, 68, y + 29, 13.5, 700, k > 0 ? C.ink : C.muted)
     if (k >= 1) txt(ctx, v, 322, y + 29, 13, 800, C.primary, 'right')
   })
-  txt(ctx, 'Processed on-device · screening risk estimation only, not a diagnosis', 180, 700, 10, 600, C.muted, 'center')
+  txt(ctx, 'On-device · screening risk only, not a diagnosis', 180, 700, 10, 600, C.muted, 'center')
 }
 
 const result: Draw = (ctx, p) => {
@@ -820,7 +822,7 @@ const guidance: Draw = (ctx, p) => {
   txt(ctx, 'Personalised Guidelines', 16, 206, 21, 800)
   txt(ctx, 'Care steps tailored to moderate screening risk', 16, 226, 12, 500, C.secondary)
   const rows: [string, string, string, string, string][] = [
-    ['Recommended Exercises', 'Gentle strengthening, 15 min daily', 'Daily 15 min', C.mint, C.primaryDark],
+    ['Exercises', 'Gentle strengthening, 15 min daily', 'Daily 15 min', C.mint, C.primaryDark],
     ['Lifestyle Care', 'Avoid deep squatting & floor sitting', 'Essential', C.infoTint, C.info],
     ['Nutrition Plan', 'Diet matched to the risk band', 'By risk band', C.warningTint, C.warningText],
     ['When to Visit PHC', 'Within 60 days · sooner if swollen', 'Priority', C.errorTint, C.error],
@@ -904,7 +906,7 @@ const report: Draw = (ctx, p, t) => {
   rr(ctx, 32, 212, 296, 60, 14, C.tint)
   ctx.beginPath(); ctx.arc(64, 242, 20, 0, Math.PI * 2); ctx.strokeStyle = C.primaryDark; ctx.lineWidth = 5; ctx.stroke()
   txt(ctx, 'Screening Risk Band', 96, 238, 13, 800); txt(ctx, 'Moderate · follow-up in 60 days', 96, 257, 11, 600, C.secondary)
-  ;[['ROM · knee posture Δ', '74° · 7.5°'], ['Tibial shock (5 steps)', '2 HIGH · 3 MID'], ['Nutrition plan', 'Moderate']].forEach(([a, b], i) => { txt(ctx, a, 32, 298 + i * 20, 11.5, 600, C.secondary); txt(ctx, b, 328, 298 + i * 20, 11.5, 800, C.ink, 'right') })
+  ;[['ROM · posture Δ', '74° · 7.5°'], ['Tibial shock (5 steps)', '2 HIGH · 3 MID'], ['Nutrition plan', 'Moderate']].forEach(([a, b], i) => { txt(ctx, a, 32, 298 + i * 20, 11.5, 600, C.secondary); txt(ctx, b, 328, 298 + i * 20, 11.5, 800, C.ink, 'right') })
   ;['Download PDF', 'WhatsApp', 'Print'].forEach((l, i) => { rr(ctx, 16 + i * 112, 366, 104, 42, 12, C.surface, C.tint2); txt(ctx, l, 68 + i * 112, 392, 12, 700, C.primary, 'center') })
   card(ctx, 16, 422, 328, 150, 18, done ? C.mintSoft : C.surface)
   const cx = 56, cy = 470

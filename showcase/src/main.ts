@@ -496,8 +496,8 @@ const SEGS: Seg[] = [
   } },
   // fly up to the floating anatomy diorama
   { a: WALK_T1, b: T.lab, keys: {
-    p: [[WALK_T1, WALK_B.x + 0.5, 0.95, 5.6], [73.3, 6, 10, 34], [74.4, 1.6, 28.4, 84], [79, -0.4, 28.2, 81]],
-    l: [[WALK_T1, WALK_B.x + 0.9, 0.62, 1.9], [73.3, 3, 14, 40], [74.4, 0.6, 27.3, 64], [79, 0.6, 27.3, 64]] } },
+    p: [[WALK_T1, WALK_B.x + 0.5, 0.95, 5.6], [73.3, 20, 14, 36], [74.4, 14, 29, 94], [75.3, 1.6, 28.4, 84], [79, -0.4, 28.2, 81]],
+    l: [[WALK_T1, WALK_B.x + 0.9, 0.62, 1.9], [73.3, 8, 14, 50], [74.4, 1.5, 27, 64], [75.3, 0.6, 27.3, 64], [79, 0.6, 27.3, 64]] } },
   // lab treadmill, then pull back to both dioramas for the novelty
   { a: T.lab, b: T.result, keys: {
     p: [[79, -0.4, 28.2, 81], [80.6, 24.5, 26.8, 79], [86, 25, 26.6, 77.5], [88.2, 12, 30.5, 101], [93, 12, 30, 99]],
@@ -548,8 +548,8 @@ function modePose(m: PMode, t: number, pos: THREE.Vector3, q: THREE.Quaternion) 
   const asp = camera.aspect
   const wide = asp > 1.15
   let off: THREE.Vector3, s: number, ry: number
-  if (m === 'hero') { off = v3(wide ? 0.5 * Math.min(1.25, asp / 1.78) : 0, -0.02, -2.5); s = 0.8; ry = -0.2 }
-  else { off = v3(wide ? 0.98 * Math.min(1.3, asp / 1.78) : 0.3, -0.12, -2.6); s = m === 'gone' ? 0.0001 : 0.5; ry = -0.32 }
+  if (m === 'hero') { off = v3(wide ? 0.5 * Math.min(1.25, asp / 1.78) : 0, wide ? -0.06 : -0.02, -2.5); s = wide ? 0.69 : 0.78; ry = -0.2 }
+  else { off = wide ? v3(0.98 * Math.min(1.3, asp / 1.78), -0.12, -2.6) : v3(0.2, -0.42, -2.6); s = m === 'gone' ? 0.0001 : wide ? 0.5 : 0.36; ry = -0.32 }
   pos.copy(off).applyMatrix4(camera.matrixWorld)
   q.copy(camera.quaternion).multiply(tmpQ.setFromEuler(new THREE.Euler(Math.sin(t * 0.5) * 0.04, ry + Math.sin(t * 0.6) * 0.06, 0)))
   return s
@@ -599,8 +599,9 @@ const CAPTIONS: [number, number, string, string, boolean?][] = [
 const HEADERS: [number, number, string, string][] = [
   [38.8, T.posture - 0.3, 'Test 1 of 2 · Joint movement', 'Seated, side view · knee bends and straightens in the camera plane'],
   [T.posture + 0.5, T.strap - 0.4, 'Test 2 of 2 · Knee posture', 'Standing still for 5 s · left vs right knee angle (hip – knee – ankle)'],
-  [T.strap + 0.3, RISE_T + 0.4, 'Pod strapped just below the knee', 'On the front of the shin bone (tibia) · light facing forward'],
-  [RISE_T + 0.8, T.shock - 0.2, 'Sensor setup · 3 s of quiet standing', 'The pod learns its resting position before the walk'],
+  [T.strap + 0.3, 61.3, 'Pod strapped just below the knee', 'On the front of the shin bone (tibia) · light facing forward'],
+  [61.8, 64.2, 'Pod paired over Bluetooth', 'SAATHI Sensor SP-8842 · signal strong · battery 88%'],
+  [64.5, T.shock - 0.2, 'Sensor setup · 3 s of quiet standing', 'The pod learns its resting position before the walk'],
   [67.4, 72.2, 'Walk test · tibial shock at every step', 'The pod counts each heel strike and classes it LOW · MID · HIGH'],
   [101.4, 110.6, "Care doesn't stop at screening", 'A local diet plan matched to the risk band'],
 ]
@@ -695,8 +696,8 @@ const labFn = (tt: number) => tt < LAB_T0 ? 1 : pulse(tt, LAB_P0, RUN_PERIOD, tt
 
 function drawOverlay(t: number) {
   const W = overlay.width, H = overlay.height
-  const u = Math.min(W / 1920, H / 1080)
   const wide = camera.aspect > 1.15
+  const u = wide ? Math.min(W / 1920, H / 1080) : W / 1150
   const ctx = octx
   ctx.clearRect(0, 0, W, H)
   ctx.save()
@@ -937,15 +938,17 @@ function drawOverlay(t: number) {
   if (na > 0) {
     ctx.globalAlpha = na
     header(ctx, u, W, na, 'Same physics. New place: the doorstep.', 'Labs change the shoe and keep the runner · SAATHI keeps the footwear and measures the person')
-    const items = ['Lab-grade biomechanics, no lab', 'Camera ROM + posture + tibial shock', 'Low-cost pod · works offline', 'Run by ASHA workers']
-    const cols = wide ? 4 : 2
-    const pw = (wide ? 400 : 440) * u, gap = 20 * u
+    const items = ['Lab-grade method, no lab', 'Camera ROM + posture + shock', 'Low-cost pod · works offline', 'Run by ASHA workers']
+    ctx.font = `800 ${20 * u}px ${FONT}`
+    const pws = items.map(s => ctx.measureText(s).width + 84 * u), gap = 18 * u
+    const rows = pws.reduce((a, b) => a + b, 0) + gap * 3 < W - 60 * u ? [[0, 1, 2, 3]] : [[0, 1], [2, 3]]
     items.forEach((s, i) => {
       const k = smooth(seg(t, NOVEL_T0 + 1.2 + i * 0.35, NOVEL_T0 + 2 + i * 0.35)) * na
       ctx.globalAlpha = k
-      const r = Math.floor(i / cols), c = i % cols
-      const total = cols * pw + (cols - 1) * gap
-      const x = W / 2 - total / 2 + c * (pw + gap), y = H - (wide ? 110 : 190) * u + r * 80 * u + (1 - k) * 20 * u
+      const r = rows.findIndex(row => row.includes(i)), row = rows[r]
+      const total = row.reduce((a, j) => a + pws[j], 0) + gap * (row.length - 1)
+      let x = W / 2 - total / 2; for (const j of row) { if (j === i) break; x += pws[j] + gap }
+      const pw = pws[i], y = H - (rows.length === 1 ? 165 : 250) * u + r * 76 * u + (1 - k) * 20 * u
       pill(ctx, x, y - 30 * u, pw, 60 * u, 'rgba(255,255,255,0.95)')
       ctx.beginPath(); ctx.arc(x + 32 * u, y, 12 * u, 0, Math.PI * 2); ctx.fillStyle = ['#2EC4B6', '#FFB703', '#3A86FF', '#E84C8B'][i]; ctx.fill()
       txt(ctx, s, x + 56 * u, y + 1 * u, 20 * u, 800, '#004F48')
