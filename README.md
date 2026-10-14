@@ -33,3 +33,14 @@ src/
 Replace points: `services/sensor.ts` (Web Bluetooth), `services/analysis.ts` + `domain/risk.ts` (real model/API), `services/sync.ts` (backend).
 
 Sync is **simulated** — no data leaves the device.
+
+## Interactive 3D demo film (`/showcase`)
+A ~98-second, colourful rural-India 3D film (Three.js) that walks through the idea, the app prototype, the sensor and the architecture. It's interactive: drag to orbit, jump between chapters, click markers.
+```bash
+npm run showcase         # http://localhost:5174
+npm run showcase:build   # → dist/showcase (static, deployable anywhere)
+```
+Chapters: Village → The problem → ASHA arrives → App prototype (13 real screens in the Figma palette) → Sensor test (live knee angle over BLE) → Result & sync → Architecture → Impact → SAATHI.
+- **Record video** writes the whole film to an MP4/WebM file at 1080p, with music (Chrome/Edge).
+- Music is generated live with WebAudio: tanpura drone, bansuri in raag Bhupali, tabla keherwa. No audio files are used.
+- Code: `showcase/src/` — `world.ts` (village), `characters.ts` (people, scooter, sensor), `phone.ts` (app screens drawn on canvas), `architecture.ts`, `impact.ts`, `audio.ts`, `main.ts` (timeline, camera, overlay, UI).

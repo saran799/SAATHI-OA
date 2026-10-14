@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "showcase": "vite --config vite.showcase.config.ts",
+    "showcase:build": "tsc -p showcase/tsconfig.json --noEmit && vite build --config vite.showcase.config.ts"
   },
   "dependencies": {
+    "@types/three": "^0.170.0",
     "lucide-react": "^1.46.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",
+    "three": "^0.170.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

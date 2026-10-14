@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#00685F" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>SAATHI — Interactive 3D demo film</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="gl"></canvas>
+      <canvas id="overlay"></canvas>
+      <div id="hotspots"></div>
+    </div>
+
+    <header id="topbar" class="ui">
+      <div class="brand"><img id="brandMark" alt="" /><span>SAATHI</span><em>interactive demo</em></div>
+      <div class="actions">
+        <button id="btnSound" class="chipbtn" title="Toggle music">♪ <span>Music on</span></button>
+        <button id="btnExplore" class="chipbtn" title="Free 3D camera">⟲ <span>Explore 3D</span></button>
+        <button id="btnRecord" class="chipbtn rec" title="Record the full film as a video file">● <span>Record video</span></button>
+      </div>
+    </header>
+
+    <footer id="bottombar" class="ui">
+      <button id="btnPlay" class="play" aria-label="Play / pause">❚❚</button>
+      <div id="chapters"></div>
+      <span id="time">0:00</span>
+    </footer>
+
+    <div id="hint" class="hidden">Drag to orbit · scroll to zoom · click a marker to jump · <b>Resume film</b> with ▶</div>
+    <div id="recBadge" class="hidden"><i></i> REC <span id="recTime">0:00</span> — keep this tab visible</div>
+
+    <div id="start">
+      <div class="card">
+        <img id="startLogo" alt="SAATHI logo" />
+        <h1>SAATHI in rural India</h1>
+        <p>A 90-second interactive 3D film of the prototype, sensor and architecture</p>
+        <div class="row">
+          <button id="btnStart" class="primary">▶ Play film</button>
+          <button id="btnStartExplore" class="ghost">Explore the village</button>
+        </div>
+        <small>Tip: drag anytime to look around · chapters at the bottom</small>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
