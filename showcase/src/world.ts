@@ -451,16 +451,10 @@ export function buildWorld(scene: THREE.Scene): World {
   world.add(chair(charpaiPos.x, charpaiPos.z, 0))
   world.add(mesh(new THREE.BoxGeometry(0.7, 0.8, 0.7), mat('#F2A65A'), 0.2, 0.4, 0.4))
   world.add(mesh(new THREE.IcosahedronGeometry(0.42, 0), mat('#3F9A3A'), 0.2, 1.05, 0.4))
-  // brass / copper / steel water pots (gagri) by the door, on a low stone ledge
-  {
-    const prof = [[0, 0], [0.12, 0.01], [0.24, 0.1], [0.27, 0.22], [0.24, 0.34], [0.14, 0.42], [0.09, 0.47], [0.09, 0.52], [0.13, 0.56], [0.12, 0.58], [0, 0.58]].map(([x, y]) => new THREE.Vector2(x, y))
-    const potGeo = new THREE.LatheGeometry(prof, 16)
-    world.add(mesh(new THREE.BoxGeometry(1.9, 0.12, 0.7), mat('#8E877C'), 10.2, 0.06, -0.4))
-    ;(['#D4A017', '#B5542F', '#C9CCD1'] as const).forEach((c, i) => world.add(mesh(potGeo, mat(c, { metal: 0.65, rough: 0.32, flat: false }), 9.6 + i * 0.6, 0.12, -0.4)))
-  }
+  for (let i = 0; i < 3; i++) world.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), mat(['#D4A017', '#B5542F', '#C0C0C0'][i], { metal: i !== 1 ? 0.6 : 0, rough: 0.4 }), 9.6 + i * 0.6, 0.28, -0.4))
   for (let i = 0; i < 12; i++) { const lg = mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.6, 6), mat('#7A5230'), -0.6, 0.15 + Math.floor(i / 4) * 0.24, -0.4 + (i % 4) * 0.26); lg.rotation.x = Math.PI / 2; world.add(lg) }
   // marigold + flower pots on the courtyard wall
-  for (let i = 0; i < 6; i++) { if (i === 3) continue; world.add(mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 8), mat('#B5542F'), 1 + i * 1.6, 0.15, 5.6)); world.add(mesh(new THREE.IcosahedronGeometry(0.17, 0), mat('#3E8E3A'), 1 + i * 1.6, 0.36, 5.6, false)); for (let f = 0; f < 5; f++) { const fa = f * 1.256 + i; world.add(mesh(new THREE.IcosahedronGeometry(0.055, 0), mat(['#FF8C00', '#FFC300', '#E84C8B'][(i + f) % 3]), 1 + i * 1.6 + Math.cos(fa) * 0.1, 0.46 + (f % 2) * 0.04, 5.6 + Math.sin(fa) * 0.1, false)) } }
+  for (let i = 0; i < 6; i++) { if (i === 3) continue; world.add(mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.3, 8), mat('#B5542F'), 1 + i * 1.6, 0.15, 5.6)); world.add(mesh(new THREE.IcosahedronGeometry(0.22, 0), mat(['#FF8C00', '#FFC300', '#E84C8B'][i % 3]), 1 + i * 1.6, 0.45, 5.6, false)) }
   // courtyard wall with a gap where the footpath enters
   world.add(mesh(new THREE.BoxGeometry(4.75, 0.5, 0.35), mat('#9C958B'), 2.625, 0.25, 6.0))
   world.add(mesh(new THREE.BoxGeometry(3.75, 0.5, 0.35), mat('#9C958B'), 8.875, 0.25, 6.0))

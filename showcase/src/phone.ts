@@ -403,60 +403,7 @@ function angleMark(ctx: Ctx, hip: Pt, knee: Pt, ank: Pt, label: string, side: -1
   rr(ctx, lx, knee[1] - 10, w, 20, 6, 'rgba(14,26,26,0.82)')
   txt(ctx, label, lx + 6, knee[1] + 4, 11, 800, '#FFD166')
 }
-/** Test 1 camera image: the patient seated SIDE-ON (his right side to the lens, facing right in the image) */
-function camFeedSide(ctx: Ctx, x: number, y: number, w: number, h: number, t: number, tracking: boolean) {
-  ctx.save(); roundRect(ctx, x, y, w, h, 18); ctx.clip()
-  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#9C8A74'); g.addColorStop(0.66, '#B9A88F'); g.addColorStop(0.67, '#8E8D88'); g.addColorStop(1, '#6E6D69')
-  ctx.fillStyle = g; ctx.fillRect(x, y, w, h)
-  ctx.fillStyle = 'rgba(80,50,30,0.35)'; for (let i = 0; i < 5; i++) ctx.fillRect(x, y + 40 + i * 50, w, 6)
-  rr(ctx, x + w - 70, y + 60, 56, 104, 4, '#2E86DE'); rr(ctx, x + w - 64, y + 66, 44, 92, 3, '#5A341B')
-  const cx = x + w * 0.38, base = y + h * 0.95
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-  // chair in profile: backrest on the left, seat, two visible legs
-  ctx.fillStyle = '#8B5A2B'
-  ctx.fillRect(cx - 58, base - 262, 9, 262); ctx.fillRect(cx + 40, base - 128, 9, 128)
-  rr(ctx, cx - 60, base - 134, 112, 13, 4, '#8B5A2B'); rr(ctx, cx - 62, base - 252, 13, 70, 4, '#3FB8A8')
-  rr(ctx, cx - 56, base - 140, 104, 8, 3, '#E84C8B')
-  const P = (px: number, py: number) => [cx + px, base + py] as const
-  const a = kneeAngle(t) * Math.PI / 180
-  const hip = P(-18, -150), knee = P(66, -146)
-  const ank = [knee[0] + 80 * Math.sin(a), knee[1] + 80 * Math.cos(a)] as const
-  const toe = [ank[0] + 20 * Math.cos(a), ank[1] - 20 * Math.sin(a)] as const
-  // far (left) leg, hanging still behind
-  const kneeF = P(60, -142), ankF = P(62, -62)
-  ctx.strokeStyle = '#2E3A48'; ctx.lineWidth = 24; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(hip[0] + (kneeF[0] - hip[0]) * 0.72, kneeF[1] - 2); ctx.stroke()
-  ctx.strokeStyle = '#A97F5A'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(hip[0] + (kneeF[0] - hip[0]) * 0.72, kneeF[1] - 2); ctx.lineTo(kneeF[0], kneeF[1]); ctx.lineTo(ankF[0], ankF[1]); ctx.stroke()
-  ctx.strokeStyle = '#1E1E1E'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(ankF[0], ankF[1] + 2); ctx.lineTo(ankF[0] + 20, ankF[1] + 2); ctx.stroke()
-  // torso: shirt with the sleeveless jacket over it (front edge of the shirt shows on the right)
-  const sho = P(-22, -262), head = P(-14, -302)
-  ctx.strokeStyle = '#E9E3D6'; ctx.lineWidth = 46; ctx.beginPath(); ctx.moveTo(sho[0], sho[1] + 6); ctx.lineTo(hip[0], hip[1] - 4); ctx.stroke()
-  ctx.strokeStyle = '#2F4A3A'; ctx.lineWidth = 38; ctx.beginPath(); ctx.moveTo(sho[0] - 5, sho[1] + 8); ctx.lineTo(hip[0] - 5, hip[1] - 6); ctx.stroke()
-  // near (right) leg: shorts to just above the knee, bare shin
-  const mid = [hip[0] + (knee[0] - hip[0]) * 0.72, hip[1] + (knee[1] - hip[1]) * 0.72] as const
-  ctx.strokeStyle = '#3E4B5C'; ctx.lineWidth = 26; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(mid[0], mid[1]); ctx.stroke()
-  ctx.strokeStyle = '#C99B70'; ctx.lineWidth = 15; ctx.beginPath(); ctx.moveTo(mid[0], mid[1]); ctx.lineTo(knee[0], knee[1]); ctx.lineTo(ank[0], ank[1]); ctx.stroke()
-  ctx.strokeStyle = '#2B2B2B'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(ank[0], ank[1]); ctx.lineTo(toe[0], toe[1]); ctx.stroke()
-  // near arm resting on the thigh
-  const elb = P(-8, -196), hand = P(30, -164)
-  ctx.strokeStyle = '#E9E3D6'; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(sho[0], sho[1]); ctx.lineTo(elb[0], elb[1]); ctx.stroke()
-  ctx.strokeStyle = '#C99B70'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(elb[0], elb[1]); ctx.lineTo(hand[0], hand[1]); ctx.stroke()
-  // head in profile (facing right): cap, nose, white moustache
-  ctx.beginPath(); ctx.arc(head[0], head[1], 20, 0, Math.PI * 2); ctx.fillStyle = '#C99B70'; ctx.fill()
-  ctx.beginPath(); ctx.moveTo(head[0] + 18, head[1] - 4); ctx.lineTo(head[0] + 25, head[1] + 4); ctx.lineTo(head[0] + 18, head[1] + 6); ctx.fill()
-  ctx.fillStyle = '#F2F2F2'; ctx.fillRect(head[0] + 10, head[1] + 8, 12, 4)
-  ctx.beginPath(); ctx.arc(head[0], head[1] - 5, 21, Math.PI * 1.02, Math.PI * 1.98); ctx.fillStyle = '#5B3A6B'; ctx.fill()
-  ctx.fillStyle = '#3A2747'; ctx.fillRect(head[0] - 21, head[1] - 9, 42, 5)
-  if (tracking) {
-    const bones: [Pt, Pt][] = [[sho, elb], [elb, hand], [sho, hip], [hip, knee], [knee, ank], [ank, toe]]
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5
-    for (const [p0, p1] of bones) { ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke() }
-    for (const pt of [sho, elb, hand, head, toe]) { ctx.beginPath(); ctx.arc(pt[0], pt[1], 4, 0, Math.PI * 2); ctx.fillStyle = '#7CFFE9'; ctx.fill() }
-    angleMark(ctx, hip, knee, ank, `${Math.round(jointAngle(t))}°`, 1)
-  }
-  ctx.restore()
-}
 function camFeed(ctx: Ctx, x: number, y: number, w: number, h: number, t: number, standing: boolean, tracking: boolean) {
-  if (!standing) return camFeedSide(ctx, x, y, w, h, t, tracking)
   ctx.save(); roundRect(ctx, x, y, w, h, 18); ctx.clip()
   // camera image: house wall + slate courtyard
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#9C8A74'); g.addColorStop(0.62, '#B9A88F'); g.addColorStop(0.63, '#8E8D88'); g.addColorStop(1, '#6E6D69')
@@ -559,8 +506,8 @@ function cameraScreen(ctx: Ctx, _p: number, t: number, test: 1 | 2) {
     txt(ctx, 'Next · TEST 2 Posture', 180, fy + 240, 14, 700, C.secondary, 'center')
   }
   if (ph === 'setup') {
-    wrap(ctx, test === 1 ? 'Seat the patient side-on to the camera, the knee being tested nearest to it.' : 'Please ask the patient to stand naturally facing the camera.', 30, 622, 300, 16, 800, C.ink, 1.35)
-    txt(ctx, test === 1 ? 'Side view: hip, knee and ankle in the frame' : 'Front view: hips, knees and ankles in the frame', 30, 690, 12, 600, C.secondary)
+    wrap(ctx, test === 1 ? 'Please ask the patient to sit on the chair and face the camera.' : 'Please ask the patient to stand naturally facing the camera.', 30, 622, 300, 16, 800, C.ink, 1.35)
+    txt(ctx, 'Keep hips, knees and ankles in the frame', 30, 690, 12, 600, C.secondary)
   } else if (ph === 'ready' || ph === 'intro') {
     wrap(ctx, 'Patient detected. The patient is ready. Please tap Start Assessment.', 30, 622, 300, 14, 700, C.ink, 1.35)
     button(ctx, 'START ASSESSMENT', 700, ph === 'ready' ? seg(t, test === 1 ? T.camera + 1.5 : POSTURE.t0 - 0.8, test === 1 ? T.camera + 1.85 : POSTURE.t0 - 0.5) : 1, { h: 50 })
