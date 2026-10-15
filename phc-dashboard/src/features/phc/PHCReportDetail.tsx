@@ -151,23 +151,36 @@ export default function PHCReportDetail() {
               <tbody className="divide-y divide-border">
                 {r.movement?.performed && (
                   <>
+                    {r.movement.rangeOfMotionDeg > 0 ? (
+                      <tr className="hover:bg-[#F7FAFA]">
+                        <td className="px-4 py-3 font-medium text-ink w-2/3">Range of movement</td>
+                        <td className="px-4 py-3 text-secondary">≈ {r.movement.rangeOfMotionDeg}°</td>
+                      </tr>
+                    ) : r.movement.hardwareData ? (
+                      <tr className="hover:bg-[#F7FAFA]">
+                        <td className="px-4 py-3 font-medium text-ink w-2/3">SAATHI Band Telemetry</td>
+                        <td className="px-4 py-3 text-secondary">
+                          <span className="font-semibold text-ink">ESP32-C3 BLE Band</span>
+                          <br />
+                          <span className="text-[12px] text-primary font-bold">
+                            Band Risk Indication: {r.movement.hardwareData.RiskLevel || 'Active'}
+                          </span>
+                        </td>
+                      </tr>
+                    ) : null}
                     <tr className="hover:bg-[#F7FAFA]">
-                      <td className="px-4 py-3 font-medium text-ink w-2/3">Range of movement</td>
-                      <td className="px-4 py-3 text-secondary">≈ {r.movement.rangeOfMotionDeg}°</td>
-                    </tr>
-                    <tr className="hover:bg-[#F7FAFA]">
-                      <td className="px-4 py-3 font-medium text-ink w-2/3">Movement pattern</td>
+                      <td className="px-4 py-3 font-medium text-ink w-2/3">Movement pattern & duration</td>
                       <td className="px-4 py-3 text-secondary">
-                        {r.movement.smoothness >= 0.6 ? 'Even' : 'Uneven'}
+                        {r.movement.smoothness >= 0.6 ? 'Consistent / Active' : 'Intermittent'}
                         <br />
                         <span className="text-[12px] text-muted">
-                          (Reps: {r.movement.repetitions}, Duration: {r.movement.durationSec}s)
+                          (Events: {r.movement.repetitions}, Duration: {r.movement.durationSec}s{r.movement.hardwareData?.readingsCount ? `, Readings: ${r.movement.hardwareData.readingsCount}` : ''})
                         </span>
                       </td>
                     </tr>
                     <tr className="hover:bg-[#F7FAFA] bg-tint">
                       <td colSpan={2} className="px-4 py-3 text-[12px] text-secondary">
-                        <strong>Movement Analysis:</strong> {r.movement.rangeOfMotionDeg < 90 ? 'Severe restriction in range of motion' : r.movement.rangeOfMotionDeg < 110 ? 'Moderate restriction in range of motion' : 'Normal range of motion'}. {r.movement.smoothness < 0.6 ? 'Uneven movement pattern detected.' : 'Movement pattern is smooth and consistent.'}
+                        <strong>Movement Analysis:</strong> {r.movement.rangeOfMotionDeg > 0 ? `${r.movement.rangeOfMotionDeg < 90 ? 'Severe restriction in range of motion' : r.movement.rangeOfMotionDeg < 110 ? 'Moderate restriction in range of motion' : 'Normal range of motion'}. ` : ''}{r.movement.hardwareData ? `Live BLE telemetry received from Saathi-Band (${r.movement.hardwareData.RiskLevel || 'Active'} band risk classification). ` : ''}{r.movement.smoothness < 0.6 ? 'Uneven movement pattern detected.' : 'Movement pattern is consistent.'}
                       </td>
                     </tr>
                   </>

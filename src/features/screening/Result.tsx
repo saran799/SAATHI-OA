@@ -70,7 +70,15 @@ export default function Result() {
           {r.factors.map(f => { const Icon = factorIcon(f); return (
             <li key={f} className="rounded-[12px] bg-tint p-3 flex items-center gap-3"><span className="h-9 w-9 rounded-full bg-mint text-primary-dark flex items-center justify-center shrink-0" aria-hidden><Icon size={17} /></span><span className="text-[14px] font-semibold flex-1">{translateFactor(f, t)}</span></li>) })}
         </ul>
-        {session.movement?.performed && <p className="text-[12px] text-secondary mt-3">{t('screening.result.sensorEstimate', { rom: session.movement.rangeOfMotionDeg, pattern: session.movement.smoothness >= 0.6 ? t('reports.even') : t('reports.uneven') })}</p>}
+        {session.movement?.performed && (
+          <p className="text-[12px] text-secondary mt-3">
+            {session.movement.hardwareData
+              ? `SAATHI Band: ${session.movement.hardwareData.RiskLevel || 'Active'} risk indication (${session.movement.hardwareData.readingsCount || 0} readings, ${session.movement.durationSec}s duration)`
+              : (session.movement.rangeOfMotionDeg > 0
+                ? t('screening.result.sensorEstimate', { rom: session.movement.rangeOfMotionDeg, pattern: session.movement.smoothness >= 0.6 ? t('reports.even') : t('reports.uneven') })
+                : null)}
+          </p>
+        )}
       </div>
 
       {r.model && (

@@ -95,31 +95,37 @@ export function estimateRisk(patient: Patient, answers: Answers, movement: Movem
         else if (step === 'MID') sum += 0.5
       }
       hwVal = sum / history.length
-      factors.push({ label: 'Hardware Sensor Analysis', weight: hwVal * 3 })
+      factors.push({ label: `SAATHI Band Risk (${movement.hardwareData.RiskLevel || 'Detected'})`, weight: hwVal * 3 })
     }
   } else if (movement?.hardwareData?.RiskLevel) {
     const level = movement.hardwareData.RiskLevel
     hwVal = level === 'HIGH' ? 1.0 : level === 'MID' ? 0.5 : 0.0
-    factors.push({ label: 'Hardware Sensor Risk', weight: hwVal * 3 })
+    factors.push({ label: `SAATHI Band Risk (${level})`, weight: hwVal * 3 })
   }
 
-  // Extract movement features — camera (MediaPipe pose) ROM is preferred, fused with sensor if both exist
-  const sensorOk = !!movement?.performed
+  // Extract movement features — camera (MediaPipe pose) ROM is preferred
   const camOk = !!cameraRom && cameraRom.rangeOfMotionDeg > 0
+  const sensorRomOk = !!movement?.performed && (movement?.rangeOfMotionDeg ?? 0) > 0
   let romDeg: number | null = null
-  let smoothness = 0.5
+  let smoothness = movement?.smoothness ?? 0.5
   let romSource: 'camera' | 'sensor' | 'fused' | 'none' = 'none'
-  if (camOk && sensorOk) {
+
+  if (camOk && sensorRomOk) {
     romDeg = 0.6 * cameraRom!.rangeOfMotionDeg + 0.4 * movement!.rangeOfMotionDeg
     smoothness = 0.6 * cameraRom!.smoothness + 0.4 * movement!.smoothness
     romSource = 'fused'
   } else if (camOk) {
-    romDeg = cameraRom!.rangeOfMotionDeg; smoothness = cameraRom!.smoothness; romSource = 'camera'
-  } else if (sensorOk) {
-    romDeg = movement!.rangeOfMotionDeg; smoothness = movement!.smoothness; romSource = 'sensor'
+    romDeg = cameraRom!.rangeOfMotionDeg
+    smoothness = cameraRom!.smoothness
+    romSource = 'camera'
+  } else if (sensorRomOk) {
+    romDeg = movement!.rangeOfMotionDeg
+    smoothness = movement!.smoothness
+    romSource = 'sensor'
   }
-  const romNorm = romDeg !== null ? Math.max(0, Math.min(1, (romDeg - 20) / 130)) : 0.5
-  if (romDeg !== null && romDeg < 90) factors.push({ label: `Reduced range of motion (${Math.round(romDeg)}°)`, weight: (90 - romDeg) / 20 })
+
+  const romNorm = romDeg !== null && romDeg > 0 ? Math.max(0, Math.min(1, (romDeg - 20) / 130)) : 0.5
+  if (romDeg !== null && romDeg > 0 && romDeg < 90) factors.push({ label: `Reduced range of motion (${Math.round(romDeg)}°)`, weight: (90 - romDeg) / 20 })
   if (romDeg !== null && smoothness < 0.5) factors.push({ label: 'Uneven movement pattern', weight: (1 - smoothness) * 3 })
 
   // Build 13-feature vector (must match training order exactly)

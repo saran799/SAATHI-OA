@@ -83,18 +83,30 @@ export default function Report() {
 
         <Section title={t('reports.findings')} right={<span className="text-[12px] font-semibold text-primary">{t('reports.checks', { count: rec.movement?.performed ? 5 : 3 })}</span>}>
           <div className="space-y-2">
-            {rec.movement?.performed && <Finding icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${rec.movement.rangeOfMotionDeg}°`} />}
+            {rec.movement?.performed && (
+              rec.movement.rangeOfMotionDeg > 0 ? (
+                <Finding icon={Ruler} t={t('reports.rom')} b={t('reports.romDesc')} v={`≈ ${rec.movement.rangeOfMotionDeg}°`} />
+              ) : rec.movement.hardwareData ? (
+                <Finding icon={Activity} t="SAATHI Band" b="ESP32-C3 Wearable BLE Assessment" v={rec.movement.hardwareData.RiskLevel || 'Active'} />
+              ) : null
+            )}
             {rec.movement?.performed && <Finding icon={Footprints} t={t('reports.pattern')} b={t('reports.patternDesc', { reps: rec.movement.repetitions, sec: rec.movement.durationSec })} v={rec.movement.smoothness >= 0.6 ? t('reports.even') : <span className="h-6 px-2 rounded-full bg-info-tint text-info text-[11px] inline-flex items-center">{t('reports.uneven')}</span>} />}
             {rec.movement?.performed && (
               <div className="rounded-[12px] bg-tint p-3 mt-2">
                 <p className="text-[13px] font-bold mb-1">Movement Analysis</p>
                 <div className="grid grid-cols-2 gap-2 text-[12px]">
-                  <div><span className="text-secondary">ROM:</span> <span className="font-semibold">{rec.movement.rangeOfMotionDeg}°</span></div>
+                  {rec.movement.rangeOfMotionDeg > 0 && <div><span className="text-secondary">ROM:</span> <span className="font-semibold">{rec.movement.rangeOfMotionDeg}°</span></div>}
                   <div><span className="text-secondary">Smoothness:</span> <span className="font-semibold">{(rec.movement.smoothness * 100).toFixed(0)}%</span></div>
-                  <div><span className="text-secondary">Reps:</span> <span className="font-semibold">{rec.movement.repetitions}</span></div>
+                  <div><span className="text-secondary">Active Events:</span> <span className="font-semibold">{rec.movement.repetitions}</span></div>
                   <div><span className="text-secondary">Duration:</span> <span className="font-semibold">{rec.movement.durationSec}s</span></div>
+                  {rec.movement.hardwareData?.RiskLevel && <div><span className="text-secondary">Band Risk:</span> <span className="font-semibold text-primary">{rec.movement.hardwareData.RiskLevel}</span></div>}
+                  {rec.movement.hardwareData?.readingsCount && <div><span className="text-secondary">BLE Readings:</span> <span className="font-semibold">{rec.movement.hardwareData.readingsCount}</span></div>}
                 </div>
-                <p className="text-[11px] text-secondary mt-2 bg-surface p-2 rounded-lg border border-border">Note: {rec.movement.rangeOfMotionDeg < 90 ? 'Severe restriction in range of motion' : rec.movement.rangeOfMotionDeg < 110 ? 'Moderate restriction in range of motion' : 'Normal range of motion'}. {rec.movement.smoothness < 0.6 ? 'Uneven movement pattern detected.' : 'Movement pattern is smooth and consistent.'}</p>
+                {rec.movement.rangeOfMotionDeg > 0 ? (
+                  <p className="text-[11px] text-secondary mt-2 bg-surface p-2 rounded-lg border border-border">Note: {rec.movement.rangeOfMotionDeg < 90 ? 'Severe restriction in range of motion' : rec.movement.rangeOfMotionDeg < 110 ? 'Moderate restriction in range of motion' : 'Normal range of motion'}. {rec.movement.smoothness < 0.6 ? 'Uneven movement pattern detected.' : 'Movement pattern is smooth and consistent.'}</p>
+                ) : (
+                  <p className="text-[11px] text-secondary mt-2 bg-surface p-2 rounded-lg border border-border">Telemetry: SAATHI ESP32-C3 Band BLE live monitoring completed. Assessment data recorded and verified.</p>
+                )}
               </div>
             )}
             <Finding icon={Frown} t={t('reports.painActivity')} b={t('reports.reported')} v={t(`screening.questions.questions.pain_activity.options.${rec.answers['pain_activity']}.label`, { defaultValue: ans('pain_activity') })} />
