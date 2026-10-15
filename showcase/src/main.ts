@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { buildWorld } from './world'
+import { buildWorld, groundHeight } from './world'
 import { person, resetPose, walkPose, sitPose, holdPhonePose, kneelPose, sensorDevice, ashaBag, tripod, type Rig } from './characters'
 import { createPhone, logoImg, markImg, screenAt, SCREENS } from './phone'
 import { buildArchitecture } from './architecture'
@@ -540,6 +540,8 @@ const SEGS: Seg[] = [
     l: ARCH_KEYS_L.map(([tt, x, y, z]) => [tt - 116 + T.arch, x, y, z]) } },
 ]
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3()
+/** minimum height the film camera keeps above the terrain */
+const CAM_CLEARANCE = 1.2
 function evalSeg(s: Seg, t: number, p: THREE.Vector3, l: THREE.Vector3) {
   if (s.proc) s.proc(t, p, l)
   else if (s.keys) { splineAt(s.keys.p, t, p); splineAt(s.keys.l, t, l) }
@@ -602,14 +604,35 @@ function updateMonitor(t: number) {
   if (!dash.group.visible) return
   dash.render(t)
   const dist = 2.5
-  const visH = 2 * dist * Math.tan((camera.fov * DEG) / 2), visW = visH * camera.aspect
-  const s = Math.min(1, (visW * 0.94) / dash.size.w, (visH * 0.8) / dash.size.h)
-  const wideAsp = camera.aspect > 1.15
-  tmpV.set(0, (wideAsp ? -0.09 : 0) - (1 - k) * 0.5, -dist).applyMatrix4(camera.matrixWorld)
-  dash.group.position.copy(tmpV)
-  dash.group.quaternion.copy(camera.quaternion).multiply(tmpQ.setFromEuler(new THREE.Euler(-0.04 * (1 - k), Math.sin(t * 0.35) * 0.025, 0)))
-  dash.group.scale.setScalar(s * (0.9 + 0.1 * k))
+  const cy = (camera.aspect > 1.15 ? -0.05 : 0) - (1 - k) * 0.5
+  const tanH = Math.tan((camera.fov * DEG) / 2)
+  // Start from an analytic fit, then measure what actually lands on screen and correct.
+  // (The analytic fit alone cropped the dashboard, because the monitor is tilted with the
+  // camera and its on-screen footprint doesn't match its world size.)
+  dash.group.scale.setScalar(Math.min((2 * dist * tanH * camera.aspect * 0.9) / dash.size.w, (2 * dist * tanH * 0.81) / dash.size.h))
+  const wantW = 1.80, wantH = 1.60 // NDC units; the full screen is 2.0 x 2.0
+  for (let iter = 0; iter < 4; iter++) {
+    const sc = dash.group.scale.x * (0.9 + 0.1 * k)
+    dash.group.scale.setScalar(sc)
+    tmpV.set(-dash.center.x * sc, cy - dash.center.y * sc, -dist).applyMatrix4(camera.matrixWorld)
+    dash.group.position.copy(tmpV)
+    dash.group.quaternion.copy(camera.quaternion).multiply(tmpQ.setFromEuler(new THREE.Euler(-0.04 * (1 - k), Math.sin(t * 0.35) * 0.025, 0)))
+    dash.group.updateMatrixWorld(true)
+    let minX = 9, maxX = -9, minY = 9, maxY = -9
+    for (let i = 0; i < 8; i++) {
+      mv.set(dash.center.x + (i & 1 ? dash.size.w / 2 : -dash.size.w / 2),
+        dash.center.y + (i & 2 ? dash.size.h / 2 : -dash.size.h / 2),
+        i & 4 ? 0.05 : -0.05)
+      dash.group.localToWorld(mv).project(camera)
+      minX = Math.min(minX, mv.x); maxX = Math.max(maxX, mv.x)
+      minY = Math.min(minY, mv.y); maxY = Math.max(maxY, mv.y)
+    }
+    const f = Math.min(wantW / (maxX - minX), wantH / (maxY - minY))
+    if (Math.abs(f - 1) < 0.015 && Math.abs((minY + maxY) / 2 - cy) < 0.015) break
+    dash.group.scale.setScalar(sc * f)
+  }
 }
+const mv = new THREE.Vector3()
 
 /* =============================== 2D overlay (minimal text) =============================== */
 const CAPTIONS: [number, number, string, string, boolean?][] = [
@@ -1230,6 +1253,10 @@ function frame(now: number) {
     camLook.copy(controls.target)
   } else {
     cameraAt(t, camPos, camLook)
+    // Never let the camera sink into the hillside (the opening shot used to start 31 units
+    // underground). The margin is small so deliberate low shots keep their framing.
+    const gClear = groundHeight(camPos.x, camPos.z) + CAM_CLEARANCE
+    if (camPos.y < gClear) camPos.y = gClear
     camera.position.copy(camPos)
     camera.lookAt(camLook)
   }
@@ -1270,5 +1297,43 @@ function frame(now: number) {
 requestAnimationFrame(frame)
 
 // expose for debugging / screenshots
-;(window as unknown as { saathi: unknown }).saathi = { seek: (s: number) => { t = s }, get t() { return t }, play: () => setPlaying(true), pause: () => setPlaying(false), SCREENS, easeOut, phoneCanvas: phoneKit.canvas,
+/* ---------------- dev probe: lets the audit script inspect the scene ---------------- */
+const PROBES: [string, THREE.Object3D][] = [
+  ['sunita', A.root], ['tashi', K.root], ['pod', sensor],
+  ['handPhone', handPhone], ['standPhone', standPhone], ['heroPhone', heroPhone],
+  ['monitor', dash.group], ['anat', lab.anat], ['labRig', lab.lab], ['arch', arch.root],
+]
+const _pb = new THREE.Box3(), _pc = new THREE.Vector3(), _pv = new THREE.Vector3()
+function probe() {
+  const out: Record<string, unknown> = { t: +t.toFixed(2), cam: camera.position.toArray().map(n => +n.toFixed(1)) }
+  out.nan = !Number.isFinite(camera.position.x + camera.position.y + camera.position.z)
+  for (const [name, o] of PROBES) {
+    let vis = o.visible, par: THREE.Object3D | null = o.parent
+    while (vis && par) { vis = par.visible; par = par.parent }
+    if (!vis) { out[name] = null; continue }
+    _pb.setFromObject(o)
+    if (_pb.isEmpty()) { out[name] = null; continue }
+    _pb.getCenter(_pc)
+    let minx = 9, maxx = -9, miny = 9, maxy = -9, behind = 0
+    for (let i = 0; i < 8; i++) {
+      _pv.set(i & 1 ? _pb.max.x : _pb.min.x, i & 2 ? _pb.max.y : _pb.min.y, i & 4 ? _pb.max.z : _pb.min.z).project(camera)
+      if (_pv.z > 1) behind++
+      minx = Math.min(minx, _pv.x); maxx = Math.max(maxx, _pv.x)
+      miny = Math.min(miny, _pv.y); maxy = Math.max(maxy, _pv.y)
+    }
+    out[name] = { x: +((minx + maxx) / 2).toFixed(2), y: +((miny + maxy) / 2).toFixed(2),
+      w: +(maxx - minx).toFixed(2), h: +(maxy - miny).toFixed(2), behind,
+      dist: +camera.position.distanceTo(_pc).toFixed(1) }
+  }
+  return out
+}
+
+;(window as unknown as { saathi: unknown }).saathi = { seek: (s: number) => { t = s }, get t() { return t }, play: () => setPlaying(true), pause: () => setPlaying(false), SCREENS, easeOut, probe, phoneCanvas: phoneKit.canvas,
+  tick: () => frame(performance.now()),
+  dashGroup: dash.group,
+  ground: (x: number, z: number) => groundHeight(x, z),
+  camAt: (s: number) => { const pp = new THREE.Vector3(), ll = new THREE.Vector3(); cameraAt(s, pp, ll); return { p: pp.toArray(), l: ll.toArray() } },
+  dashInfo: () => ({ vis: dash.group.visible, k: monitorK(t), scale: +dash.group.scale.x.toFixed(3),
+    pos: dash.group.position.toArray().map(n => +n.toFixed(2)), size: dash.size,
+    cam: camera.position.toArray().map(n => +n.toFixed(1)), fov: camera.fov, aspect: +camera.aspect.toFixed(3) }),
   phoneRect: () => { const v = new THREE.Vector3(); heroScreen.getWorldPosition(v); v.project(camera); return { x: v.x * 0.5 + 0.5, y: -v.y * 0.5 + 0.5, z: v.z, vis: heroPhone.visible } } }

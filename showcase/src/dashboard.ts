@@ -417,9 +417,16 @@ export function createDashboardMonitor() {
   screen.position.z = 0.06; group.add(screen)
   const neck = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.34, 0.05), new THREE.MeshStandardMaterial({ color: '#2A2F38', roughness: 0.4, metalness: 0.5 }))
   neck.position.set(0, -SH / 2 - 0.2, -0.06); group.add(neck)
+  // Measure the whole monitor (bezel + neck), not just the bezel: fitting to the bezel alone
+  // pushed the neck off the bottom of the screen and cropped the dashboard.
+  group.updateMatrixWorld(true)
+  const bbox = new THREE.Box3().setFromObject(group)
+  const size = { w: bbox.max.x - bbox.min.x, h: bbox.max.y - bbox.min.y }
+  const center = { x: (bbox.max.x + bbox.min.x) / 2, y: (bbox.max.y + bbox.min.y) / 2 }
+
   let lastDraw = -1
   return {
-    group, size: { w: SW + 0.1, h: SH + 0.1 },
+    group, size, center,
     render(t: number) {
       const q = Math.round(t * 30) / 30
       if (q === lastDraw) return
