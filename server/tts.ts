@@ -34,39 +34,40 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
       name = undefined;
     }
 
-    let response;
+    let audioBuffer: Buffer | null = null;
     if (GOOGLE_TTS_API_KEY) {
-      response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: { text },
-          voice: {
-            languageCode,
-            ...(name ? { name } : {})
-          },
-          audioConfig: {
-            audioEncoding: 'MP3'
+      try {
+        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: { text },
+            voice: {
+              languageCode,
+              ...(name ? { name } : {})
+            },
+            audioConfig: {
+              audioEncoding: 'MP3'
+            }
+          })
+        });
+        
+        if (response.ok) {
+          const data: any = await response.json();
+          if (data.audioContent) {
+            audioBuffer = Buffer.from(data.audioContent, 'base64');
           }
-        })
-      });
-      
-      if (!response.ok) {
-        console.error(`Google TTS Error (${response.status})`);
-        return res.status(response.status).json({ error: 'Cloud TTS request failed' });
+        } else {
+          const errorDetails = await response.text().catch(() => '');
+          console.warn(`Google Cloud TTS responded with error (${response.status}): ${errorDetails}. Falling back to Google Translate TTS.`);
+        }
+      } catch (cloudErr) {
+        console.warn('Google Cloud TTS request threw an exception. Falling back to Google Translate TTS:', cloudErr);
       }
+    }
 
-      const data: any = await response.json();
-      if (data.audioContent) {
-        const buffer = Buffer.from(data.audioContent, 'base64');
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Content-Length', buffer.length.toString());
-        return res.send(buffer);
-      } else {
-        return res.status(500).json({ error: 'No audio returned' });
-      }
-    } else {
-      // Fallback to free Google Translate TTS if no API key is provided
+    // Fallback to free Google Translate TTS if Cloud TTS was not used, failed, or key was disabled
+    if (!audioBuffer) {
       // Extract the short lang code (e.g., 'as' from 'as-IN')
       let shortLang = languageCode.split('-')[0];
       // Assamese and Manipuri are not directly supported by translate_tts, map to Bengali (similar script)
@@ -75,7 +76,7 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
       }
       const translateUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${shortLang}&client=tw-ob&q=${encodeURIComponent(text)}`;
       
-      response = await fetch(translateUrl, {
+      const response = await fetch(translateUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -86,10 +87,15 @@ router.post('/', async (req: Request, res: Response): Promise<any> => {
         return res.status(response.status).json({ error: 'Translate TTS request failed' });
       }
 
-      const buffer = Buffer.from(await response.arrayBuffer());
+      audioBuffer = Buffer.from(await response.arrayBuffer());
+    }
+
+    if (audioBuffer && audioBuffer.length > 0) {
       res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Content-Length', buffer.length.toString());
-      return res.send(buffer);
+      res.setHeader('Content-Length', audioBuffer.length.toString());
+      return res.send(audioBuffer);
+    } else {
+      return res.status(500).json({ error: 'No audio returned' });
     }
   } catch (err) {
     console.error('TTS endpoint error:', err);

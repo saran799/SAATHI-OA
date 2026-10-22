@@ -14,6 +14,10 @@ export default function Calibration() {
   const [step, setStep] = useState(0)
   const [verifying, setVerifying] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [packetCount, setPacketCount] = useState(0)
+  const [latestPacket, setLatestPacket] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const cancel = useRef<(() => void) | null>(null)
 
   useEffect(() => () => cancel.current?.(), [])
@@ -22,26 +26,40 @@ export default function Calibration() {
   const checkReadiness = () => {
     setFailed(false)
     setVerifying(true)
+    setProgress(0)
+    setPacketCount(0)
+    setLatestPacket(null)
+    setErrorMessage(null)
     setStep(2)
 
-    // Verify actual BLE connection to Saathi-Band
-    const state = sensor.getState()
-    if (state === 'ready') {
-      setTimeout(() => {
+    cancel.current?.()
+
+    // Listen for live packets during calibration
+    let count = 0
+    const unsubPackets = sensor.onNotification((reading) => {
+      count++
+      setPacketCount(count)
+      setLatestPacket(reading.raw)
+    })
+
+    const cancelCalibrate = sensor.calibrate(
+      (pct) => setProgress(pct),
+      (ok) => {
+        unsubPackets()
         setVerifying(false)
-        setStep(3)
-      }, 600)
-    } else {
-      // Try to re-verify readiness
-      cancel.current = sensor.connect((newState) => {
-        if (newState === 'ready') {
-          setVerifying(false)
+        if (ok) {
           setStep(3)
-        } else if (newState === 'error' || newState === 'disconnected') {
-          setVerifying(false)
+        } else {
           setFailed(true)
+          const info = sensor.getErrorInfo()
+          setErrorMessage(info?.diagnosticTip || 'No MPU6050 telemetry received. Verify that the ESP32-C3 is transmitting.')
         }
-      })
+      }
+    )
+
+    cancel.current = () => {
+      unsubPackets()
+      cancelCalibrate()
     }
   }
 
@@ -133,8 +151,29 @@ export default function Calibration() {
         {step === 2 && verifying && (
           <div className="mt-6 flex flex-col items-center p-4 bg-tint rounded-[14px]">
             <Bluetooth size={32} className="text-primary pulse-dot mb-3" />
-            <p className="text-[14px] font-semibold text-ink">Verifying BLE connection…</p>
-            <p className="text-[12px] text-secondary mt-1">Checking GATT notification readiness with {BLE_DEVICE_NAME}</p>
+            <p className="text-[15px] font-bold text-ink">Verifying MPU6050 Telemetry Stream…</p>
+            <p className="text-[12px] text-secondary mt-1">Sampling live BLE notification packets from {BLE_DEVICE_NAME}</p>
+
+            <div className="w-full bg-border rounded-full h-2.5 mt-4 overflow-hidden">
+              <div
+                className="bg-primary h-2.5 rounded-full transition-all duration-150"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between w-full text-[12px] px-1">
+              <span className="text-secondary">Progress: <strong className="text-ink">{progress}%</strong></span>
+              <span className="text-secondary">Packets Received: <strong className="text-primary font-mono">{packetCount}</strong></span>
+            </div>
+
+            {latestPacket ? (
+              <div className="mt-3 px-3 py-1.5 rounded-lg bg-mint/50 border border-mint text-primary-dark font-mono text-[12px] flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-primary pulse-dot" />
+                <span>Live Packet: <strong>{latestPacket}</strong></span>
+              </div>
+            ) : (
+              <p className="mt-3 text-[11px] text-muted italic">Waiting for initial notification from ESP32-C3...</p>
+            )}
           </div>
         )}
 
@@ -143,18 +182,28 @@ export default function Calibration() {
             <span className="h-16 w-16 rounded-full bg-mint text-primary-dark flex items-center justify-center">
               <CheckCircle2 size={36} aria-hidden />
             </span>
-            <p className="mt-3 font-bold text-primary-dark text-[16px]">Sensor Ready for Assessment</p>
+            <p className="mt-3 font-bold text-primary-dark text-[16px]">Sensor Calibrated & Ready</p>
             <p className="text-[12px] text-secondary mt-1 max-w-[280px]">
-              BLE telemetry channel verified. Ready to record genuine movement and risk notifications.
+              BLE telemetry channel verified. Received live MPU6050 packets ({packetCount} sampled). Ready for real movement assessment.
             </p>
+            {latestPacket && (
+              <span className="mt-2 text-[11px] font-mono bg-mint-soft text-primary-dark px-2 py-0.5 rounded">
+                Verified stream: {latestPacket}
+              </span>
+            )}
           </div>
         )}
       </div>
 
       {step === 2 && failed && (
         <div className="mt-4">
-          <Callout tone="error" title="Sensor Not Ready">
-            Could not verify connection with {BLE_DEVICE_NAME}. Ensure the band is paired and within Bluetooth range.
+          <Callout tone="error" title="Sensor Telemetry Verification Failed">
+            <div className="space-y-2 text-[13px]">
+              <p>{errorMessage || `Could not verify live telemetry packets from ${BLE_DEVICE_NAME}.`}</p>
+              <p className="text-[12px] text-secondary">
+                Ensure the band is powered on, MPU6050 sensor wires are firmly connected, and the band is within Bluetooth range.
+              </p>
+            </div>
           </Callout>
         </div>
       )}

@@ -10,6 +10,7 @@
 import {
   WebBluetoothSensor,
   parseBlePayload,
+  checkSupportDetails,
   BLE_DEVICE_NAME,
   BLE_SERVICE_UUID,
   BLE_CHARACTERISTIC_UUID,
@@ -497,6 +498,54 @@ async function runAllTests() {
     assert(riskResult.factors.some(f => f.includes('SAATHI Band Risk (HIGH)')), 'Hardware risk factor clearly documented in result factors')
     // Crucial: ensure no fake "Reduced range of motion (0°)" was invented!
     assert(!riskResult.factors.some(f => f.includes('(0°)')), 'Does NOT invent a fabricated 0° range of motion restriction')
+  }
+
+  // ── 6. Sensor Calibration with Live Telemetry & Platform Diagnostics ──
+  console.log(`\n${BOLD}6. Sensor Calibration & Live Telemetry Verification:${RESET}`)
+  {
+    const { mockBt, characteristic } = setupWorkingDevice()
+    const sensor = new WebBluetoothSensor(mockBt)
+
+    // A. Calibration fails when disconnected
+    let calDisconnectedOk: boolean | null = null
+    sensor.calibrate(() => {}, (ok) => { calDisconnectedOk = ok })
+    assert(calDisconnectedOk === false, 'Calibration fails immediately when disconnected')
+
+    // Connect to device
+    let connectedState = ''
+    sensor.connect((s) => { connectedState = s })
+    await sleep(350)
+    assert(connectedState === 'ready', 'Sensor connected and ready for calibration')
+
+    // B. Calibration fails when GATT is connected but zero telemetry packets arrive (no fake success!)
+    let calZeroOk: boolean | null = null
+    sensor.calibrate(() => {}, (ok) => { calZeroOk = ok }, { durationMs: 150 })
+    await sleep(220)
+    assert(calZeroOk === false, 'Calibration fails when zero packets arrive during sampling window (never fakes success)')
+    assert(sensor.getErrorInfo()?.errorName === 'NoTelemetryError', 'Identifies NoTelemetryError when MPU6050 packets are absent')
+
+    // C. Calibration succeeds when genuine telemetry packets arrive
+    let calSuccessOk: boolean | null = null
+    let calProgress = 0
+    sensor.calibrate((pct) => { calProgress = pct }, (ok) => { calSuccessOk = ok }, { durationMs: 200 })
+
+    // Simulate live MPU6050 packets arriving during calibration window
+    setTimeout(() => {
+      characteristic.simulateNotification('0,LOW')
+    }, 50)
+    setTimeout(() => {
+      characteristic.simulateNotification('1,LOW')
+    }, 100)
+
+    await sleep(280)
+    assert(calSuccessOk === true, 'Calibration succeeds when genuine MPU6050 packets arrive')
+    assert(sensor.getState() === 'calibrated', 'Sensor state transitions to calibrated')
+    assert(calProgress === 100, 'Calibration progress reaches 100%')
+
+    // D. Platform support checking
+    const nullBtSupport = await checkSupportDetails(null)
+    assert(!nullBtSupport.supported, 'checkSupportDetails detects unsupported browser when Bluetooth API is absent')
+    assert(nullBtSupport.diagnosticTip?.includes('Google Chrome') || false, 'Provides actionable browser recommendation')
   }
 
   // Summary Report

@@ -41,7 +41,7 @@ export default function SensorConnect() {
     }
   }, [])
 
-  const handleConnect = () => {
+  const handleConnect = (options?: { scanAll?: boolean }) => {
     setErrorInfo(null)
     cancel.current?.()
     cancel.current = sensor.connect((s) => {
@@ -52,7 +52,7 @@ export default function SensorConnect() {
       } else {
         setErrorInfo(null)
       }
-    })
+    }, options)
   }
 
   const handleDisconnect = () => {
@@ -91,9 +91,13 @@ export default function SensorConnect() {
           </Button>
         ) : state === 'error' ? (
           <div className="space-y-2">
-            <Button full onClick={handleConnect}>
+            <Button full onClick={() => handleConnect()}>
               <RefreshCw size={18} aria-hidden />
               {t('screening.sensor.retry')}
+            </Button>
+            <Button full variant="secondary" onClick={() => handleConnect({ scanAll: true })}>
+              <Bluetooth size={18} aria-hidden />
+              Scan All Nearby BLE Devices
             </Button>
             <button
               className="w-full h-11 text-[14px] font-semibold text-primary"
@@ -106,7 +110,7 @@ export default function SensorConnect() {
             </button>
           </div>
         ) : (
-          <Button full loading={busy} onClick={handleConnect} disabled={busy}>
+          <Button full loading={busy} onClick={() => handleConnect()} disabled={busy}>
             {busy ? (stageLabels[stage] || t('screening.sensor.connecting')) : t('screening.sensor.connectBtn')}
           </Button>
         )

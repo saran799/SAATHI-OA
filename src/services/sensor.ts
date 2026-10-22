@@ -60,7 +60,7 @@ export interface MovementSample {
 }
 
 export interface SensorAdapter {
-  connect(onState: (s: SensorState) => void, opts?: { fail?: boolean }): () => void
+  connect(onState: (s: SensorState) => void, opts?: { fail?: boolean; scanAll?: boolean }): () => void
   disconnect(): void
   getState(): SensorState
   getStage(): ConnectionStage
@@ -73,7 +73,7 @@ export interface SensorAdapter {
   getErrorInfo(): BleErrorInfo | null
   getErrorMessage(): string | null
   onNotification(cb: (reading: BleReading) => void): () => void
-  calibrate(onProgress: (pct: number) => void, onDone: (ok: boolean) => void, opts?: { fail?: boolean }): () => void
+  calibrate(onProgress: (pct: number) => void, onDone: (ok: boolean) => void, opts?: { fail?: boolean; durationMs?: number }): () => void
   startAssessment(
     onSample: (s: MovementSample) => void,
     onRep: (n: number) => void,
@@ -84,46 +84,173 @@ export interface SensorAdapter {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+export interface BleSupportDetails {
+  supported: boolean
+  isSecureContext: boolean
+  hasBluetoothApi: boolean
+  isIOS: boolean
+  isBrave: boolean
+  isFirefox: boolean
+  radioAvailable?: boolean
+  reason?: string
+  diagnosticTip?: string
+}
+
+export async function checkSupportDetails(customBluetoothProvider?: any): Promise<BleSupportDetails> {
+  const isSecureContext = typeof window !== 'undefined' ? window.isSecureContext !== false : true
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+  const isBrave = typeof navigator !== 'undefined' && (!!(navigator as any).brave || /Brave/.test(ua))
+  const isFirefox = typeof navigator !== 'undefined' && /Firefox/.test(ua)
+  const bluetooth = customBluetoothProvider || (typeof navigator !== 'undefined' && (navigator as any).bluetooth)
+  const hasBluetoothApi = !!bluetooth
+
+  if (!isSecureContext) {
+    return {
+      supported: false,
+      isSecureContext,
+      hasBluetoothApi,
+      isIOS,
+      isBrave,
+      isFirefox,
+      reason: 'Insecure Context (HTTP)',
+      diagnosticTip: 'Web Bluetooth requires a secure HTTPS connection. Please load https://saathi-oa.vercel.app with HTTPS.'
+    }
+  }
+
+  if (isIOS) {
+    return {
+      supported: false,
+      isSecureContext,
+      hasBluetoothApi: false,
+      isIOS,
+      isBrave,
+      isFirefox,
+      reason: 'Apple iOS WebKit Limitation',
+      diagnosticTip: 'Apple iOS does not support Web Bluetooth in any browser (Safari, Chrome, or Firefox on iPhone/iPad). Please open this app in Google Chrome or Microsoft Edge on an Android phone, Mac, Windows, or Linux device.'
+    }
+  }
+
+  if (isFirefox) {
+    return {
+      supported: false,
+      isSecureContext,
+      hasBluetoothApi: false,
+      isIOS,
+      isBrave,
+      isFirefox,
+      reason: 'Firefox Unsupported',
+      diagnosticTip: 'Mozilla Firefox does not support Web Bluetooth. Please open this app in Google Chrome or Microsoft Edge.'
+    }
+  }
+
+  if (!hasBluetoothApi) {
+    if (isBrave) {
+      return {
+        supported: false,
+        isSecureContext,
+        hasBluetoothApi: false,
+        isIOS,
+        isBrave,
+        isFirefox,
+        reason: 'Brave Shields Disabled Bluetooth API',
+        diagnosticTip: 'Brave Browser blocks Web Bluetooth by default. Click the Brave Shields icon (lion) in the address bar and turn Shields down for this site, or open in Google Chrome.'
+      }
+    }
+    return {
+      supported: false,
+      isSecureContext,
+      hasBluetoothApi: false,
+      isIOS,
+      isBrave,
+      isFirefox,
+      reason: 'Web Bluetooth Not Supported',
+      diagnosticTip: 'Web Bluetooth is not supported in this browser. Please use Google Chrome or Microsoft Edge on Android or PC.'
+    }
+  }
+
+  let radioAvailable = true
+  if (bluetooth && typeof bluetooth.getAvailability === 'function') {
+    try {
+      radioAvailable = await bluetooth.getAvailability()
+    } catch {
+      radioAvailable = true
+    }
+  }
+
+  if (!radioAvailable) {
+    return {
+      supported: false,
+      isSecureContext,
+      hasBluetoothApi: true,
+      isIOS,
+      isBrave,
+      isFirefox,
+      radioAvailable: false,
+      reason: 'Bluetooth Radio Disabled',
+      diagnosticTip: 'Web Bluetooth is supported, but Bluetooth is turned off or unavailable on this device. Please turn on Bluetooth in your device settings.'
+    }
+  }
+
+  return {
+    supported: true,
+    isSecureContext,
+    hasBluetoothApi: true,
+    isIOS: false,
+    isBrave,
+    isFirefox: false,
+    radioAvailable: true
+  }
+}
+
 /**
  * Diagnostic error mapper. Identifies the exact stage of failure and
  * provides specific, actionable troubleshooting guidance for Android Chrome.
  */
-export function createBleErrorInfo(stage: ConnectionStage, error: any): BleErrorInfo {
+export function createBleErrorInfo(stage: ConnectionStage, error: any, customTip?: string): BleErrorInfo {
   const errorName = error?.name || 'Error'
   const message = error?.message || String(error)
-  let diagnosticTip = ''
+  let diagnosticTip = customTip || ''
 
-  switch (stage) {
-    case 'checking_support':
-      diagnosticTip = 'Web Bluetooth is not supported in this browser. Please open in Google Chrome on an Android device or PC with Bluetooth enabled.'
-      break
-    case 'requesting_device':
-      if (errorName === 'NotFoundError') {
-        diagnosticTip = 'Device selection was cancelled. Make sure the SAATHI Band is powered on and tap Connect to choose "Saathi-Band".'
-      } else if (errorName === 'SecurityError') {
-        diagnosticTip = 'Bluetooth permission was denied. Please allow Nearby Devices / Bluetooth permission in Android Chrome site settings.'
-      } else {
-        diagnosticTip = 'Failed to scan for Bluetooth devices. Check that Bluetooth and Location are turned on in your Android settings.'
-      }
-      break
-    case 'connecting_gatt':
-      if (errorName === 'NetworkError') {
-        diagnosticTip = 'GATT connection failed (Android status 133). Turn the band off and on, ensure no other phone is connected to it, and tap Retry.'
-      } else {
-        diagnosticTip = 'Could not establish connection with Saathi-Band. Ensure the band is in close proximity and tap Retry.'
-      }
-      break
-    case 'discovering_service':
-      diagnosticTip = `Primary service (${BLE_SERVICE_UUID}) could not be resolved on the device. Confirm that the ESP32-C3 firmware has registered this exact UUID.`
-      break
-    case 'discovering_characteristic':
-      diagnosticTip = `Characteristic (${BLE_CHARACTERISTIC_UUID}) could not be found. Confirm characteristic registration in firmware.`
-      break
-    case 'subscribing_notifications':
-      diagnosticTip = 'Failed to subscribe to live BLE notifications. Verify that the band characteristic has NOTIFY or INDICATE enabled in its GATT descriptor.'
-      break
-    default:
-      diagnosticTip = 'An unexpected Bluetooth error occurred. Try disconnecting and tapping Retry.'
+  if (!diagnosticTip) {
+    switch (stage) {
+      case 'checking_support':
+        diagnosticTip = 'Web Bluetooth is not supported in this browser. Please open in Google Chrome on an Android device or PC with Bluetooth enabled.'
+        break
+      case 'requesting_device':
+        if (errorName === 'NotFoundError') {
+          diagnosticTip = 'Device selection was cancelled or no matching band was found. Make sure the SAATHI Band (ESP32-C3) is powered on and advertising. You can also tap "Scan All Devices".'
+        } else if (errorName === 'SecurityError') {
+          diagnosticTip = 'Bluetooth permission was denied. Please allow Nearby Devices / Bluetooth permission in Android Chrome site settings.'
+        } else if (errorName === 'NotAllowedError') {
+          diagnosticTip = 'User gesture required. Tap the Connect button directly to open the device chooser.'
+        } else {
+          diagnosticTip = 'Failed to scan for Bluetooth devices. Check that Bluetooth and Location are turned on in your Android settings.'
+        }
+        break
+      case 'connecting_gatt':
+        if (errorName === 'NetworkError') {
+          diagnosticTip = 'GATT connection failed (Android status 133). Turn the band off and on, ensure no other phone is connected to it, toggle phone Bluetooth off/on, and tap Retry.'
+        } else {
+          diagnosticTip = 'Could not establish connection with Saathi-Band. Ensure the band is in close proximity and tap Retry.'
+        }
+        break
+      case 'discovering_service':
+        diagnosticTip = `Primary service (${BLE_SERVICE_UUID}) could not be resolved on the device. Confirm that the ESP32-C3 firmware has registered this exact UUID.`
+        break
+      case 'discovering_characteristic':
+        diagnosticTip = `Characteristic (${BLE_CHARACTERISTIC_UUID}) could not be found. Confirm characteristic registration in firmware.`
+        break
+      case 'subscribing_notifications':
+        diagnosticTip = 'Failed to subscribe to live BLE notifications. Verify that the band characteristic has NOTIFY or INDICATE enabled in its GATT descriptor.'
+        break
+      default:
+        if (errorName === 'NoTelemetryError') {
+          diagnosticTip = 'Band is connected over GATT, but no live telemetry packets were detected. Ensure the MPU6050 sensor is wired to ESP32-C3 I2C pins and the firmware is actively transmitting.'
+        } else {
+          diagnosticTip = 'An unexpected Bluetooth error occurred. Try disconnecting and tapping Retry.'
+        }
+    }
   }
 
   return {
@@ -299,7 +426,7 @@ export class WebBluetoothSensor implements SensorAdapter {
     return null
   }
 
-  public connect(onState: (s: SensorState) => void, _opts?: { fail?: boolean }): () => void {
+  public connect(onState: (s: SensorState) => void, opts?: { fail?: boolean; scanAll?: boolean }): () => void {
     this.stateListeners.add(onState)
 
     // Prevent duplicate connection attempts if already connected & ready
@@ -318,8 +445,13 @@ export class WebBluetoothSensor implements SensorAdapter {
       try {
         this.setStage('checking_support')
         const bluetooth = this.getBluetooth()
-        if (!bluetooth) {
-          throw new Error('Web Bluetooth is not supported in this browser. Please use Chrome or Edge over HTTPS.')
+        const support = await checkSupportDetails(bluetooth)
+        if (!support.supported) {
+          const err = new Error(support.reason || 'Web Bluetooth is not supported in this browser.')
+          err.name = 'NotSupportedError'
+          const info = createBleErrorInfo('checking_support', err, support.diagnosticTip)
+          this.setState('error', info)
+          return
         }
 
         this.setState('connecting')
@@ -327,10 +459,29 @@ export class WebBluetoothSensor implements SensorAdapter {
         currentStage = 'requesting_device'
         this.setStage('requesting_device')
 
-        const device = await bluetooth.requestDevice({
-          filters: [{ name: BLE_DEVICE_NAME }],
-          optionalServices: [BLE_SERVICE_UUID]
-        })
+        let device: any = null
+        if (opts?.scanAll) {
+          device = await bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [BLE_SERVICE_UUID]
+          })
+        } else {
+          device = await bluetooth.requestDevice({
+            filters: [
+              { name: BLE_DEVICE_NAME },
+              { name: 'SAATHI-Band' },
+              { name: 'Saathi_Band' },
+              { name: 'SAATHI Band' },
+              { name: 'Saathi' },
+              { name: 'SAATHI' },
+              { namePrefix: 'Saathi' },
+              { namePrefix: 'SAATHI' },
+              { namePrefix: 'saathi' },
+              { services: [BLE_SERVICE_UUID] }
+            ],
+            optionalServices: [BLE_SERVICE_UUID]
+          })
+        }
 
         if (!device) {
           throw new Error('No Bluetooth device was returned by chooser.')
@@ -506,11 +657,75 @@ export class WebBluetoothSensor implements SensorAdapter {
     }
   }
 
-  public calibrate(onProgress: (pct: number) => void, onDone: (ok: boolean) => void, _opts?: { fail?: boolean }): () => void {
-    const isReady = this.state === 'ready' && !!this.device?.gatt?.connected
-    onProgress(100)
-    onDone(isReady)
-    return () => {}
+  public calibrate(
+    onProgress: (pct: number) => void,
+    onDone: (ok: boolean) => void,
+    opts?: { fail?: boolean; durationMs?: number }
+  ): () => void {
+    if (this.state !== 'ready' || !this.device?.gatt?.connected) {
+      onProgress(0)
+      onDone(false)
+      return () => {}
+    }
+
+    if (opts?.fail) {
+      onProgress(50)
+      onDone(false)
+      return () => {}
+    }
+
+    this.setState('calibrating')
+    const duration = opts?.durationMs || 3000
+    const start = Date.now()
+    let packetCount = 0
+    let cancelled = false
+
+    const unsub = this.onNotification((_reading) => {
+      if (cancelled) return
+      packetCount++
+    })
+
+    const interval = setInterval(() => {
+      if (cancelled) {
+        clearInterval(interval)
+        return
+      }
+      const elapsed = Date.now() - start
+      const pct = Math.min(99, Math.round((elapsed / duration) * 100))
+      onProgress(pct)
+
+      if (elapsed >= duration) {
+        clearInterval(interval)
+        unsub()
+
+        if (packetCount > 0) {
+          this.setState('calibrated')
+          onProgress(100)
+          onDone(true)
+        } else {
+          this.setState('ready')
+          const info: BleErrorInfo = {
+            stage: 'ready',
+            errorName: 'NoTelemetryError',
+            message: 'No MPU6050 telemetry packets received during calibration window.',
+            diagnosticTip: 'Band is connected over GATT, but no live telemetry packets were detected. Ensure the MPU6050 sensor is wired to ESP32-C3 I2C pins and the firmware is actively transmitting.',
+            timestamp: Date.now()
+          }
+          this.errorInfo = info
+          onProgress(100)
+          onDone(false)
+        }
+      }
+    }, 100)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      unsub()
+      if (this.state === 'calibrating') {
+        this.setState('ready')
+      }
+    }
   }
 
   public startAssessment(
